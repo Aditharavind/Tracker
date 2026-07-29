@@ -67,6 +67,23 @@ roughly 9,500 XP.
 each person has got through today's list. The 75-square grid at the bottom is
 your current run -- click any past square to go back and fix that day.
 
+## Themes
+
+Four, switchable from the icons in the top bar and remembered in
+`localStorage`: **Dark**, **Light**, **Terminal** (green phosphor CRT, mono
+type, scanlines) and **Retro** (cream stock, hard ink outlines and offset
+shadows).
+
+Themes are pure token swaps on `[data-theme]` at the top of `styles.css` --
+no component knows which theme is active. Two variables do the work: `--u` is
+the individual player's colour and `--accent` is what the UI actually paints
+with. They're normally the same, but Terminal overrides `--accent` to phosphor
+green so the illusion holds while avatars keep their per-player tint. Adding a
+fifth theme means adding one token block, not touching any TSX.
+
+`index.html` sets `data-theme` from `localStorage` in a blocking inline script
+so you don't get a flash of dark before the bundle loads.
+
 ## API
 
 | | |
