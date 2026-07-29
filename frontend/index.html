@@ -7,6 +7,14 @@
     <title>75 Hard</title>
   </head>
   <body>
+    <script>
+      // Paint the saved theme before React boots, otherwise you get a flash of
+      // dark while the bundle loads.
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem("75hard.theme") || "dark";
+      } catch (e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

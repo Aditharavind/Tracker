@@ -7,7 +7,7 @@ function Check() {
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
       <path
         d="M2.5 6.2 4.8 8.5 9.5 3.8"
-        stroke="#0b0b0c"
+        stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"

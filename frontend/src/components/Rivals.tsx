@@ -17,8 +17,8 @@ export default function Rivals({ board, meId }: { board: Progress[]; meId: numbe
         {ranked.map((p) => {
           const pct = p.core_today ? (p.completed_today / p.core_today) * 100 : 0;
           return (
-            <div className="rival" key={p.user_id}>
-              <div className="avatar" style={{ background: p.color }}>
+            <div className="rival" key={p.user_id} style={{ ["--u" as string]: p.color }}>
+              <div className="avatar">
                 {p.name.slice(0, 1).toUpperCase()}
               </div>
               <div className="rival-body">
@@ -34,7 +34,7 @@ export default function Rivals({ board, meId }: { board: Progress[]; meId: numbe
                   {p.resets > 0 && ` · ${p.resets} restart${p.resets > 1 ? "s" : ""}`}
                 </div>
                 <div className="mini">
-                  <i style={{ width: `${pct}%`, background: p.color }} />
+                  <i style={{ width: `${pct}%` }} />
                 </div>
               </div>
             </div>

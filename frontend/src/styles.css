@@ -1,4 +1,17 @@
+/* Themes are token swaps on [data-theme]. Anything a theme needs to restyle
+   must resolve through a variable -- no literal colours below this block.
+   --u is the individual player's colour, --accent is whatever the current
+   theme decides to paint the UI with (usually --u, but the CRT themes
+   override it so the illusion holds). */
+
 :root {
+  --radius: 14px;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body-font: var(--sans);
+  --scanlines: none;
+  --glow: none;
+
   --bg: #0b0b0c;
   --panel: #131316;
   --raised: #1a1a1e;
@@ -9,9 +22,209 @@
   --dimmer: #5c5c66;
   --good: #4ea87a;
   --bad: #b8493f;
+  --future: #17171a;
+  --on-accent: #0b0b0c;
   --accent: #e8734a;
-  --radius: 14px;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+/* ---- light ------------------------------------------------------------ */
+
+[data-theme="light"] {
+  --bg: #f6f6f4;
+  --panel: #ffffff;
+  --raised: #f0f0ed;
+  --line: #dcdcd8;
+  --line-soft: #e7e7e3;
+  --text: #16161a;
+  --dim: #6c6c75;
+  --dimmer: #9c9ca4;
+  --good: #2f8656;
+  --bad: #c23c2c;
+  --future: #eaeae6;
+  --on-accent: #ffffff;
+}
+
+/* Light panels sit on a light page, so they need a shadow rather than a
+   border to read as raised. */
+[data-theme="light"] .card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .box {
+  border-color: #cfcfc9;
+}
+
+/* ---- terminal: green phosphor CRT ------------------------------------- */
+
+[data-theme="terminal"] {
+  --bg: #040805;
+  --panel: #070d08;
+  --raised: #0d150e;
+  --line: #1e3222;
+  --line-soft: #16241a;
+  --text: #b6ffcd;
+  --dim: #56a672;
+  --dimmer: #2f6b45;
+  --good: #35ff8a;
+  --bad: #ff6b6b;
+  --future: #081008;
+  --on-accent: #03150a;
+  --body-font: var(--mono);
+  --radius: 3px;
+  --glow: 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent);
+  --scanlines: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0 2px,
+    rgba(0, 0, 0, 0.22) 2px 4px
+  );
+}
+
+/* A CRT only has one phosphor colour -- override the player's tint so the
+   illusion survives, but keep --u alive for the avatars. */
+[data-theme="terminal"] .shell,
+[data-theme="terminal"] .onboard {
+  --accent: #35ff8a;
+}
+
+[data-theme="terminal"] .counter .big,
+[data-theme="terminal"] .wordmark b,
+[data-theme="terminal"] .streakchip {
+  text-shadow: var(--glow);
+}
+
+[data-theme="terminal"] .avatar {
+  background: transparent;
+  border: 1px solid var(--u, var(--accent));
+  color: var(--u, var(--accent));
+}
+
+[data-theme="terminal"] .pill {
+  color: var(--dim);
+}
+
+[data-theme="terminal"] .pill.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+[data-theme="terminal"] .card-head h2::before {
+  content: "> ";
+  color: var(--accent);
+}
+
+[data-theme="terminal"] .task .emoji {
+  filter: grayscale(1) brightness(1.4);
+}
+
+[data-theme="terminal"] .task.done .emoji {
+  filter: grayscale(1) brightness(1.4);
+}
+
+/* ---- retro: chunky neo-brutalist print -------------------------------- */
+
+[data-theme="retro"] {
+  --ink: #221f18;
+  --bg: #f0e7d3;
+  --panel: #fdf8ea;
+  --raised: #e9dec4;
+  --line: #221f18;
+  --line-soft: #d8cbac;
+  --text: #221f18;
+  --dim: #6a604c;
+  --dimmer: #9c8f72;
+  --good: #3f7a35;
+  --bad: #c0402a;
+  --future: #e3d8bd;
+  --on-accent: #fdf8ea;
+  --radius: 10px;
+}
+
+/* The whole look is: hard ink outline, hard offset shadow, no blur. */
+[data-theme="retro"] .card {
+  border: 2px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+[data-theme="retro"] .pill,
+[data-theme="retro"] .themes,
+[data-theme="retro"] .btn,
+[data-theme="retro"] .field,
+[data-theme="retro"] .note,
+[data-theme="retro"] .addrow input,
+[data-theme="retro"] .avatar,
+[data-theme="retro"] .tag {
+  border: 2px solid var(--ink);
+}
+
+[data-theme="retro"] .btn,
+[data-theme="retro"] .pill.on {
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+[data-theme="retro"] .btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+[data-theme="retro"] .box {
+  border: 2px solid var(--ink);
+}
+
+[data-theme="retro"] .badge {
+  border: 2px solid var(--ink);
+  opacity: 0.45;
+}
+
+[data-theme="retro"] .badge.earned {
+  opacity: 1;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+[data-theme="retro"] .cell {
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+}
+
+/* Fat condensed display type is the other half of the look. */
+[data-theme="retro"] .wordmark,
+[data-theme="retro"] .card-head h2,
+[data-theme="retro"] .onboard h1,
+[data-theme="retro"] .rival-name,
+[data-theme="retro"] .btn {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="retro"] .card-head h2 {
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+[data-theme="retro"] .counter .big {
+  font-family: var(--sans);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  -webkit-text-stroke: 2px var(--ink);
+}
+
+[data-theme="retro"] .streakchip {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 2px solid var(--ink);
+}
+
+[data-theme="retro"] .task .emoji {
+  filter: saturate(1.15) contrast(1.05);
+}
+
+/* CRT scanline overlay -- purely decorative, never intercepts clicks */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: var(--scanlines);
 }
 
 * {
@@ -28,7 +241,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--body-font);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -54,6 +267,11 @@ textarea {
 }
 
 /* ---------------------------------------------------------------- shell */
+
+.shell,
+.onboard {
+  --accent: var(--u, #e8734a);
+}
 
 .shell {
   max-width: 1080px;
@@ -126,7 +344,7 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--u, currentColor);
   flex: none;
 }
 
@@ -362,6 +580,10 @@ textarea {
   transition: 0.15s;
 }
 
+.task.done .box {
+  color: var(--on-accent);
+}
+
 .task.done .box svg {
   opacity: 1;
   transform: scale(1);
@@ -467,13 +689,13 @@ textarea {
 
 .btn.primary {
   background: var(--accent);
-  color: #0b0b0c;
+  color: var(--on-accent);
   border-color: transparent;
 }
 
 .btn.primary:hover {
   filter: brightness(1.08);
-  color: #0b0b0c;
+  color: var(--on-accent);
 }
 
 .btn.ghost {
@@ -526,7 +748,8 @@ textarea {
   font-weight: 650;
   font-size: 15px;
   flex: none;
-  color: #0b0b0c;
+  color: var(--on-accent);
+  background: var(--u, var(--accent));
 }
 
 .rival-body {
@@ -580,6 +803,7 @@ textarea {
   display: block;
   height: 100%;
   border-radius: 3px;
+  background: var(--u, var(--accent));
   transition: width 0.35s;
 }
 
@@ -672,7 +896,7 @@ textarea {
 }
 
 .cell.future {
-  background: #17171a;
+  background: var(--future);
 }
 
 .legend {
@@ -769,7 +993,7 @@ textarea {
   bottom: 26px;
   transform: translateX(-50%);
   background: var(--accent);
-  color: #0b0b0c;
+  color: var(--on-accent);
   padding: 11px 20px;
   border-radius: 100px;
   font-weight: 600;
@@ -805,4 +1029,35 @@ textarea {
   .shell {
     padding: 20px 16px 72px;
   }
+}
+
+/* ---------------------------------------------------------------- themes */
+
+.themes {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 100px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+
+.theme-btn {
+  width: 27px;
+  height: 27px;
+  border-radius: 100px;
+  display: grid;
+  place-items: center;
+  color: var(--dimmer);
+  transition: 0.15s;
+}
+
+.theme-btn:hover {
+  color: var(--text);
+  background: var(--raised);
+}
+
+.theme-btn.on {
+  color: var(--on-accent);
+  background: var(--accent);
 }

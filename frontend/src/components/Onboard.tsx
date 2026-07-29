@@ -1,13 +1,18 @@
 import { useState } from "react";
+import ThemePicker, { type ThemeId } from "./ThemePicker";
 
 const COLORS = ["#e8734a", "#4a9ee8", "#5cbd7e", "#b76ae8", "#e8c14a"];
 
 export default function Onboard({
   existing,
   onCreate,
+  theme,
+  onTheme,
 }: {
   existing: string[];
   onCreate: (name: string, color: string) => Promise<void>;
+  theme: ThemeId;
+  onTheme: (t: ThemeId) => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[existing.length % COLORS.length]);
@@ -29,7 +34,7 @@ export default function Onboard({
   };
 
   return (
-    <div className="onboard" style={{ ["--accent" as string]: color }}>
+    <div className="onboard" style={{ ["--u" as string]: color }}>
       <div className="box2">
         <h1>75 HARD</h1>
         <p>
@@ -60,6 +65,9 @@ export default function Onboard({
         <button className="btn primary wide" onClick={submit} disabled={busy}>
           {busy ? "..." : "Start day 1"}
         </button>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 22 }}>
+          <ThemePicker theme={theme} onPick={onTheme} />
+        </div>
         {err && (
           <p className="muted" style={{ marginTop: 12, color: "var(--bad)" }}>
             {err}

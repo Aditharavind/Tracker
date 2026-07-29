@@ -6,8 +6,15 @@ import Checklist from "./components/Checklist";
 import Calendar75 from "./components/Calendar75";
 import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
+import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
 
 const LAST_USER = "75hard.user";
+const THEME_KEY = "75hard.theme";
+
+const storedTheme = (): ThemeId => {
+  const saved = localStorage.getItem(THEME_KEY) as ThemeId | null;
+  return THEMES.some((t) => t.id === saved) ? (saved as ThemeId) : "dark";
+};
 
 function LevelRing({ p }: { p: Progress }) {
   const span = (p.level_ceiling ?? p.xp) - p.level_floor;
@@ -52,6 +59,7 @@ export default function App() {
   const [note, setNote] = useState("");
   const [noteState, setNoteState] = useState<"idle" | "saving" | "saved">("idle");
   const [toast, setToast] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemeId>(storedTheme);
   const [adding, setAdding] = useState(false);
   const noteTimer = useRef<number | undefined>(undefined);
 
@@ -74,6 +82,11 @@ export default function App() {
   }, []);
 
   const loadBoard = useCallback(async () => setBoard(await api.board()), []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     loadUsers().then((list) => {
@@ -151,6 +164,8 @@ export default function App() {
   if (users.length === 0) {
     return (
       <Onboard
+        theme={theme}
+        onTheme={setTheme}
         existing={[]}
         onCreate={async (name, color) => {
           const u = await api.createUser(name, color);
@@ -167,21 +182,22 @@ export default function App() {
   const isToday = day === todayISO();
 
   return (
-    <div className="shell" style={{ ["--accent" as string]: me.color }}>
+    <div className="shell" style={{ ["--u" as string]: me.color }}>
       <header className="topbar">
         <div className="wordmark">
           <b>75</b>
           <span>hard</span>
         </div>
         <div className="who">
+          <ThemePicker theme={theme} onPick={setTheme} />
           {users.map((u) => (
             <button
               key={u.id}
               className={`pill${u.id === meId ? " on" : ""}`}
-              style={{ color: u.id === meId ? u.color : undefined }}
+              style={{ ["--u" as string]: u.color, color: u.id === meId ? u.color : undefined }}
               onClick={() => setMeId(u.id)}
             >
-              <i className="dot" style={{ background: u.color }} />
+              <i className="dot" />
               {u.name}
             </button>
           ))}
