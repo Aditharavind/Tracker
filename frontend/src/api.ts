@@ -13,21 +13,31 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  users: () => req<User[]>("/users"),
+  users: (asUserId?: number) => req<User[]>(`/users${asUserId != null ? `?as=${asUserId}` : ""}`),
 
   createUser: (
     name: string,
     color: string,
     pin: string,
     wakeTime?: string | null,
-    repsTarget?: number
+    repsTarget?: number,
+    invitedBy?: number
   ) =>
     req<User>("/users", {
       method: "POST",
-      body: JSON.stringify({ name, color, pin, wake_time: wakeTime || null, reps_target: repsTarget ?? 20 }),
+      body: JSON.stringify({
+        name,
+        color,
+        pin,
+        wake_time: wakeTime || null,
+        reps_target: repsTarget ?? 20,
+        invited_by: invitedBy ?? null,
+      }),
     }),
 
-  board: () => req<Progress[]>("/board"),
+  board: (asUserId?: number) => req<Progress[]>(`/board${asUserId != null ? `?as=${asUserId}` : ""}`),
+
+  sharedProgress: (token: string) => req<Progress>(`/share/${token}`),
 
   day: (userId: number, day: string) => req<DayDetail>(`/users/${userId}/day/${day}`),
 
