@@ -1294,11 +1294,7 @@ textarea {
    purpose -- it's meant to feel like a genuine party popper, not another
    restrained token-driven state. Runs ~4s then fades itself out. */
 
-/* NOT on .shell: a `filter` on an element makes it the containing block for
-   `position: fixed` descendants, which would trap .disco-finale/.disco-overlay
-   (fixed children of .shell) to .shell's full document height instead of the
-   viewport -- centering the avatar mid-page instead of on-screen. */
-.disco-tint {
+.shell.disco {
   animation: disco-hue 1.6s linear infinite;
 }
 
@@ -1385,7 +1381,7 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .disco-tint {
+  .shell.disco {
     animation: none;
   }
   .disco-overlay,
@@ -1401,10 +1397,7 @@ textarea {
   z-index: 250;
   display: grid;
   place-items: center;
-  /* Opaque on purpose: at 0.55 the dashboard cards underneath (esp. the
-     "Today's run" panel right behind the avatar) showed through as a dark
-     rectangle instead of a clean full-screen celebration. */
-  background: radial-gradient(circle at 50% 42%, #241536 0%, #0a0612 70%);
+  background: rgba(0, 0, 0, 0.55);
   pointer-events: none;
 }
 

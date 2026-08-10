@@ -1,6 +1,4 @@
 import os
-import secrets
-from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import text
@@ -20,8 +18,6 @@ _NEW_COLUMNS = [
     ("user", "wake_time", "TEXT"),
     ("task", "locked", "BOOLEAN DEFAULT 0"),
     ("task", "reps_target", "INTEGER"),
-    ("user", "group_id", "INTEGER"),
-    ("user", "share_token", "TEXT"),
 ]
 
 
@@ -32,30 +28,10 @@ def _migrate(conn) -> None:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
 
 
-def _backfill_groups(conn) -> None:
-    """Column-add alone leaves pre-existing rows with NULL group_id /
-    share_token. Give every orphaned user a single shared group (preserving
-    today's one-board-for-everyone behaviour exactly) and a real token."""
-    orphan_ids = [row[0] for row in conn.execute(text("SELECT id FROM user WHERE group_id IS NULL"))]
-    if orphan_ids:
-        conn.execute(
-            text("INSERT INTO groups (name, created_at) VALUES ('My board', :now)"),
-            {"now": datetime.utcnow().isoformat()},
-        )
-        group_id = conn.execute(text("SELECT last_insert_rowid()")).scalar()
-        conn.execute(
-            text(f"UPDATE user SET group_id = :gid WHERE id IN ({','.join(str(i) for i in orphan_ids)})"),
-            {"gid": group_id},
-        )
-    for (uid,) in conn.execute(text("SELECT id FROM user WHERE share_token IS NULL")).fetchall():
-        conn.execute(text("UPDATE user SET share_token = :tok WHERE id = :id"), {"tok": secrets.token_urlsafe(9), "id": uid})
-
-
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
     with engine.begin() as conn:
         _migrate(conn)
-        _backfill_groups(conn)
 
 
 def get_session():

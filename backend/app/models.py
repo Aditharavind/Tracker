@@ -4,18 +4,6 @@ from typing import Optional
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
 
-class Group(SQLModel, table=True):
-    """An isolated board -- users only ever see/rank against the rest of
-    their own group. Every user belongs to exactly one, created for them
-    automatically the moment they're the first member (see main.create_user)."""
-
-    __tablename__ = "groups"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = "My board"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)
@@ -24,11 +12,6 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     pin_hash: Optional[str] = None
     wake_time: Optional[time] = None
-    group_id: Optional[int] = Field(default=None, foreign_key="groups.id", index=True)
-    # Unguessable, PIN-free read-only link -- deliberately separate from
-    # group membership: sharing your progress with someone doesn't make
-    # them a group member who could ever be prompted to edit anything.
-    share_token: Optional[str] = Field(default=None, unique=True, index=True)
 
 
 class Task(SQLModel, table=True):
