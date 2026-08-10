@@ -30,7 +30,7 @@ const storedAvatars = (): Record<number, AvatarId> => {
   }
 };
 
-function LevelRing({ p }: { p: Progress }) {
+export function LevelRing({ p }: { p: Progress }) {
   const span = (p.level_ceiling ?? p.xp) - p.level_floor;
   const pct = p.level_ceiling === null ? 1 : span > 0 ? (p.xp - p.level_floor) / span : 0;
   const r = 44;
@@ -100,6 +100,40 @@ function PinPrompt({
   );
 }
 
+function ShareDialog({ name, url, onClose }: { name: string; url: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const copy = () => {
+    navigator.clipboard
+      .writeText(url)
+      .then(() => setCopied(true))
+      .catch(() => inputRef.current?.select());
+  };
+
+  return (
+    <div className="pin-backdrop" onClick={onClose}>
+      <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Share {name}'s progress</h3>
+        <p className="muted">Read only -- no PIN, no editing. Works for anyone who has the link.</p>
+        <input
+          ref={inputRef}
+          className="field"
+          readOnly
+          value={url}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <button className="btn primary wide" onClick={copy}>
+          {copied ? "Copied!" : "Copy link"}
+        </button>
+        <button className="btn ghost wide" style={{ marginTop: 8 }} onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AlarmOverlay({ task, onDone }: { task: TaskItem; onDone: () => void }) {
   useEffect(() => {
     const stop = playAlarmSiren();
@@ -134,6 +168,7 @@ export default function App() {
   const [disco, setDisco] = useState(false);
   const [unlockedPins, setUnlockedPins] = useState<Record<number, string>>({});
   const [pinPrompt, setPinPrompt] = useState<{ userId: number; error?: string } | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [, forceTick] = useState(0);
   const noteTimer = useRef<number | undefined>(undefined);
   const discoTimer = useRef<number | undefined>(undefined);
@@ -194,18 +229,20 @@ export default function App() {
     discoTimer.current = window.setTimeout(() => setDisco(false), 4200);
   };
 
-  const loadUsers = useCallback(async () => {
-    const list = await api.users();
+  // Boards are scoped per group server-side -- `asUserId` tells the backend
+  // whose group to look up. Omit it only for a browser with no local user
+  // yet (a brand new, still-empty board).
+  const loadUsers = useCallback(async (asUserId?: number) => {
+    const list = await api.users(asUserId);
     setUsers(list);
     if (list.length) {
-      const saved = Number(localStorage.getItem(LAST_USER));
-      const pick = list.find((u) => u.id === saved) ?? list[0];
+      const pick = list.find((u) => u.id === asUserId) ?? list[0];
       setMeId((cur) => cur ?? pick.id);
     }
     return list;
   }, []);
 
-  const loadBoard = useCallback(async () => setBoard(await api.board()), []);
+  const loadBoard = useCallback(async (asUserId?: number) => setBoard(await api.board(asUserId)), []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -213,8 +250,9 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    loadUsers().then((list) => {
-      if (list.length) loadBoard();
+    const saved = Number(localStorage.getItem(LAST_USER)) || undefined;
+    loadUsers(saved).then((list) => {
+      if (list.length) loadBoard(saved ?? list[0].id);
     });
   }, [loadUsers, loadBoard]);
 
@@ -278,7 +316,7 @@ export default function App() {
       try {
         await api.addTask(meId, title, "+", false, pin);
         setDetail(await api.day(meId, day));
-        await loadBoard();
+        await loadBoard(meId);
       } finally {
         setAdding(false);
       }
@@ -290,7 +328,7 @@ export default function App() {
     runWithPin(meId, async (pin) => {
       await api.removeTask(meId, t.id, pin);
       setDetail(await api.day(meId, day));
-      await loadBoard();
+      await loadBoard(meId);
     });
   };
 
@@ -312,7 +350,7 @@ export default function App() {
     if (!confirm("Wipe the current run and start again from day 1 today?")) return;
     runWithPin(meId, async (pin) => {
       await api.restart(meId, pin);
-      await loadBoard();
+      await loadBoard(meId);
       flash("Back to day 1. Go.");
     });
   };
@@ -331,8 +369,8 @@ export default function App() {
           const u = await api.createUser(name, color, pin, wakeTime, reps);
           setAvatarFor(u.id, pendingAvatar);
           setMeId(u.id);
-          await loadUsers();
-          await loadBoard();
+          await loadUsers(u.id);
+          await loadBoard(u.id);
         }}
       />
     );
@@ -366,6 +404,8 @@ export default function App() {
           onSubmit={(pin) => pinRetry.current?.(pin)}
         />
       )}
+      {shareUrl && <ShareDialog name={me.name} url={shareUrl} onClose={() => setShareUrl(null)} />}
+      <div className={disco ? "disco-tint" : undefined}>
       <header className="topbar">
         <div className="wordmark">
           <b>75</b>
@@ -408,9 +448,9 @@ export default function App() {
                 if (!pin?.trim()) return;
                 const palette = ["#4a9ee8", "#5cbd7e", "#b76ae8", "#e8c14a"];
                 try {
-                  await api.createUser(name.trim(), palette[users.length % palette.length], pin.trim());
-                  await loadUsers();
-                  await loadBoard();
+                  await api.createUser(name.trim(), palette[users.length % palette.length], pin.trim(), null, 20, meId ?? undefined);
+                  await loadUsers(meId ?? undefined);
+                  await loadBoard(meId ?? undefined);
                 } catch (e) {
                   alert(e instanceof Error ? e.message : "could not add");
                 }
@@ -419,6 +459,17 @@ export default function App() {
               +
             </button>
           )}
+          <button
+            className="pill"
+            title="Get a read-only link to your progress -- no PIN, no editing"
+            onClick={() => {
+              const token = users.find((u) => u.id === meId)?.share_token;
+              if (!token) return;
+              setShareUrl(`${location.origin}${location.pathname}?share=${token}`);
+            }}
+          >
+            Share
+          </button>
         </div>
       </header>
 
@@ -507,6 +558,7 @@ export default function App() {
         <button className="btn ghost" onClick={restart}>
           Reset my run
         </button>
+      </div>
       </div>
 
       {toast && <div className="toast">{toast}</div>}

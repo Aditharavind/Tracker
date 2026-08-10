@@ -1294,7 +1294,11 @@ textarea {
    purpose -- it's meant to feel like a genuine party popper, not another
    restrained token-driven state. Runs ~4s then fades itself out. */
 
-.shell.disco {
+/* NOT on .shell: a `filter` on an element makes it the containing block for
+   `position: fixed` descendants, which would trap .disco-finale/.disco-overlay
+   (fixed children of .shell) to .shell's full document height instead of the
+   viewport -- centering the avatar mid-page instead of on-screen. */
+.disco-tint {
   animation: disco-hue 1.6s linear infinite;
 }
 
@@ -1381,7 +1385,7 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shell.disco {
+  .disco-tint {
     animation: none;
   }
   .disco-overlay,
@@ -1397,7 +1401,10 @@ textarea {
   z-index: 250;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.55);
+  /* Opaque on purpose: at 0.55 the dashboard cards underneath (esp. the
+     "Today's run" panel right behind the avatar) showed through as a dark
+     rectangle instead of a clean full-screen celebration. */
+  background: radial-gradient(circle at 50% 42%, #241536 0%, #0a0612 70%);
   pointer-events: none;
 }
 
@@ -1437,6 +1444,27 @@ textarea {
   color: var(--bad);
   font-size: 12.5px;
   margin: -4px 0 10px;
+}
+
+.share-modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  text-align: center;
+}
+
+.share-modal h3 {
+  margin: 0 0 6px;
+}
+
+.share-modal input.field {
+  margin: 14px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: center;
 }
 
 /* ---------------------------------------------------------------- alarm */

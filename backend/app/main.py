@@ -1,19 +1,21 @@
+import secrets
 from dataclasses import asdict
 from datetime import date, time
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from . import engine as brain
+from . import insight
 from .coach import models as coach_models  # noqa: F401 -- registers coach tables with SQLModel.metadata
 from .coach.router import router as coach_router
 from .db import get_session, init_db
-from .models import CORE_TASKS, Completion, DayNote, Task, User
+from .models import CORE_TASKS, Completion, DayNote, Group, Task, User
 from .security import hash_secret, verify_secret
 
 app = FastAPI(title="75 Hard")
@@ -42,6 +44,10 @@ class UserIn(BaseModel):
     pin: str = Field(pattern=r"^\d{4,6}$")
     wake_time: Optional[time] = None
     reps_target: int = 20
+    # An existing user's id to join their group/board. Omitted -> a brand
+    # new, isolated group is created (this is what keeps two strangers who
+    # both open the app from ending up on the same board).
+    invited_by: Optional[int] = None
 
 
 class TaskIn(BaseModel):
@@ -83,6 +89,10 @@ class WakeIn(BaseModel):
     pin: Optional[str] = None
 
 
+class InsightIn(BaseModel):
+    force: bool = False
+
+
 # ---------------------------------------------------------------- helpers
 
 
@@ -104,11 +114,15 @@ def _require_pin(user: User, pin: Optional[str]) -> None:
         raise HTTPException(403, "wrong PIN")
 
 
+def _new_share_token() -> str:
+    return secrets.token_urlsafe(9)
+
+
 # ---------------------------------------------------------------- routes
 
 
-def _user_out(u: User) -> dict:
-    return {
+def _user_out(u: User, reveal_token: bool = False) -> dict:
+    out = {
         "id": u.id,
         "name": u.name,
         "color": u.color,
@@ -116,24 +130,47 @@ def _user_out(u: User) -> dict:
         "wake_time": u.wake_time,
         "has_pin": u.pin_hash is not None,
     }
+    # Only handed back to the user themself -- other group members can see
+    # each other's names/colors, but not each other's share links.
+    if reveal_token:
+        out["share_token"] = u.share_token
+    return out
 
 
 @app.get("/api/users")
-def list_users(session: Session = Depends(get_session)):
-    users = session.exec(select(User).order_by(User.id)).all()
-    return [_user_out(u) for u in users]
+def list_users(as_: Optional[int] = Query(None, alias="as"), session: Session = Depends(get_session)):
+    """Scoped to the caller's own group -- `as` identifies which existing
+    user is asking. No `as` (a browser with no local user yet) sees an
+    empty board and starts a fresh, isolated group on signup."""
+    me = session.get(User, as_) if as_ is not None else None
+    if me is None:
+        return []
+    users = session.exec(select(User).where(User.group_id == me.group_id).order_by(User.id)).all()
+    return [_user_out(u, reveal_token=(u.id == as_)) for u in users]
 
 
 @app.post("/api/users", status_code=201)
 def create_user(payload: UserIn, session: Session = Depends(get_session)):
     if session.exec(select(User).where(User.name == payload.name)).first():
         raise HTTPException(409, "that name is taken")
+
+    if payload.invited_by is not None:
+        group_id = _user(session, payload.invited_by).group_id
+    else:
+        group = Group()
+        session.add(group)
+        session.commit()
+        session.refresh(group)
+        group_id = group.id
+
     user = User(
         name=payload.name,
         color=payload.color,
         start_date=payload.start_date or date.today(),
         pin_hash=hash_secret(payload.pin),
         wake_time=payload.wake_time,
+        group_id=group_id,
+        share_token=_new_share_token(),
     )
     session.add(user)
     session.commit()
@@ -154,14 +191,29 @@ def create_user(payload: UserIn, session: Session = Depends(get_session)):
             )
         )
     session.commit()
-    return _user_out(user)
+    return _user_out(user, reveal_token=True)
 
 
 @app.get("/api/board")
-def board(session: Session = Depends(get_session)):
-    """Everything both players need for the head-to-head view."""
-    users = session.exec(select(User).order_by(User.id)).all()
+def board(as_: Optional[int] = Query(None, alias="as"), session: Session = Depends(get_session)):
+    """Everything the group needs for the head-to-head view -- scoped the
+    same way as /api/users, see there for why."""
+    me = session.get(User, as_) if as_ is not None else None
+    if me is None:
+        return []
+    users = session.exec(select(User).where(User.group_id == me.group_id).order_by(User.id)).all()
     return [_progress(session, u) for u in users]
+
+
+@app.get("/api/share/{token}")
+def shared_progress(token: str, session: Session = Depends(get_session)):
+    """Public, PIN-free, read-only -- deliberately the same payload already
+    visible to group-mates on the board, just reachable by anyone holding
+    the link. No day/task/note detail is exposed here."""
+    user = session.exec(select(User).where(User.share_token == token)).first()
+    if not user:
+        raise HTTPException(404, "invalid or expired link")
+    return _progress(session, user)
 
 
 @app.get("/api/users/{user_id}/progress")
@@ -309,7 +361,19 @@ def set_wake(user_id: int, payload: WakeIn, session: Session = Depends(get_sessi
                 )
             )
     session.commit()
-    return _user_out(user)
+    return _user_out(user, reveal_token=True)
+
+
+@app.post("/api/users/{user_id}/insight")
+def get_insight(user_id: int, payload: InsightIn, session: Session = Depends(get_session)):
+    """Local-model explanation of the user's own miss pattern -- read-only
+    (no PIN) but POST since it writes to the Insight cache, matching how
+    `toggle` is POST despite being conceptually a read of the new state."""
+    user = _user(session, user_id)
+    try:
+        return insight.generate_insight(session, user, force=payload.force)
+    except insight.OllamaUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 # Serve the built frontend when it exists, so `npm run build` + uvicorn is

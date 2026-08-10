@@ -76,7 +76,7 @@ class Progress:
     calendar: List[DayCell] = field(default_factory=list)
 
 
-def _completions_by_day(session: Session, user_id: int) -> Dict[date, Set[int]]:
+def completions_by_day(session: Session, user_id: int) -> Dict[date, Set[int]]:
     rows = session.exec(select(Completion).where(Completion.user_id == user_id)).all()
     out: Dict[date, Set[int]] = {}
     for row in rows:

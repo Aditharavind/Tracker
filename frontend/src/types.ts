@@ -5,6 +5,8 @@ export type User = {
   start_date: string;
   wake_time: string | null;
   has_pin: boolean;
+  // Only present on your own record (see GET /api/users?as=).
+  share_token?: string;
 };
 
 export type Badge = {
