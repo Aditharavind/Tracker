@@ -1,4 +1,4 @@
-import type { DayDetail, Insight, Progress, TaskItem, User } from "./types";
+import type { DayDetail, Progress, TaskItem, User } from "./types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
