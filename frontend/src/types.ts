@@ -63,3 +63,9 @@ export type DayDetail = {
   pending: TaskItem[];
   note: string;
 };
+
+export type Insight = {
+  text: string;
+  generated_at: string;
+  cached: boolean;
+};
