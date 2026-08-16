@@ -154,6 +154,35 @@ function AlarmOverlay({ task, onDone }: { task: TaskItem; onDone: () => void }) 
   );
 }
 
+/**
+ * Mirrors the real layout's boxes so the page doesn't jump when data lands.
+ * Nothing here animates in from nothing -- it just fills in.
+ */
+function Skeleton() {
+  return (
+    <div className="shell" aria-busy="true" aria-label="Loading">
+      <div className="skel-topbar">
+        <div className="skel skel-mark" />
+        <div className="skel skel-pill" />
+      </div>
+      <div className="skel-hero">
+        <div>
+          <div className="skel skel-count" />
+          <div className="skel skel-sub" />
+        </div>
+        <div className="skel skel-ring" />
+      </div>
+      <div className="skel-cols">
+        <div className="skel skel-card tall" />
+        <div>
+          <div className="skel skel-card" />
+          <div className="skel skel-card" style={{ marginTop: 18 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [users, setUsers] = useState<User[] | null>(null);
   const [meId, setMeId] = useState<number | null>(null);
@@ -267,10 +296,18 @@ export default function App() {
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, []);
 
+  // The saved id is already in localStorage, so users/board/day don't need to
+  // wait on each other -- chaining them cost three round trips before anything
+  // rendered. Only the no-saved-user case still has to resolve users first.
   useEffect(() => {
     const saved = Number(localStorage.getItem(LAST_USER)) || undefined;
-    loadUsers(saved).then((list) => {
-      if (list.length) loadBoard(saved ?? list[0].id);
+    if (saved) {
+      loadUsers(saved);
+      loadBoard(saved);
+      return;
+    }
+    loadUsers(undefined).then((list) => {
+      if (list.length) loadBoard(list[0].id);
     });
   }, [loadUsers, loadBoard]);
 
@@ -373,7 +410,17 @@ export default function App() {
     });
   };
 
-  if (users === null) return <div className="shell muted">loading...</div>;
+  const signOut = () => {
+    if (!confirm("Sign out on this device? You'll need your name and PIN to get back in.")) return;
+    localStorage.removeItem(LAST_USER);
+    setMeId(null);
+    setUsers([]);
+    setBoard([]);
+    setDetail(null);
+    setUnlockedPins({});
+  };
+
+  if (users === null) return <Skeleton />;
 
   if (users.length === 0) {
     return (
@@ -383,6 +430,13 @@ export default function App() {
         avatar={pendingAvatar}
         onAvatar={setPendingAvatar}
         existing={[]}
+        onSignIn={async (name, pin) => {
+          const u = await api.login(name, pin);
+          setMeId(u.id);
+          setUnlockedPins((p) => ({ ...p, [u.id]: pin }));
+          await loadUsers(u.id);
+          await loadBoard(u.id);
+        }}
         onCreate={async (name, color, pin, wakeTime, reps) => {
           const u = await api.createUser(name, color, pin, wakeTime, reps);
           setAvatarFor(u.id, pendingAvatar);
@@ -394,7 +448,7 @@ export default function App() {
     );
   }
 
-  if (!me || !detail) return <div className="shell muted">loading...</div>;
+  if (!me || !detail) return <Skeleton />;
 
   const isToday = day === todayISO();
 
@@ -594,6 +648,9 @@ export default function App() {
         )}
         <button className="btn ghost" onClick={restart}>
           Reset my run
+        </button>
+        <button className="btn ghost" onClick={signOut}>
+          Sign out
         </button>
       </div>
       </div>

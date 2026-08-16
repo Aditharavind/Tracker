@@ -32,7 +32,12 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // The 3D viewer chunk and the .glb models are megabytes and aren't
+        // needed to open the app, so they stay out of the precache and load
+        // on demand instead.
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        globIgnores: ["**/model-viewer-*.js"],
+        maximumFileSizeToCacheInBytes: 600 * 1024,
         // The API must never be served from cache -- a stale streak is worse
         // than no streak. Navigation falls back to the shell when offline.
         navigateFallback: "/index.html",
@@ -41,6 +46,15 @@ export default defineConfig({
           {
             urlPattern: /^\/api\//,
             handler: "NetworkOnly",
+          },
+          {
+            // big, immutable, rarely changed -- cache once, reuse forever
+            urlPattern: /model-viewer-.*\.js$|\.glb$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "heavy-assets",
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
           },
         ],
       },

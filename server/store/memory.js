@@ -46,6 +46,10 @@ export function createMemoryStore() {
       return clone(users.find((u) => u.id === Number(id)));
     },
 
+    async listUsersByName(name) {
+      return users.filter((u) => u.name.toLowerCase() === name.toLowerCase()).map(clone);
+    },
+
     async getUserByNameInGroup(groupId, name) {
       return clone(
         users.find(

@@ -52,6 +52,9 @@ export const api = {
       }),
     }),
 
+  login: (name: string, pin: string) =>
+    req<User>("/login", { method: "POST", body: JSON.stringify({ name, pin }) }),
+
   board: (asUserId?: number) =>
     req<Progress[]>(
       `/board?today=${todayISO()}${asUserId != null ? `&as=${asUserId}` : ""}`

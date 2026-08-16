@@ -8,6 +8,7 @@ const AVATARS: AvatarId[] = ["guy", "girl"];
 export default function Onboard({
   existing,
   onCreate,
+  onSignIn,
   theme,
   onTheme,
   avatar,
@@ -15,6 +16,7 @@ export default function Onboard({
 }: {
   existing: string[];
   onCreate: (name: string, color: string, pin: string, wakeTime: string | null, reps: number) => Promise<void>;
+  onSignIn: (name: string, pin: string) => Promise<void>;
   theme: ThemeId;
   onTheme: (t: ThemeId) => void;
   avatar: AvatarId;
@@ -28,17 +30,21 @@ export default function Onboard({
   const [reps, setReps] = useState(20);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Signing out has to be reversible, so the same screen doubles as sign-in.
+  const [mode, setMode] = useState<"new" | "back">("new");
 
   const pinValid = /^\d{4,6}$/.test(pin);
 
   const submit = async () => {
-    if (!name.trim() || !pinValid || busy) return;
+    if (busy || !name.trim() || !pinValid) return;
     setBusy(true);
     setErr("");
     try {
-      await onCreate(name.trim(), color, pin, wakeEnabled ? wakeTime : null, reps);
-      setName("");
-      setPin("");
+      if (mode === "back") {
+        await onSignIn(name.trim(), pin);
+      } else {
+        await onCreate(name.trim(), color, pin, wakeEnabled ? wakeTime : null, reps);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "something broke");
     } finally {
@@ -68,12 +74,13 @@ export default function Onboard({
           className="field"
           type="password"
           inputMode="numeric"
-          placeholder="pick a 4-6 digit PIN (protects your own progress)"
+          placeholder={mode === "back" ? "your PIN" : "pick a 4-6 digit PIN (protects your progress)"}
           value={pin}
           maxLength={6}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
+        {mode === "new" && (
         <div className="swatches">
           {COLORS.map((c) => (
             <button
@@ -85,6 +92,8 @@ export default function Onboard({
             />
           ))}
         </div>
+        )}
+        {mode === "new" && (
         <div className="avatars" style={{ justifyContent: "center", margin: "0 auto 20px" }}>
           {AVATARS.map((a) => (
             <button
@@ -98,11 +107,14 @@ export default function Onboard({
             </button>
           ))}
         </div>
+        )}
+        {mode === "new" && (
         <label className="wake-toggle">
           <input type="checkbox" checked={wakeEnabled} onChange={(e) => setWakeEnabled(e.target.checked)} />
           Wake-up alarm (won't stop until you confirm your reps)
         </label>
-        {wakeEnabled && (
+        )}
+        {mode === "new" && wakeEnabled && (
           <div className="wake-fields">
             <input
               className="field"
@@ -121,7 +133,17 @@ export default function Onboard({
           </div>
         )}
         <button className="btn primary wide" onClick={submit} disabled={busy || !pinValid}>
-          {busy ? "..." : "Start day 1"}
+          {busy ? "..." : mode === "back" ? "Sign in" : "Start day 1"}
+        </button>
+        <button
+          className="btn ghost wide"
+          style={{ marginTop: 10 }}
+          onClick={() => {
+            setMode(mode === "new" ? "back" : "new");
+            setErr("");
+          }}
+        >
+          {mode === "new" ? "I already have an account" : "Start a new account instead"}
         </button>
         <div style={{ display: "flex", justifyContent: "center", marginTop: 22 }}>
           <ThemePicker theme={theme} onPick={onTheme} />

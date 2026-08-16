@@ -307,3 +307,22 @@ test("routes also answer without the /api prefix (Vercel rewrite safety)", async
   const names = (await res.json()).map((u) => u.name);
   assert.deepEqual(names, ["Adith", "Rahul", "EarlyBird"]);
 });
+
+test("you can sign back in with your name and PIN", async () => {
+  const ok = await call("POST", "/login", { name: "Rahul", pin: "9999" });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.id, rahul.id);
+  assert.ok(ok.body.share_token, "signing in hands back your own link");
+
+  assert.equal((await call("POST", "/login", { name: "Rahul", pin: "0000" })).status, 403);
+  assert.equal((await call("POST", "/login", { name: "Nobody", pin: "9999" })).status, 403);
+  assert.equal((await call("POST", "/login", { name: "Rahul" })).status, 400);
+});
+
+test("an ambiguous name+PIN is refused rather than guessed", async () => {
+  // two boards, same name, same PIN -- nothing can tell them apart
+  await call("POST", "/users", { name: "Twin", pin: "5150" });
+  await call("POST", "/users", { name: "Twin", pin: "5150" });
+  const res = await call("POST", "/login", { name: "Twin", pin: "5150" });
+  assert.equal(res.status, 403, "must not silently pick one");
+});

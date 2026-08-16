@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import SharedView from "./components/SharedView";
-import "@google/model-viewer";
 import "./styles.css";
 
 // autoUpdate: a new deploy is picked up on the next launch.

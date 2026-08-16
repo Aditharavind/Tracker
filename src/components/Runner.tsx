@@ -23,6 +23,18 @@ const AVATAR_CAMERA: Record<AvatarId, string> = {
   girl: "0deg 75deg 105%",
 };
 
+/**
+ * <model-viewer> is ~1MB of JavaScript. Loading it up front pushed first paint
+ * past two seconds on a mid-range phone, for a widget that isn't even on the
+ * first screen. So it's fetched on demand and the 2D sprite -- which costs
+ * nothing, being inline SVG -- stands in until it arrives.
+ */
+let modelViewerLoad: Promise<unknown> | null = null;
+const loadModelViewer = () => {
+  modelViewerLoad ??= import("@google/model-viewer");
+  return modelViewerLoad;
+};
+
 export function Avatar3D({
   avatar,
   running,
@@ -33,6 +45,24 @@ export function Avatar3D({
   zoomed?: boolean;
 }) {
   const clips = AVATAR_CLIP[avatar];
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    loadModelViewer().then(() => alive && setReady(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className={zoomed ? "avatar3d zoomed" : "avatar3d"}>
+        <Sprite avatar={avatar} running={running} />
+      </div>
+    );
+  }
+
   return (
     <model-viewer
       key={avatar}

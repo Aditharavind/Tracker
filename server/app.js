@@ -174,6 +174,29 @@ export function createRouter() {
     })
   );
 
+  /**
+   * Sign back in on a new device, or after signing out. Names are only unique
+   * per board, so the PIN is what actually picks the account out; if two
+   * people on different boards share both a name and a PIN we refuse rather
+   * than guess which one you meant.
+   */
+  r.post(
+    "/login",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const name = String(req.body?.name ?? "").trim();
+      const pin = String(req.body?.pin ?? "");
+      if (!name || !pin) throw new HttpError(400, "name and PIN are required");
+
+      const candidates = await store.listUsersByName(name);
+      const matches = candidates.filter((u) => u.pin_hash && verifySecret(pin, u.pin_hash));
+      if (matches.length !== 1) {
+        throw new HttpError(403, "no account matches that name and PIN");
+      }
+      res.json(userOut(matches[0], true));
+    })
+  );
+
   // Everything the board needs for the head-to-head view, scoped like /users.
   r.get(
     "/board",

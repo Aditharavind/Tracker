@@ -64,6 +64,10 @@ export function createSupabaseStore({ url, key }) {
       return unwrap(await db.from("users").select("*").eq("id", id).maybeSingle());
     },
 
+    async listUsersByName(name) {
+      return unwrap(await db.from("users").select("*").ilike("name", name));
+    },
+
     async getUserByNameInGroup(groupId, name) {
       return unwrap(
         await db.from("users").select("*").eq("group_id", groupId).ilike("name", name).maybeSingle()
