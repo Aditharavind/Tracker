@@ -1,0 +1,309 @@
+/**
+ * Drives the real Express app over HTTP against the in-memory store, so every
+ * route, status code, PIN check and group boundary is exercised without
+ * needing Supabase.
+ */
+import assert from "node:assert/strict";
+import test, { after, before } from "node:test";
+
+import { createApp } from "../server/app.js";
+import { createMemoryStore } from "../server/store/memory.js";
+import { setStore } from "../server/store/index.js";
+import { todayISO } from "./helpers.js";
+
+let base;
+let server;
+
+before(async () => {
+  setStore(createMemoryStore());
+  server = createApp().listen(0);
+  await new Promise((r) => server.once("listening", r));
+  base = `http://127.0.0.1:${server.address().port}/api`;
+});
+
+after(() => server.close());
+
+const call = async (method, path, body) => {
+  const res = await fetch(base + path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await res.text();
+  return { status: res.status, body: text ? JSON.parse(text) : null };
+};
+
+const TODAY = todayISO();
+const PIN = "4821";
+
+// filled in by the first test and reused throughout
+let adith;
+let rahul;
+let stranger;
+
+test("signing up creates an isolated board and seeds the seven rules", async () => {
+  const made = await call("POST", "/users", { name: "Adith", color: "#e8734a", pin: PIN });
+  assert.equal(made.status, 201);
+  adith = made.body;
+
+  assert.equal(adith.has_pin, true);
+  assert.ok(adith.share_token, "you get your own share link");
+  assert.equal("pin_hash" in adith, false, "the hash never leaves the server");
+
+  const tasks = await call("GET", `/users/${adith.id}/tasks`);
+  assert.equal(tasks.body.length, 7);
+  assert.equal(tasks.body.every((t) => t.is_core), true);
+});
+
+test("a PIN is required, and must be 4-6 digits", async () => {
+  assert.equal((await call("POST", "/users", { name: "NoPin" })).status, 400);
+  assert.equal((await call("POST", "/users", { name: "Short", pin: "12" })).status, 400);
+  assert.equal((await call("POST", "/users", { name: "Wordy", pin: "abcd" })).status, 400);
+});
+
+test("names clash only with people who can see you", async () => {
+  // same name, its own board -> fine, these two can never see each other
+  const elsewhere = await call("POST", "/users", { name: "Adith", pin: "7777" });
+  assert.equal(elsewhere.status, 201);
+
+  // same name on the *same* board -> rejected
+  const sameBoard = await call("POST", "/users", {
+    name: "Adith",
+    pin: "7777",
+    invited_by: adith.id,
+  });
+  assert.equal(sameBoard.status, 409);
+});
+
+test("an invite joins the host's board; no invite starts a separate one", async () => {
+  rahul = (
+    await call("POST", "/users", { name: "Rahul", pin: "1111", invited_by: adith.id })
+  ).body;
+  stranger = (await call("POST", "/users", { name: "Stranger", pin: "2222" })).body;
+
+  const mine = await call("GET", `/users?as=${adith.id}`);
+  assert.deepEqual(mine.body.map((u) => u.name), ["Adith", "Rahul"]);
+
+  const theirs = await call("GET", `/users?as=${stranger.id}`);
+  assert.deepEqual(theirs.body.map((u) => u.name), ["Stranger"]);
+});
+
+test("a browser with no user sees nothing rather than everyone", async () => {
+  assert.deepEqual((await call("GET", "/users")).body, []);
+  assert.deepEqual((await call("GET", "/board")).body, []);
+});
+
+test("board is scoped to your own group", async () => {
+  const { body } = await call("GET", `/board?as=${adith.id}&today=${TODAY}`);
+  assert.deepEqual(body.map((p) => p.name), ["Adith", "Rahul"]);
+  assert.equal(body[0].calendar.length, 75);
+});
+
+test("group-mates never see each other's share links", async () => {
+  const { body } = await call("GET", `/users?as=${adith.id}`);
+  const me = body.find((u) => u.id === adith.id);
+  const them = body.find((u) => u.id === rahul.id);
+  assert.ok(me.share_token, "your own link comes back");
+  assert.equal(them.share_token, undefined, "your friend's does not");
+});
+
+test("a share link is public, read-only progress", async () => {
+  const ok = await call("GET", `/share/${adith.share_token}?today=${TODAY}`);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.name, "Adith");
+  assert.equal(ok.body.calendar.length, 75);
+  assert.equal(ok.body.tasks, undefined, "no task detail is exposed");
+
+  assert.equal((await call("GET", "/share/not-a-real-token")).status, 404);
+});
+
+test("mutations need the right PIN", async () => {
+  const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
+  const t = tasks[0].id;
+
+  const wrong = await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: t, day: TODAY, done: true, today: TODAY, pin: "0000",
+  });
+  assert.equal(wrong.status, 403);
+
+  const missing = await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: t, day: TODAY, done: true, today: TODAY,
+  });
+  assert.equal(missing.status, 403);
+
+  assert.equal(
+    (await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "x", pin: "0000" })).status,
+    403
+  );
+  assert.equal(
+    (await call("POST", `/users/${adith.id}/tasks`, { title: "x", pin: "0000" })).status,
+    403
+  );
+  assert.equal((await call("POST", `/users/${adith.id}/restart`, { pin: "0000" })).status, 403);
+});
+
+test("ticking every core task banks the day", async () => {
+  const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
+  for (const t of tasks) {
+    await call("POST", `/users/${adith.id}/toggle`, {
+      task_id: t.id, day: TODAY, done: true, today: TODAY, pin: PIN,
+    });
+  }
+  const { body: p } = await call("GET", `/users/${adith.id}/progress?today=${TODAY}`);
+  assert.equal(p.perfect_today, true);
+  assert.equal(p.streak, 1);
+  assert.equal(p.xp, 7 * 10 + 40);
+});
+
+test("re-ticking is idempotent; unticking un-banks the day", async () => {
+  const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
+  const before = (await call("GET", `/users/${adith.id}/progress?today=${TODAY}`)).body.xp;
+  for (let i = 0; i < 3; i += 1) {
+    await call("POST", `/users/${adith.id}/toggle`, {
+      task_id: tasks[0].id, day: TODAY, done: true, today: TODAY, pin: PIN,
+    });
+  }
+  assert.equal((await call("GET", `/users/${adith.id}/progress?today=${TODAY}`)).body.xp, before);
+
+  const off = await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: tasks[2].id, day: TODAY, done: false, today: TODAY, pin: PIN,
+  });
+  assert.equal(off.body.progress.perfect_today, false);
+  assert.equal(off.body.day.pending.length, 1);
+
+  await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: tasks[2].id, day: TODAY, done: true, today: TODAY, pin: PIN,
+  });
+});
+
+test("one user cannot touch another's task, even with their own PIN", async () => {
+  const { body: mine } = await call("GET", `/users/${adith.id}/tasks`);
+  const res = await call("POST", `/users/${rahul.id}/toggle`, {
+    task_id: mine[0].id, day: TODAY, done: true, today: TODAY, pin: "1111",
+  });
+  assert.equal(res.status, 404);
+  assert.equal(
+    (await call("DELETE", `/users/${rahul.id}/tasks/${mine[0].id}`, { pin: "1111" })).status,
+    404
+  );
+});
+
+test("refuses future days and malformed dates", async () => {
+  const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
+  assert.equal(
+    (await call("POST", `/users/${adith.id}/toggle`, {
+      task_id: tasks[0].id, day: "2099-01-01", done: true, today: TODAY, pin: PIN,
+    })).status,
+    400
+  );
+  assert.equal((await call("GET", `/users/${adith.id}/day/nope`)).status, 400);
+  assert.equal(
+    (await call("PUT", `/users/${adith.id}/note`, { day: "29-07-2026", text: "x", pin: PIN })).status,
+    400
+  );
+});
+
+test("bonus tasks add and archive; notes round-trip", async () => {
+  const made = await call("POST", `/users/${adith.id}/tasks`, {
+    title: "Journal 5 min", is_core: false, pin: PIN,
+  });
+  assert.equal(made.status, 201);
+  assert.equal(made.body.is_core, false);
+
+  const { body: p } = await call("GET", `/users/${adith.id}/progress?today=${TODAY}`);
+  assert.equal(p.perfect_today, true, "an untouched bonus task can't break the day");
+  assert.equal(p.core_today, 7);
+
+  assert.equal(
+    (await call("DELETE", `/users/${adith.id}/tasks/${made.body.id}`, { pin: PIN })).status,
+    204
+  );
+
+  await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "owe a run", pin: PIN });
+  assert.equal((await call("GET", `/users/${adith.id}/day/${TODAY}`)).body.note, "owe a run");
+});
+
+test("wake time adds a locked task that cannot be deleted", async () => {
+  const set = await call("PUT", `/users/${adith.id}/wake`, {
+    wake_time: "05:30", reps_target: 25, pin: PIN,
+  });
+  assert.equal(set.status, 200);
+  assert.equal(set.body.wake_time, "05:30");
+
+  const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
+  const locked = tasks.find((t) => t.locked);
+  assert.ok(locked, "a locked wake-up task appears");
+  assert.equal(locked.title, "25 reps to wake up");
+  assert.equal(locked.reps_target, 25);
+
+  const del = await call("DELETE", `/users/${adith.id}/tasks/${locked.id}`, { pin: PIN });
+  assert.equal(del.status, 409, "the bare minimum can't be removed");
+
+  // changing the target renames the existing task rather than adding a second
+  await call("PUT", `/users/${adith.id}/wake`, { wake_time: "06:00", reps_target: 40, pin: PIN });
+  const { body: after } = await call("GET", `/users/${adith.id}/tasks`);
+  assert.equal(after.filter((t) => t.locked).length, 1);
+  assert.equal(after.find((t) => t.locked).title, "40 reps to wake up");
+
+  assert.equal(
+    (await call("PUT", `/users/${adith.id}/wake`, { wake_time: "25:00", pin: PIN })).status,
+    400
+  );
+});
+
+test("signing up with a wake time seeds the locked task straight away", async () => {
+  const early = (
+    await call("POST", "/users", {
+      name: "EarlyBird", pin: "3333", wake_time: "04:45", reps_target: 30, invited_by: adith.id,
+    })
+  ).body;
+  const { body: tasks } = await call("GET", `/users/${early.id}/tasks`);
+  assert.equal(tasks.length, 8, "seven rules plus the wake-up task");
+  assert.equal(tasks.find((t) => t.locked).title, "30 reps to wake up");
+});
+
+test("changing your PIN needs the old one", async () => {
+  assert.equal(
+    (await call("PUT", `/users/${rahul.id}/pin`, { new_pin: "9999", pin: "0000" })).status,
+    403
+  );
+  assert.equal(
+    (await call("PUT", `/users/${rahul.id}/pin`, { new_pin: "12", pin: "1111" })).status,
+    400
+  );
+  assert.equal(
+    (await call("PUT", `/users/${rahul.id}/pin`, { new_pin: "9999", pin: "1111" })).status,
+    200
+  );
+  // the new one works, the old one doesn't
+  assert.equal((await call("POST", `/users/${rahul.id}/restart`, { pin: "1111" })).status, 403);
+  assert.equal(
+    (await call("POST", `/users/${rahul.id}/restart`, { pin: "9999", today: TODAY })).status,
+    200
+  );
+});
+
+test("restart returns to day 1 but keeps XP and trophies", async () => {
+  const before = (await call("GET", `/users/${adith.id}/progress?today=${TODAY}`)).body;
+  const { body } = await call("POST", `/users/${adith.id}/restart`, { pin: PIN, today: TODAY });
+  assert.equal(body.day_number, 1);
+  assert.equal(body.run_start, TODAY);
+  assert.equal(body.xp, before.xp, "XP survives a reset");
+});
+
+test("missing things 404 rather than 500", async () => {
+  assert.equal((await call("GET", "/users/9999/progress")).status, 404);
+  assert.equal((await call("GET", `/users/9999/day/${TODAY}`)).status, 404);
+  assert.equal((await call("GET", "/nope")).status, 404);
+  assert.equal(
+    (await call("POST", "/users", { name: "Ghost", pin: "5555", invited_by: 9999 })).status,
+    404
+  );
+});
+
+test("routes also answer without the /api prefix (Vercel rewrite safety)", async () => {
+  const res = await fetch(`${base.replace("/api", "")}/users?as=${adith.id}`);
+  assert.equal(res.status, 200);
+  const names = (await res.json()).map((u) => u.name);
+  assert.deepEqual(names, ["Adith", "Rahul", "EarlyBird"]);
+});

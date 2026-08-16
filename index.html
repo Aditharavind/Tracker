@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover lets the page paint under the notch; the CSS then
+         pads content back out with env(safe-area-inset-*) -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="description" content="A shared daily tracker for the 75 Hard challenge." />
+
+    <!-- overwritten per theme by the app so the phone status bar matches -->
+    <meta name="theme-color" content="#0b0b0c" />
+
+    <!-- iOS has no manifest support for standalone mode; these do the job -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="75 Hard" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <title>75 Hard</title>
+  </head>
+  <body>
+    <script>
+      // Paint the saved theme before React boots, otherwise you get a flash of
+      // dark while the bundle loads.
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem("75hard.theme") || "dark";
+      } catch (e) {}
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

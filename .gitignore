@@ -1,7 +1,14 @@
 node_modules/
 dist/
-__pycache__/
-*.pyc
-data.db
-.venv/
+dev-dist/
+.vercel/
+.env
+.env.local
+*.local
+*.tsbuildinfo
 .DS_Store
+
+# A separate clone of github.com/Aditharavind/Tracker kept here for reference
+# while porting. It has its own .git, so committing it would create a nested
+# repo (git would store it as an unusable gitlink, not the files).
+Tracker/
