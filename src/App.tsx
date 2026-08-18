@@ -8,7 +8,7 @@ import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
 import Runner, { Avatar3D, Sprite, type AvatarId } from "./components/Runner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
-import { playAlarmSiren, playDiscoBeat } from "./discoSound";
+import { playAlarmSiren, playDiscoBeat, primeAudio } from "./discoSound";
 
 const LAST_USER = "75hard.user";
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void> };
@@ -202,6 +202,8 @@ export default function App() {
   const [pinPrompt, setPinPrompt] = useState<{ userId: number; error?: string } | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [, forceTick] = useState(0);
+  const todayRef = useRef(todayISO());
+  const minuteRef = useRef("");
   const noteTimer = useRef<number | undefined>(undefined);
   const discoTimer = useRef<number | undefined>(undefined);
   const pinRetry = useRef<((pin: string) => void) | null>(null);
@@ -322,10 +324,53 @@ export default function App() {
   }, [meId, day]);
 
   // The alarm condition (current time vs. wake_time) isn't itself reactive
-  // state -- this just forces a re-render often enough to notice crossing it.
+  // state, so it needs a poll to notice the moment it's crossed. Polling every
+  // second but only re-rendering when the wall-clock minute changes keeps the
+  // alarm within a second of its set time without a re-render per tick --
+  // wake_time is minute-resolution, so a minute is all the render granularity
+  // that means anything.
+  //
+  // The same poll rolls `day` over at midnight. An alarm gets left running
+  // overnight, and `day` was only ever read at mount: come morning the
+  // `day === todayISO()` gate below was still comparing against yesterday, so
+  // the alarm never fired at all. Only follow the rollover if the user is
+  // actually looking at today -- don't yank them out of a past day they opened.
   useEffect(() => {
-    const id = window.setInterval(() => forceTick((n) => n + 1), 15_000);
-    return () => window.clearInterval(id);
+    const check = () => {
+      const nowDay = todayISO();
+      if (nowDay !== todayRef.current) {
+        const prevDay = todayRef.current;
+        todayRef.current = nowDay;
+        setDay((d) => (d === prevDay ? nowDay : d));
+        if (meId != null) loadBoard(meId);
+      }
+      const nowMin = new Date().toTimeString().slice(0, 5);
+      if (nowMin !== minuteRef.current) {
+        minuteRef.current = nowMin;
+        forceTick((n) => n + 1);
+      }
+    };
+    const id = window.setInterval(check, 1000);
+    // Backgrounded tabs get their timers throttled hard (and a sleeping phone
+    // stops them outright), so re-check the instant we're visible again.
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [meId, loadBoard]);
+
+  // Web Audio refuses to start outside a user gesture, so an alarm firing on a
+  // timer plays nothing unless the context was already unlocked. Grab the first
+  // tap of the session to warm it up.
+  useEffect(() => {
+    const on = () => primeAudio();
+    window.addEventListener("pointerdown", on, { once: true });
+    window.addEventListener("keydown", on, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", on);
+      window.removeEventListener("keydown", on);
+    };
   }, []);
 
   const myUser = users?.find((u) => u.id === meId) ?? null;
@@ -348,7 +393,17 @@ export default function App() {
         ...curDetail,
         tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)),
       });
-      const res = await api.toggle(meId, t.id, day, !t.done, pin);
+      // Put the optimistic tick back if the server refused it. The alarm keys
+      // off this exact flag, so without the rollback a failed save (wrong
+      // cached PIN, offline) still dismissed the alarm -- siren off, reps
+      // never actually recorded.
+      let res;
+      try {
+        res = await api.toggle(meId, t.id, day, !t.done, pin);
+      } catch (e) {
+        setDetail(curDetail);
+        throw e;
+      }
       setDetail(res.day);
       setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
 
@@ -542,6 +597,22 @@ export default function App() {
           >
             Share
           </button>
+          <button
+            className="pill signout"
+            title="Sign out on this device"
+            aria-label="Sign out"
+            onClick={signOut}
+          >
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M6.2 2.4H3.4a1 1 0 0 0-1 1v9.2a1 1 0 0 0 1 1h2.8M10.2 11.2 13.4 8l-3.2-3.2M13.4 8H6.4"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -648,9 +719,6 @@ export default function App() {
         )}
         <button className="btn ghost" onClick={restart}>
           Reset my run
-        </button>
-        <button className="btn ghost" onClick={signOut}>
-          Sign out
         </button>
       </div>
       </div>
