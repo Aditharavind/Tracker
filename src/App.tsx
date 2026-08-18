@@ -8,6 +8,7 @@ import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
 import Runner, { Avatar3D, Sprite, type AvatarId } from "./components/Runner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
+import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, playDiscoBeat, primeAudio } from "./discoSound";
 
 const LAST_USER = "75hard.user";
@@ -15,6 +16,31 @@ type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void> };
 
 const THEME_KEY = "75hard.theme";
 const AVATAR_KEY = "75hard.avatar";
+const SNOOZE_KEY = "75hard.snooze";
+const SNOOZE_MIN = 5;
+
+/**
+ * Snooze and dismiss are the same mechanism: a per-user deadline before which
+ * the alarm stays quiet. Snooze sets one a few minutes out, dismiss sets one at
+ * the end of the local day. It has to survive a reload -- the phone goes back
+ * on the nightstand during a snooze, and a browser that reaps the tab and
+ * restores it shouldn't be a way to get the siren back.
+ */
+const storedSnooze = (): Record<number, number> => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SNOOZE_KEY) ?? "{}");
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Local midnight tonight, so a dismiss lasts exactly until tomorrow's alarm. */
+const msUntilTomorrow = () => {
+  const d = new Date();
+  d.setHours(24, 0, 0, 0);
+  return d.getTime() - Date.now();
+};
 const AVATARS: AvatarId[] = ["guy", "girl"];
 
 const storedTheme = (): ThemeId => {
@@ -136,7 +162,17 @@ function ShareDialog({ name, url, onClose }: { name: string; url: string; onClos
   );
 }
 
-function AlarmOverlay({ task, onDone }: { task: TaskItem; onDone: () => void }) {
+function AlarmOverlay({
+  task,
+  onDone,
+  onSnooze,
+  onDismiss,
+}: {
+  task: TaskItem;
+  onDone: () => void;
+  onSnooze: () => void;
+  onDismiss: () => void;
+}) {
   useEffect(() => {
     const stop = playAlarmSiren();
     return stop;
@@ -146,10 +182,18 @@ function AlarmOverlay({ task, onDone }: { task: TaskItem; onDone: () => void }) 
     <div className="alarm-overlay">
       <div className="alarm-emoji">⏰</div>
       <h1>Time to get up</h1>
-      <p>{task.title} -- the alarm won't stop until you have.</p>
+      <p>{task.title} -- and it only counts once you've actually done them.</p>
       <button className="btn primary wide alarm-btn" onClick={onDone}>
         Done -- {task.reps_target ?? 20} reps
       </button>
+      <div className="alarm-secondary">
+        <button className="btn ghost alarm-ghost" onClick={onSnooze}>
+          Snooze {SNOOZE_MIN} min
+        </button>
+        <button className="btn ghost alarm-ghost" onClick={onDismiss}>
+          Dismiss for today
+        </button>
+      </div>
     </div>
   );
 }
@@ -201,11 +245,14 @@ export default function App() {
   const [unlockedPins, setUnlockedPins] = useState<Record<number, string>>({});
   const [pinPrompt, setPinPrompt] = useState<{ userId: number; error?: string } | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
+  const [waving, setWaving] = useState(false);
   const [, forceTick] = useState(0);
   const todayRef = useRef(todayISO());
   const minuteRef = useRef("");
   const noteTimer = useRef<number | undefined>(undefined);
   const discoTimer = useRef<number | undefined>(undefined);
+  const waveTimer = useRef<number | undefined>(undefined);
   const pinRetry = useRef<((pin: string) => void) | null>(null);
 
   const me = board.find((p) => p.user_id === meId) ?? null;
@@ -247,6 +294,21 @@ export default function App() {
     setAvatars((prev) => {
       const next = { ...prev, [userId]: a };
       localStorage.setItem(AVATAR_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Expired deadlines are pruned on write so the record can't grow forever.
+  const silenceAlarm = (ms: number) => {
+    if (meId == null) return;
+    setSnoozed((prev) => {
+      const now = Date.now();
+      const next: Record<number, number> = {};
+      for (const [id, until] of Object.entries(prev)) {
+        if (until > now) next[Number(id)] = until;
+      }
+      next[meId] = now + ms;
+      localStorage.setItem(SNOOZE_KEY, JSON.stringify(next));
       return next;
     });
   };
@@ -360,6 +422,17 @@ export default function App() {
     };
   }, [meId, loadBoard]);
 
+  // Ring again the instant a snooze runs out, rather than waiting on the minute
+  // tick above -- a 5 minute snooze should be 5 minutes, not 5:59.
+  useEffect(() => {
+    const until = meId != null ? snoozed[meId] : undefined;
+    if (!until) return;
+    const ms = until - Date.now();
+    if (ms <= 0) return;
+    const id = window.setTimeout(() => forceTick((n) => n + 1), ms);
+    return () => window.clearTimeout(id);
+  }, [snoozed, meId]);
+
   // Web Audio refuses to start outside a user gesture, so an alarm firing on a
   // timer plays nothing unless the context was already unlocked. Grab the first
   // tap of the session to warm it up.
@@ -375,11 +448,13 @@ export default function App() {
 
   const myUser = users?.find((u) => u.id === meId) ?? null;
   const lockedTask = detail?.tasks.find((t) => t.locked) ?? null;
+  const silencedUntil = (meId != null ? snoozed[meId] : 0) ?? 0;
   const alarmActive =
     day === todayISO() &&
     !!myUser?.wake_time &&
     !!lockedTask &&
     !lockedTask.done &&
+    Date.now() >= silencedUntil &&
     new Date().toTimeString().slice(0, 8) >= myUser!.wake_time!;
 
   const toggle = (t: TaskItem) => {
@@ -519,7 +594,28 @@ export default function App() {
           <Avatar3D avatar={myAvatar} running zoomed />
         </div>
       )}
-      {alarmActive && lockedTask && <AlarmOverlay task={lockedTask} onDone={() => toggle(lockedTask)} />}
+      {waving && <SnoozePanda minutes={SNOOZE_MIN} />}
+      {alarmActive && lockedTask && (
+        <AlarmOverlay
+          task={lockedTask}
+          onDone={() => toggle(lockedTask)}
+          onSnooze={() => {
+            silenceAlarm(SNOOZE_MIN * 60_000);
+            // The panda carries the "back in N minutes" line, so no toast --
+            // two of them saying the same thing would just stack.
+            setWaving(true);
+            window.clearTimeout(waveTimer.current);
+            waveTimer.current = window.setTimeout(() => setWaving(false), 3400);
+          }}
+          onDismiss={() => {
+            if (!confirm("Kill the alarm until tomorrow? The reps stay unticked, so today won't be a full clear.")) {
+              return;
+            }
+            silenceAlarm(msUntilTomorrow());
+            flash("Alarm off until tomorrow. The reps are still waiting.");
+          }}
+        />
+      )}
       {pinPrompt && (
         <PinPrompt
           name={users.find((u) => u.id === pinPrompt.userId)?.name ?? "that user"}

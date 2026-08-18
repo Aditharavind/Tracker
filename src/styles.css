@@ -1505,6 +1505,109 @@ textarea {
   color: var(--bad);
 }
 
+/* Snooze and dismiss are the way out that doesn't tick the reps, so they read
+   as secondary to the white "Done" button rather than competing with it. */
+.alarm-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.alarm-ghost {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.alarm-ghost:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
+/* ------------------------------------------------------- snooze panda */
+
+/* Sits below .pin-backdrop (600) but above everything else. The alarm has
+   already unmounted by the time this shows, so it never overlaps it. */
+.snooze-panda {
+  position: fixed;
+  inset: 0;
+  z-index: 550;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.35);
+  animation: snooze-fade 3.4s ease-out forwards;
+}
+
+.snooze-card {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 20px 28px 16px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  animation: snooze-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.snooze-line {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 550;
+  color: var(--text);
+}
+
+/* The shoulder, so the arm swings rather than slides. */
+.panda-arm {
+  transform-origin: 87px 84px;
+  animation: panda-wave 0.6s ease-in-out infinite;
+}
+
+.panda-bamboo {
+  opacity: 0.85;
+}
+
+@keyframes panda-wave {
+  0%,
+  100% {
+    transform: rotate(2deg);
+  }
+  50% {
+    transform: rotate(24deg);
+  }
+}
+
+@keyframes snooze-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes snooze-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panda-arm,
+  .snooze-card,
+  .snooze-panda {
+    animation: none;
+  }
+}
+
 @keyframes alarm-flash {
   0%,
   100% {
