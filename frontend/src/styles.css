@@ -1043,29 +1043,48 @@ textarea {
   --forest-gold: #f0c04a;
 }
 
+.onboard-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
 .onboard::before {
+  /* The actual reference artwork, stretched to fill the screen -- same
+     asset and same treatment as .forest-bg in the game shell, so the
+     login page and the gameplay screen read as one continuous place
+     rather than two different backgrounds. `cover` fills edge-to-edge
+     with no distortion (crops rather than squashes); centered on the
+     bottom so the ground/flowers stay in frame on tall screens where the
+     top of the image would otherwise get pushed off. */
   content: "";
   position: absolute;
   inset: 0;
   z-index: -2;
-  background: linear-gradient(to bottom, var(--forest-bg-top), var(--forest-bg-bottom));
+  background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.55) 100%),
+    url("/assets/forest-background.png");
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: cover;
 }
 
 .onboard::after {
+  /* Readability scrim only, on top of the real image -- the login card
+     sits directly over the busy artwork and needs a bit more contrast
+     behind it than the image's own vignette alone provides. */
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(ellipse 65% 42% at 12% 100%, var(--forest-far), transparent 70%),
-    radial-gradient(ellipse 55% 40% at 88% 100%, var(--forest-far), transparent 70%),
-    radial-gradient(ellipse 50% 32% at 50% 105%, var(--forest-mid), transparent 75%);
-  opacity: 0.9;
+  background: radial-gradient(ellipse 70% 55% at 50% 42%, rgba(4, 8, 5, 0.55), transparent 72%);
 }
 
 .onboard-firefly {
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 1;
   background-image: radial-gradient(circle, var(--forest-gold) 0, transparent 1.6px),
     radial-gradient(circle, var(--forest-gold) 0, transparent 1.4px),
     radial-gradient(circle, var(--forest-gold) 0, transparent 1.8px);
@@ -1194,6 +1213,49 @@ textarea {
 .muted {
   color: var(--dim);
   font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- skeleton */
+
+/* Shown while the first requests are in flight. Sizing/position comes from
+   the real layout classes (.game-topbar/.stage-area/.day-card-float/
+   .game-bottomnav) the Skeleton component reuses -- this only adds the
+   shimmer look on top of plain filler boxes, so it can't drift out of sync
+   with the real shell's shape. */
+
+.skel {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+
+.skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 6%, transparent),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: sheen 1.25s ease-in-out infinite;
+}
+
+@keyframes sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* People who'd rather not see movement get a static placeholder. */
+@media (prefers-reduced-motion: reduce) {
+  .skel::after {
+    animation: none;
+  }
 }
 
 @media (max-width: 820px) {
@@ -1367,7 +1429,10 @@ textarea {
 .pin-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 400;
+  /* Above .alarm-overlay (500). Tapping "Done" on the alarm asks a PIN user
+     for their PIN -- underneath the opaque alarm screen that prompt was
+     invisible and unclickable, so the siren could never be turned off. */
+  z-index: 600;
   display: grid;
   place-items: center;
   background: rgba(0, 0, 0, 0.6);
@@ -1451,6 +1516,109 @@ textarea {
   max-width: 260px;
   background: #fff;
   color: var(--bad);
+}
+
+/* Snooze and dismiss are the way out that doesn't tick the reps, so they read
+   as secondary to the white "Done" button rather than competing with it. */
+.alarm-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.alarm-ghost {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.alarm-ghost:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
+/* ------------------------------------------------------- snooze panda */
+
+/* Sits below .pin-backdrop (600) but above everything else. The alarm has
+   already unmounted by the time this shows, so it never overlaps it. */
+.snooze-panda {
+  position: fixed;
+  inset: 0;
+  z-index: 550;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.35);
+  animation: snooze-fade 3.4s ease-out forwards;
+}
+
+.snooze-card {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 20px 28px 16px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  animation: snooze-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.snooze-line {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 550;
+  color: var(--text);
+}
+
+/* The shoulder, so the arm swings rather than slides. */
+.panda-arm {
+  transform-origin: 87px 84px;
+  animation: panda-wave 0.6s ease-in-out infinite;
+}
+
+.panda-bamboo {
+  opacity: 0.85;
+}
+
+@keyframes panda-wave {
+  0%,
+  100% {
+    transform: rotate(2deg);
+  }
+  50% {
+    transform: rotate(24deg);
+  }
+}
+
+@keyframes snooze-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes snooze-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panda-arm,
+  .snooze-card,
+  .snooze-panda {
+    animation: none;
+  }
 }
 
 @keyframes alarm-flash {

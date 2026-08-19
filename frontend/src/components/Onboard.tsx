@@ -48,7 +48,9 @@ export default function Onboard({
 
   return (
     <div className="onboard" style={{ ["--u" as string]: color }}>
-      <div className="onboard-firefly" aria-hidden="true" />
+      <div className="onboard-backdrop" aria-hidden="true">
+        <div className="onboard-firefly" />
+      </div>
       <div className="box2">
         <div className="onboard-panda" aria-hidden="true">
           <svg width="46" height="46" viewBox="0 0 30 30">
