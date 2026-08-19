@@ -8,6 +8,7 @@ import Platform from "./Platform";
 import Coin from "./Coin";
 import GoalFlag from "./GoalFlag";
 import StartSign from "./StartSign";
+import ZombiePlant from "./ZombiePlant";
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
@@ -50,25 +51,30 @@ export default function ForestScene({
   const platforms = generatePlatforms(dayNumber, total, seed);
   const pandaIndex = pandaPlatformIndex(doneCount, total);
   const start = startPoint();
-  const pandaPoint = pandaIndex === 0 ? start : platforms[pandaIndex - 1];
   const goal = goalPoint(total);
   const reachedGoal = total > 0 && doneCount === total;
   const pathPoints = [start, ...platforms, goal];
-  const stepBlocks = pathPoints.slice(1).flatMap((point, index) => {
-    const previous = pathPoints[index];
-    return [0.38, 0.62].map((amount, stepIndex) => ({
-      id: `${index}-${stepIndex}`,
-      x: previous.x + (point.x - previous.x) * amount,
-      y: previous.y + (point.y - previous.y) * amount,
-      cleared: pandaIndex > index,
-    }));
-  });
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
+  // The panda's *visual* position on the staircase -- deliberately decoupled
+  // from pandaIndex (the real, state-derived position). pandaIndex can jump
+  // by more than one step in a single update (several tasks completed at
+  // once, or checked out of order); visualIndex instead catches up to it one
+  // platform at a time so the climb always reads as climbing, never
+  // teleporting. It is purely cosmetic -- clamped to, and always eventually
+  // consistent with, pandaIndex -- so a refresh mid-hop just snaps to the
+  // correct real position rather than losing or fabricating progress.
+  const [visualIndex, setVisualIndex] = useState(pandaIndex);
+  // A new day (different task count) can land between this render and the
+  // effect below that reconciles visualIndex to it -- clamp defensively so
+  // a leftover index from a longer day never indexes past the new,
+  // possibly-shorter platform array.
+  const safeVisualIndex = Math.min(visualIndex, platforms.length);
+  const pandaPoint = safeVisualIndex === 0 ? start : platforms[safeVisualIndex - 1];
+
   const prevDone = useRef(doneCount);
   const prevResets = useRef(resets);
   const timers = useRef<number[]>([]);
-  const mounted = useRef(false);
 
   const queue = (fn: () => void, delay: number) => {
     timers.current.push(window.setTimeout(fn, delay));
@@ -79,9 +85,17 @@ export default function ForestScene({
   };
 
   // Initial run-in: idle -> short run -> idle, per CLAUDE.md section 9.
+  //
+  // No "already ran" guard here on purpose. React 18 StrictMode
+  // (see main.tsx) deliberately mounts every component twice in dev --
+  // mount, cleanup, mount again -- to surface exactly this class of bug. A
+  // `mounted` ref survives that cleanup (refs aren't reset by it), so a
+  // guard reading it sees "already ran" on the second mount, skips
+  // re-arming the queued transition to idle, and the cleanup from the
+  // *first* mount has already cancelled that timer -- the panda gets stuck
+  // playing "running" forever. Letting the effect simply re-run on the
+  // second, real mount is what actually leaves it in the correct end state.
   useEffect(() => {
-    if (mounted.current) return;
-    mounted.current = true;
     if (reducedMotion) return;
     setAnim("running");
     queue(() => setAnim("idle"), 700);
@@ -91,25 +105,51 @@ export default function ForestScene({
 
   // A completed task advances the panda -- state has already moved (the
   // caller only re-renders after persistence succeeds), this only plays the
-  // run/jump/land flourish on top of the already-correct position.
+  // run/jump/land flourish on top of the already-correct position. When
+  // pandaIndex has jumped by more than one platform (several tasks
+  // completed together, or completed out of order), visualIndex climbs to
+  // it one stair at a time instead of sliding straight there.
   useEffect(() => {
     if (doneCount === prevDone.current) return;
     const increased = doneCount > prevDone.current;
     prevDone.current = doneCount;
     clearQueue();
+
     if (!increased) {
+      // A task got unchecked, a restart, or a fresh day -- the target is
+      // already correct and behind (or equal to) where the panda visually
+      // is; snap rather than animate a climb-down.
+      setVisualIndex(pandaIndex);
       setAnim("idle");
       return;
     }
+
     if (reducedMotion) {
+      setVisualIndex(pandaIndex);
       setAnim("landing");
       queue(() => setAnim(doneCount === total ? "celebrating" : "idle"), 220);
       return;
     }
-    setAnim("running");
-    queue(() => setAnim("jumping"), 480);
-    queue(() => setAnim("landing"), 900);
-    queue(() => setAnim(doneCount === total ? "celebrating" : "idle"), 1150);
+
+    const target = pandaIndex;
+    const HOP_MS = 640;
+    const hop = (from: number) => {
+      setAnim("running");
+      queue(() => setAnim("jumping"), HOP_MS * 0.42);
+      queue(() => {
+        setAnim("landing");
+        setVisualIndex(from + 1);
+      }, HOP_MS * 0.78);
+      queue(() => {
+        const arrived = from + 1;
+        if (arrived < target) {
+          hop(arrived);
+        } else {
+          setAnim(doneCount === total ? "celebrating" : "idle");
+        }
+      }, HOP_MS);
+    };
+    hop(visualIndex);
     return clearQueue;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doneCount]);
@@ -156,19 +196,8 @@ export default function ForestScene({
           />
         </svg>
 
-        <StartSign left={pct(start).left} bottom={pct(start).bottom} />
-
-        {stepBlocks.map((step) => {
-          const { left, bottom } = pct(step);
-          return (
-            <span
-              key={step.id}
-              className={`forest-step${step.cleared ? " cleared" : ""}`}
-              style={{ left: `${left}%`, bottom: `${bottom}%` }}
-              aria-hidden="true"
-            />
-          );
-        })}
+        <StartSign left={7} bottom={0} />
+        <ZombiePlant left={20} bottom={0} />
 
         {tasks.map((t, i) => {
           const p = platforms[i];
@@ -176,7 +205,7 @@ export default function ForestScene({
           return (
             <div key={t.id}>
               <Platform left={left} bottom={bottom} cleared={t.done} title={t.title} />
-              <Coin left={left} bottom={bottom + 6} collected={t.done} />
+              <Coin left={left} bottom={bottom + 6} visible={i >= safeVisualIndex} />
             </div>
           );
         })}

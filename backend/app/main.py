@@ -116,10 +116,13 @@ def _progress(session: Session, user: User) -> dict:
 
 
 def _require_pin(user: User, pin: Optional[str]) -> None:
-    """Users created before PIN support has no pin_hash -- unprotected,
-    same as today, until they set one via PUT /users/{id}/pin."""
-    if user.pin_hash and not verify_secret(pin or "", user.pin_hash):
-        raise HTTPException(403, "wrong PIN")
+    """PIN enforcement disabled by request -- this was prompting on every
+    single mutation (every task checkmark), which was pure friction for a
+    device only its own owner uses. Left as a no-op rather than deleted so
+    the pin_hash column/UI can be re-enabled later without re-deriving this
+    logic; accounts that already set a PIN keep it on file, it's just never
+    checked again."""
+    return
 
 
 def _client_ip(request: Request) -> str:

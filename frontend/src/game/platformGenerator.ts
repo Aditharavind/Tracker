@@ -19,10 +19,15 @@ const ROUTE: Point[] = [
   { x: 0.88, y: 0.84 },
 ];
 
+const CLIMB_HEIGHT = 0.72;
+
 // Deterministic layout: same seed + task count always produces the same path.
 // The route is intentionally Mario-like: it climbs vertically every step, but
 // major landings drift left and right so it reads as platforms instead of a
-// uniform diagonal staircase.
+// uniform diagonal staircase. The vertical rise between consecutive steps is
+// exactly uniform (equal Δy every task) so the panda's climb reads as an even
+// staircase -- only the horizontal drift (sampled from the route's x at that
+// same height fraction) varies, which is what keeps it visually interesting.
 export function generatePlatforms(dayNumber: number, taskCount: number, seed: string): Platform[] {
   if (taskCount <= 0) return [];
 
@@ -30,25 +35,24 @@ export function generatePlatforms(dayNumber: number, taskCount: number, seed: st
 
   return Array.from({ length: taskCount }, (_, index) => {
     const t = (index + 1) / (taskCount + 1);
-    const base = sampleRoute(t);
-    const verticalSpacing = 0.72 / Math.max(1, taskCount);
+    const y = t * CLIMB_HEIGHT;
+    const routeX = sampleRoute(t).x;
     const jitterX = (random() - 0.5) * 0.055;
-    const jitterY = (random() - 0.5) * Math.min(0.02, verticalSpacing * 0.18);
     return {
       id: `day-${dayNumber}-platform-${index}`,
       taskIndex: index,
-      x: clamp01(base.x + jitterX),
-      y: clamp01(base.y + jitterY),
+      x: clamp01(routeX + jitterX),
+      y: clamp01(y),
     };
   });
 }
 
 export function startPoint(): Point {
-  return { x: 0.05, y: 0.05 };
+  return { x: 0.18, y: 0.05 };
 }
 
 export function goalPoint(taskCount: number): Point {
-  return taskCount <= 1 ? { x: 0.78, y: 0.58 } : { x: 0.93, y: 0.88 };
+  return { x: taskCount <= 1 ? 0.82 : 0.93, y: 0.05 };
 }
 
 function sampleRoute(t: number): Point {

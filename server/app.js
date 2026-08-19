@@ -29,13 +29,13 @@ async function loadUser(store, id) {
 }
 
 /**
- * Users created before PIN support have no pin_hash and stay unprotected,
- * exactly as they were, until they set one via PUT /users/:id/pin.
+ * PIN enforcement disabled by request -- prompting on every single
+ * mutation was pure friction for a device only its own owner uses. Kept as
+ * a no-op (matching backend/app/main.py's _require_pin) rather than
+ * deleted, so it can be re-enabled without re-deriving this logic.
  */
-function requirePin(user, pin) {
-  if (user.pin_hash && !verifySecret(String(pin ?? ""), user.pin_hash)) {
-    throw new HttpError(403, "wrong PIN");
-  }
+function requirePin(_user, _pin) {
+  return;
 }
 
 /**
