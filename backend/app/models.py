@@ -14,6 +14,9 @@ class Group(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = "My board"
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # Unguessable link anyone can use to join this group as a new member --
+    # distinct from a user's individual share_token, which stays read-only.
+    invite_token: Optional[str] = Field(default=None, unique=True, index=True)
 
 
 class User(SQLModel, table=True):
@@ -29,6 +32,13 @@ class User(SQLModel, table=True):
     # group membership: sharing your progress with someone doesn't make
     # them a group member who could ever be prompted to edit anything.
     share_token: Optional[str] = Field(default=None, unique=True, index=True)
+    # Convenience only, never an auth mechanism: lets a browser with no
+    # saved local user get its tile pre-selected on a later visit from the
+    # same IP instead of landing on the onboarding screen. PIN is still
+    # required for every mutation regardless of IP -- see GET
+    # /api/session/suggest and _require_pin in main.py.
+    last_ip: Optional[str] = None
+    last_seen_at: Optional[datetime] = None
 
 
 class Task(SQLModel, table=True):

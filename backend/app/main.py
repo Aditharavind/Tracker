@@ -1,10 +1,10 @@
 import secrets
 from dataclasses import asdict
-from datetime import date, time
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -93,6 +93,14 @@ class InsightIn(BaseModel):
     force: bool = False
 
 
+class JoinIn(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    color: str = "#e8734a"
+    pin: str = Field(pattern=r"^\d{4,6}$")
+    wake_time: Optional[time] = None
+    reps_target: int = 20
+
+
 # ---------------------------------------------------------------- helpers
 
 
@@ -114,14 +122,54 @@ def _require_pin(user: User, pin: Optional[str]) -> None:
         raise HTTPException(403, "wrong PIN")
 
 
+def _client_ip(request: Request) -> str:
+    # Trust X-Forwarded-For only for the convenience suggestion below, which
+    # grants no access on its own -- if a deployment sits behind a proxy
+    # that doesn't set this, it degrades to the proxy's own address, which
+    # just makes the suggestion less precise, never wrong in a way that
+    # matters (PIN still gates every mutation).
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _touch_session(session: Session, user: User, request: Request) -> None:
+    user.last_ip = _client_ip(request)
+    user.last_seen_at = datetime.utcnow()
+    session.add(user)
+    session.commit()
+
+
 def _new_share_token() -> str:
     return secrets.token_urlsafe(9)
+
+
+def _new_invite_token() -> str:
+    return secrets.token_urlsafe(9)
+
+
+def _seed_default_tasks(session: Session, user: User, wake_time: Optional[time], reps_target: int) -> None:
+    for i, (title, emoji) in enumerate(CORE_TASKS):
+        session.add(Task(user_id=user.id, title=title, emoji=emoji, is_core=True, sort=i))
+    if wake_time is not None:
+        session.add(
+            Task(
+                user_id=user.id,
+                title=f"{reps_target} reps to wake up",
+                emoji="⏰",
+                is_core=True,
+                locked=True,
+                reps_target=reps_target,
+                sort=len(CORE_TASKS),
+            )
+        )
 
 
 # ---------------------------------------------------------------- routes
 
 
-def _user_out(u: User, reveal_token: bool = False) -> dict:
+def _user_out(session: Session, u: User, reveal_token: bool = False) -> dict:
     out = {
         "id": u.id,
         "name": u.name,
@@ -131,33 +179,56 @@ def _user_out(u: User, reveal_token: bool = False) -> dict:
         "has_pin": u.pin_hash is not None,
     }
     # Only handed back to the user themself -- other group members can see
-    # each other's names/colors, but not each other's share links.
+    # each other's names/colors, but not each other's share/invite links.
     if reveal_token:
         out["share_token"] = u.share_token
+        group = session.get(Group, u.group_id)
+        out["invite_token"] = group.invite_token if group else None
     return out
 
 
 @app.get("/api/users")
-def list_users(as_: Optional[int] = Query(None, alias="as"), session: Session = Depends(get_session)):
+def list_users(
+    request: Request,
+    as_: Optional[int] = Query(None, alias="as"),
+    session: Session = Depends(get_session),
+):
     """Scoped to the caller's own group -- `as` identifies which existing
     user is asking. No `as` (a browser with no local user yet) sees an
     empty board and starts a fresh, isolated group on signup."""
     me = session.get(User, as_) if as_ is not None else None
     if me is None:
         return []
+    _touch_session(session, me, request)
     users = session.exec(select(User).where(User.group_id == me.group_id).order_by(User.id)).all()
-    return [_user_out(u, reveal_token=(u.id == as_)) for u in users]
+    return [_user_out(session, u, reveal_token=(u.id == as_)) for u in users]
+
+
+@app.get("/api/session/suggest")
+def suggest_session(request: Request, session: Session = Depends(get_session)):
+    """Convenience only -- lets a browser with no saved local user (cleared
+    storage, new device) get pre-selected instead of dropped on the
+    onboarding screen, if this IP was last seen as a specific user. Never
+    grants access: the frontend still needs the right PIN to edit anything,
+    exactly as if the user had picked their own tile from the list."""
+    ip = _client_ip(request)
+    user = session.exec(
+        select(User).where(User.last_ip == ip).order_by(User.last_seen_at.desc())
+    ).first()
+    if user is None:
+        return {"user_id": None}
+    return {"user_id": user.id, "name": user.name, "color": user.color}
 
 
 @app.post("/api/users", status_code=201)
-def create_user(payload: UserIn, session: Session = Depends(get_session)):
+def create_user(payload: UserIn, request: Request, session: Session = Depends(get_session)):
     if session.exec(select(User).where(User.name == payload.name)).first():
         raise HTTPException(409, "that name is taken")
 
     if payload.invited_by is not None:
         group_id = _user(session, payload.invited_by).group_id
     else:
-        group = Group()
+        group = Group(invite_token=_new_invite_token())
         session.add(group)
         session.commit()
         session.refresh(group)
@@ -171,27 +242,16 @@ def create_user(payload: UserIn, session: Session = Depends(get_session)):
         wake_time=payload.wake_time,
         group_id=group_id,
         share_token=_new_share_token(),
+        last_ip=_client_ip(request),
+        last_seen_at=datetime.utcnow(),
     )
     session.add(user)
     session.commit()
     session.refresh(user)
 
-    for i, (title, emoji) in enumerate(CORE_TASKS):
-        session.add(Task(user_id=user.id, title=title, emoji=emoji, is_core=True, sort=i))
-    if payload.wake_time is not None:
-        session.add(
-            Task(
-                user_id=user.id,
-                title=f"{payload.reps_target} reps to wake up",
-                emoji="⏰",
-                is_core=True,
-                locked=True,
-                reps_target=payload.reps_target,
-                sort=len(CORE_TASKS),
-            )
-        )
+    _seed_default_tasks(session, user, payload.wake_time, payload.reps_target)
     session.commit()
-    return _user_out(user, reveal_token=True)
+    return _user_out(session, user, reveal_token=True)
 
 
 @app.get("/api/board")
@@ -214,6 +274,45 @@ def shared_progress(token: str, session: Session = Depends(get_session)):
     if not user:
         raise HTTPException(404, "invalid or expired link")
     return _progress(session, user)
+
+
+@app.get("/api/invite/{token}")
+def invite_info(token: str, session: Session = Depends(get_session)):
+    """Public preview of who's already in the lobby -- shown before someone
+    commits to joining. No ids, pins, or tokens leak here."""
+    group = session.exec(select(Group).where(Group.invite_token == token)).first()
+    if not group:
+        raise HTTPException(404, "invalid or expired invite")
+    members = session.exec(select(User).where(User.group_id == group.id).order_by(User.id)).all()
+    return {"members": [{"name": u.name, "color": u.color} for u in members]}
+
+
+@app.post("/api/invite/{token}/join", status_code=201)
+def join_invite(token: str, payload: JoinIn, session: Session = Depends(get_session)):
+    """Actually joins the lobby -- unlike /api/share, this creates a real,
+    editable member (their own tasks/PIN), not a read-only view."""
+    group = session.exec(select(Group).where(Group.invite_token == token)).first()
+    if not group:
+        raise HTTPException(404, "invalid or expired invite")
+    if session.exec(select(User).where(User.name == payload.name)).first():
+        raise HTTPException(409, "that name is taken")
+
+    user = User(
+        name=payload.name,
+        color=payload.color,
+        start_date=date.today(),
+        pin_hash=hash_secret(payload.pin),
+        wake_time=payload.wake_time,
+        group_id=group.id,
+        share_token=_new_share_token(),
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    _seed_default_tasks(session, user, payload.wake_time, payload.reps_target)
+    session.commit()
+    return _user_out(session, user, reveal_token=True)
 
 
 @app.get("/api/users/{user_id}/progress")
@@ -361,7 +460,7 @@ def set_wake(user_id: int, payload: WakeIn, session: Session = Depends(get_sessi
                 )
             )
     session.commit()
-    return _user_out(user, reveal_token=True)
+    return _user_out(session, user, reveal_token=True)
 
 
 @app.post("/api/users/{user_id}/insight")
