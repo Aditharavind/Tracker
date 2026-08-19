@@ -1,0 +1,16 @@
+{
+  "name": "75hard-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Vercel serverless API for the 75 Day Hard Challenge tracker. The frontend lives in frontend/ and builds separately -- see vercel.json.",
+  "scripts": {
+    "dev:api": "node --env-file-if-exists=.env.local scripts/api-server.js",
+    "test": "node --test tests/",
+    "check": "node --env-file-if-exists=.env.local scripts/check-supabase.mjs"
+  },
+  "dependencies": {
+    "@supabase/postgrest-js": "^2.109.0",
+    "express": "^4.21.2"
+  }
+}
