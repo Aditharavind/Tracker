@@ -12,11 +12,38 @@ import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
 import FailureBanner from "./components/forest/FailureBanner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
-import { playAlarmSiren, playDiscoBeat } from "./discoSound";
+import SnoozePanda from "./components/SnoozePanda";
+import { playAlarmSiren, playDiscoBeat, primeAudio } from "./discoSound";
 
 const LAST_USER = LAST_USER_KEY;
 const THEME_KEY = "75hard.theme";
 const AVATAR_KEY = "75hard.avatar";
+const SNOOZE_KEY = "75hard.snooze";
+const SNOOZE_MIN = 5;
+
+/**
+ * Snooze and dismiss are the same mechanism: a per-user deadline before which
+ * the alarm stays quiet. Snooze sets one a few minutes out, dismiss sets one at
+ * the end of the local day. It has to survive a reload -- the phone goes back
+ * on the nightstand during a snooze, and a browser that reaps the tab and
+ * restores it shouldn't be a way to get the siren back.
+ */
+const storedSnooze = (): Record<number, number> => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SNOOZE_KEY) ?? "{}");
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Local midnight tonight, so a dismiss lasts exactly until tomorrow's alarm. */
+const msUntilTomorrow = () => {
+  const d = new Date();
+  d.setHours(24, 0, 0, 0);
+  return d.getTime() - Date.now();
+};
+
 const AVATARS: AvatarId[] = ["guy", "girl", "panda"];
 
 const storedTheme = (): ThemeId => {
@@ -238,7 +265,17 @@ function ShareDialog({
   );
 }
 
-function AlarmOverlay({ task, onDone }: { task: TaskItem; onDone: () => void }) {
+function AlarmOverlay({
+  task,
+  onDone,
+  onSnooze,
+  onDismiss,
+}: {
+  task: TaskItem;
+  onDone: () => void;
+  onSnooze: () => void;
+  onDismiss: () => void;
+}) {
   useEffect(() => {
     const stop = playAlarmSiren();
     return stop;
@@ -248,10 +285,47 @@ function AlarmOverlay({ task, onDone }: { task: TaskItem; onDone: () => void }) 
     <div className="alarm-overlay">
       <div className="alarm-emoji">⏰</div>
       <h1>Time to get up</h1>
-      <p>{task.title} -- the alarm won't stop until you have.</p>
+      <p>{task.title} -- and it only counts once you've actually done them.</p>
       <button className="btn primary wide alarm-btn" onClick={onDone}>
         Done -- {task.reps_target ?? 20} reps
       </button>
+      <div className="alarm-secondary">
+        <button className="btn ghost alarm-ghost" onClick={onSnooze}>
+          Snooze {SNOOZE_MIN} min
+        </button>
+        <button className="btn ghost alarm-ghost" onClick={onDismiss}>
+          Dismiss for today
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Mirrors the real game-shell layout's boxes so the page doesn't jump when
+ * data lands -- shown while the first requests are in flight. Reuses the
+ * actual layout classes (game-topbar/stage-area/day-card-float/bottomnav)
+ * for correct positioning/sizing rather than a parallel set of skeleton-only
+ * layout rules, so it can't drift out of sync with the real shell.
+ */
+function Skeleton() {
+  return (
+    <div className="game-shell" aria-busy="true" aria-label="Loading">
+      <div className="game-shell-inner">
+        <header className="game-topbar">
+          <div className="skel" style={{ width: 38, height: 38, borderRadius: 9 }} />
+          <div className="skel" style={{ width: 180, height: 14, borderRadius: 6 }} />
+          <div className="skel" style={{ width: 60, height: 22, borderRadius: 6 }} />
+        </header>
+        <div className="stage-area">
+          <div className="day-card-float skel" style={{ height: "60%" }} />
+        </div>
+        <nav className="game-bottomnav">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skel" style={{ width: 46, height: 34, borderRadius: 8 }} />
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }
@@ -276,9 +350,14 @@ export default function App() {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile">(null);
   const [habitDraft, setHabitDraft] = useState("");
+  const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
+  const [waving, setWaving] = useState(false);
   const [, forceTick] = useState(0);
+  const todayRef = useRef(todayISO());
+  const minuteRef = useRef("");
   const noteTimer = useRef<number | undefined>(undefined);
   const discoTimer = useRef<number | undefined>(undefined);
+  const waveTimer = useRef<number | undefined>(undefined);
   const pinRetry = useRef<((pin: string) => void) | null>(null);
 
   const me = board.find((p) => p.user_id === meId) ?? null;
@@ -329,6 +408,21 @@ export default function App() {
     window.setTimeout(() => setToast(null), 2600);
   };
 
+  // Expired deadlines are pruned on write so the record can't grow forever.
+  const silenceAlarm = (ms: number) => {
+    if (meId == null) return;
+    setSnoozed((prev) => {
+      const now = Date.now();
+      const next: Record<number, number> = {};
+      for (const [id, until] of Object.entries(prev)) {
+        if (until > now) next[Number(id)] = until;
+      }
+      next[meId] = now + ms;
+      localStorage.setItem(SNOOZE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const partyTime = () => {
     setDisco(true);
     playDiscoBeat(4200);
@@ -356,22 +450,29 @@ export default function App() {
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
+  // The saved id is already in localStorage, so users/board don't need to
+  // wait on each other -- chaining them cost a round trip before anything
+  // could render. Only the no-saved-user case still has to resolve users
+  // (or a same-IP suggestion) first, since board needs to know who to ask for.
   useEffect(() => {
+    const storedId = Number(localStorage.getItem(LAST_USER)) || undefined;
+    if (storedId) {
+      loadUsers(storedId);
+      loadBoard(storedId);
+      return;
+    }
     (async () => {
-      const storedId = Number(localStorage.getItem(LAST_USER)) || undefined;
-      let saved = storedId;
       // No saved local user (cleared storage, new device) -- ask whether
       // this IP was last seen as someone, so a returning player lands
       // pre-selected on their own tile instead of the onboarding screen.
       // Pure convenience: a wrong/missing suggestion just falls back to
       // today's behaviour, and editing still needs the right PIN either way.
-      if (saved == null) {
-        try {
-          const suggestion = await api.suggestSession();
-          if (suggestion.user_id != null) saved = suggestion.user_id;
-        } catch {
-          // ignore -- fall through to the normal onboarding path
-        }
+      let saved: number | undefined;
+      try {
+        const suggestion = await api.suggestSession();
+        if (suggestion.user_id != null) saved = suggestion.user_id;
+      } catch {
+        // ignore -- fall through to the normal onboarding path
       }
       const list = await loadUsers(saved);
       if (list.length) await loadBoard(saved ?? list[0].id);
@@ -389,19 +490,75 @@ export default function App() {
   }, [meId, day]);
 
   // The alarm condition (current time vs. wake_time) isn't itself reactive
-  // state -- this just forces a re-render often enough to notice crossing it.
+  // state, so it needs a poll to notice the moment it's crossed. Polling every
+  // second but only re-rendering when the wall-clock minute changes keeps the
+  // alarm within a second of its set time without a re-render per tick --
+  // wake_time is minute-resolution, so a minute is all the render granularity
+  // that means anything.
+  //
+  // The same poll rolls `day` over at midnight. An alarm gets left running
+  // overnight, and `day` was only ever read at mount: come morning the
+  // `day === todayISO()` gate below was still comparing against yesterday, so
+  // the alarm never fired at all. Only follow the rollover if the user is
+  // actually looking at today -- don't yank them out of a past day they opened.
   useEffect(() => {
-    const id = window.setInterval(() => forceTick((n) => n + 1), 15_000);
-    return () => window.clearInterval(id);
+    const check = () => {
+      const nowDay = todayISO();
+      if (nowDay !== todayRef.current) {
+        const prevDay = todayRef.current;
+        todayRef.current = nowDay;
+        setDay((d) => (d === prevDay ? nowDay : d));
+        if (meId != null) loadBoard(meId);
+      }
+      const nowMin = new Date().toTimeString().slice(0, 5);
+      if (nowMin !== minuteRef.current) {
+        minuteRef.current = nowMin;
+        forceTick((n) => n + 1);
+      }
+    };
+    const id = window.setInterval(check, 1000);
+    // Backgrounded tabs get their timers throttled hard (and a sleeping phone
+    // stops them outright), so re-check the instant we're visible again.
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [meId, loadBoard]);
+
+  // Ring again the instant a snooze runs out, rather than waiting on the minute
+  // tick above -- a 5 minute snooze should be 5 minutes, not 5:59.
+  useEffect(() => {
+    const until = meId != null ? snoozed[meId] : undefined;
+    if (!until) return;
+    const ms = until - Date.now();
+    if (ms <= 0) return;
+    const id = window.setTimeout(() => forceTick((n) => n + 1), ms);
+    return () => window.clearTimeout(id);
+  }, [snoozed, meId]);
+
+  // Web Audio refuses to start outside a user gesture, so an alarm firing on a
+  // timer plays nothing unless the context was already unlocked. Grab the first
+  // tap of the session to warm it up.
+  useEffect(() => {
+    const on = () => primeAudio();
+    window.addEventListener("pointerdown", on, { once: true });
+    window.addEventListener("keydown", on, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", on);
+      window.removeEventListener("keydown", on);
+    };
   }, []);
 
   const myUser = users?.find((u) => u.id === meId) ?? null;
   const lockedTask = detail?.tasks.find((t) => t.locked) ?? null;
+  const silencedUntil = (meId != null ? snoozed[meId] : 0) ?? 0;
   const alarmActive =
     day === todayISO() &&
     !!myUser?.wake_time &&
     !!lockedTask &&
     !lockedTask.done &&
+    Date.now() >= silencedUntil &&
     new Date().toTimeString().slice(0, 8) >= myUser!.wake_time!;
 
   const toggle = (t: TaskItem) => {
@@ -415,7 +572,17 @@ export default function App() {
         ...curDetail,
         tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)),
       });
-      const res = await api.toggle(meId, t.id, day, !t.done, pin);
+      // Put the optimistic tick back if the server refused it. The alarm keys
+      // off this exact flag, so without the rollback a failed save (wrong
+      // cached PIN, offline) still dismissed the alarm -- siren off, reps
+      // never actually recorded.
+      let res;
+      try {
+        res = await api.toggle(meId, t.id, day, !t.done, pin);
+      } catch (e) {
+        setDetail(curDetail);
+        throw e;
+      }
       setDetail(res.day);
       setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
 
@@ -484,7 +651,7 @@ export default function App() {
     });
   };
 
-  if (users === null) return <div className="shell muted">loading...</div>;
+  if (users === null) return <Skeleton />;
 
   if (users.length === 0) {
     return (
@@ -505,7 +672,7 @@ export default function App() {
     );
   }
 
-  if (!me || !detail) return <div className="shell muted">loading...</div>;
+  if (!me || !detail) return <Skeleton />;
 
   const isToday = day === todayISO();
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
@@ -526,7 +693,28 @@ export default function App() {
           <Avatar3D avatar={myAvatar} running zoomed />
         </div>
       )}
-      {alarmActive && lockedTask && <AlarmOverlay task={lockedTask} onDone={() => toggle(lockedTask)} />}
+      {waving && <SnoozePanda minutes={SNOOZE_MIN} />}
+      {alarmActive && lockedTask && (
+        <AlarmOverlay
+          task={lockedTask}
+          onDone={() => toggle(lockedTask)}
+          onSnooze={() => {
+            silenceAlarm(SNOOZE_MIN * 60_000);
+            // The panda carries the "back in N minutes" line, so no toast --
+            // two of them saying the same thing would just stack.
+            setWaving(true);
+            window.clearTimeout(waveTimer.current);
+            waveTimer.current = window.setTimeout(() => setWaving(false), 3400);
+          }}
+          onDismiss={() => {
+            if (!confirm("Kill the alarm until tomorrow? The reps stay unticked, so today won't be a full clear.")) {
+              return;
+            }
+            silenceAlarm(msUntilTomorrow());
+            flash("Alarm off until tomorrow. The reps are still waiting.");
+          }}
+        />
+      )}
       {pinPrompt && (
         <PinPrompt
           name={users.find((u) => u.id === pinPrompt.userId)?.name ?? "that user"}
