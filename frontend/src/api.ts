@@ -1,4 +1,4 @@
-import type { DayDetail, Insight, Progress, TaskItem, User } from "./types";
+import type { DayDetail, InvitePreview, Progress, TaskItem, User } from "./types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -14,6 +14,12 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   users: (asUserId?: number) => req<User[]>(`/users${asUserId != null ? `?as=${asUserId}` : ""}`),
+
+  // Convenience only, not auth: if this IP was last seen as a specific
+  // user, lets a browser with no saved local user (cleared storage, new
+  // device) get pre-selected instead of dropped on the onboarding screen.
+  // Editing still needs that user's PIN regardless of what this returns.
+  suggestSession: () => req<{ user_id: number | null; name?: string; color?: string }>("/session/suggest"),
 
   createUser: (
     name: string,
@@ -38,6 +44,14 @@ export const api = {
   board: (asUserId?: number) => req<Progress[]>(`/board${asUserId != null ? `?as=${asUserId}` : ""}`),
 
   sharedProgress: (token: string) => req<Progress>(`/share/${token}`),
+
+  inviteInfo: (token: string) => req<InvitePreview>(`/invite/${token}`),
+
+  joinInvite: (token: string, name: string, color: string, pin: string) =>
+    req<User>(`/invite/${token}/join`, {
+      method: "POST",
+      body: JSON.stringify({ name, color, pin }),
+    }),
 
   day: (userId: number, day: string) => req<DayDetail>(`/users/${userId}/day/${day}`),
 

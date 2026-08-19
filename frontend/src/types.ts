@@ -7,6 +7,13 @@ export type User = {
   has_pin: boolean;
   // Only present on your own record (see GET /api/users?as=).
   share_token?: string;
+  // A link anyone can use to join your lobby as a new, editable member --
+  // distinct from share_token, which stays read-only.
+  invite_token?: string;
+};
+
+export type InvitePreview = {
+  members: { name: string; color: string }[];
 };
 
 export type Badge = {

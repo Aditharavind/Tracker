@@ -1,23 +1,30 @@
 import type { Progress } from "../types";
 
 export default function Rivals({ board, meId }: { board: Progress[]; meId: number }) {
-  const ranked = [...board].sort((a, b) => b.streak - a.streak || b.xp - a.xp);
+  // Ranked primarily by day number -- how far into the 75 each person has
+  // climbed -- with streak and xp as tie-breakers.
+  const ranked = [...board].sort(
+    (a, b) => b.day_number - a.day_number || b.streak - a.streak || b.xp - a.xp
+  );
   const leader = ranked[0];
 
   return (
     <div className="card">
       <div className="card-head">
-        <h2>Head to head</h2>
-        {board.length > 1 && leader.streak > 0 && (
-          <span className="count">{leader.name} leads</span>
+        <h2>Leaderboard</h2>
+        {board.length > 1 && (
+          <span className="count">
+            {leader.name} leads &middot; day {leader.day_number}
+          </span>
         )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {ranked.map((p) => {
+        {ranked.map((p, i) => {
           const pct = p.core_today ? (p.completed_today / p.core_today) * 100 : 0;
           return (
             <div className="rival" key={p.user_id} style={{ ["--u" as string]: p.color }}>
+              <span className="rank num">#{i + 1}</span>
               <div className="avatar">
                 {p.name.slice(0, 1).toUpperCase()}
               </div>

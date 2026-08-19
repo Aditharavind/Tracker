@@ -22,6 +22,9 @@ _NEW_COLUMNS = [
     ("task", "reps_target", "INTEGER"),
     ("user", "group_id", "INTEGER"),
     ("user", "share_token", "TEXT"),
+    ("groups", "invite_token", "TEXT"),
+    ("user", "last_ip", "TEXT"),
+    ("user", "last_seen_at", "TEXT"),
 ]
 
 
@@ -49,6 +52,8 @@ def _backfill_groups(conn) -> None:
         )
     for (uid,) in conn.execute(text("SELECT id FROM user WHERE share_token IS NULL")).fetchall():
         conn.execute(text("UPDATE user SET share_token = :tok WHERE id = :id"), {"tok": secrets.token_urlsafe(9), "id": uid})
+    for (gid,) in conn.execute(text("SELECT id FROM groups WHERE invite_token IS NULL")).fetchall():
+        conn.execute(text("UPDATE groups SET invite_token = :tok WHERE id = :id"), {"tok": secrets.token_urlsafe(9), "id": gid})
 
 
 def init_db() -> None:
