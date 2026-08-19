@@ -1,14 +1,23 @@
 // Coin state is a pure readout of task.done -- it never toggles the task.
 // See CLAUDE.md section 8: "coin count is never the source of truth."
 // The panda-face imprint matches the reference art's coin design.
-export default function Coin({ left, bottom, collected }: { left: number; bottom: number; collected: boolean }) {
+export default function Coin({
+  left,
+  bottom,
+  visible,
+}: {
+  left: number;
+  bottom: number;
+  visible: boolean;
+}) {
   return (
     <div
-      className={`coin${collected ? " collected" : ""}`}
+      className={`coin${visible ? "" : " hidden"}`}
       style={{ left: `${left}%`, bottom: `${bottom}%` }}
       aria-hidden="true"
     >
-      <svg width="17" height="17" viewBox="0 0 17 17">
+      <svg width="26" height="26" viewBox="0 0 17 17">
+        <circle cx="8.5" cy="8.5" r="8.1" fill="#3a2708" opacity="0.55" />
         <circle cx="8.5" cy="8.5" r="7.6" fill="#f0c04a" stroke="#8a5a17" strokeWidth="1" />
         <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="#c98f2e" strokeWidth="0.6" />
         <ellipse cx="5.6" cy="6.2" rx="1.3" ry="1.3" fill="#8a5a17" />

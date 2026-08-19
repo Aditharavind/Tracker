@@ -67,6 +67,36 @@ function IconClose() {
   );
 }
 
+// Close control for the Leaderboard drawer specifically -- a tiny panda
+// climbing down a diagonal wooden plank, echoing the forest theme instead of
+// a generic X, per the request to reskin that one dismiss control.
+function IconPandaDescend() {
+  return (
+    <svg width="22" height="20" viewBox="0 0 22 20" aria-hidden="true">
+      <rect
+        x="2"
+        y="12"
+        width="20"
+        height="4.4"
+        rx="1"
+        transform="rotate(-24 2 12)"
+        fill="#6b4a1e"
+        stroke="#3a2810"
+        strokeWidth="1"
+      />
+      <rect x="3.4" y="13.9" width="16.4" height="0.9" transform="rotate(-24 3.4 13.9)" fill="#4c3315" opacity="0.6" />
+      <g transform="translate(6.4 2.4) rotate(-24)">
+        <circle cx="4" cy="4" r="3.6" fill="#f4f1ea" stroke="#241804" strokeWidth="0.6" />
+        <circle cx="1.3" cy="1.7" r="1.3" fill="#241804" />
+        <circle cx="6.7" cy="1.7" r="1.3" fill="#241804" />
+        <ellipse cx="2.3" cy="4.2" rx="1" ry="1.3" fill="#241804" />
+        <ellipse cx="5.7" cy="4.2" rx="1" ry="1.3" fill="#241804" />
+        <ellipse cx="4" cy="5.6" rx="0.7" ry="0.5" fill="#241804" />
+      </g>
+    </svg>
+  );
+}
+
 function IconHome() {
   return (
     <svg width="18" height="17" viewBox="0 0 18 17" fill="none" aria-hidden="true">
@@ -176,42 +206,6 @@ export function LevelRing({ p }: { p: Progress }) {
         <div className="xp">
           {p.level_ceiling === null ? `${p.xp} xp` : `${p.xp}/${p.level_ceiling}`}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function PinPrompt({
-  name,
-  error,
-  onSubmit,
-  onCancel,
-}: {
-  name: string;
-  error?: string;
-  onSubmit: (pin: string) => void;
-  onCancel: () => void;
-}) {
-  const [pin, setPin] = useState("");
-  return (
-    <div className="pin-backdrop" onClick={onCancel}>
-      <div className="pin-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{name}'s PIN</h3>
-        <p className="muted">Needed to edit {name}'s progress -- viewing never needs it.</p>
-        <input
-          className="field"
-          type="password"
-          inputMode="numeric"
-          autoFocus
-          maxLength={6}
-          value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          onKeyDown={(e) => e.key === "Enter" && pin && onSubmit(pin)}
-        />
-        {error && <p className="pin-error">{error}</p>}
-        <button className="btn primary wide" disabled={!pin} onClick={() => onSubmit(pin)}>
-          Unlock
-        </button>
       </div>
     </div>
   );
@@ -344,8 +338,6 @@ export default function App() {
   const [pendingAvatar, setPendingAvatar] = useState<AvatarId>("guy");
   const [adding, setAdding] = useState(false);
   const [disco, setDisco] = useState(false);
-  const [unlockedPins, setUnlockedPins] = useState<Record<number, string>>({});
-  const [pinPrompt, setPinPrompt] = useState<{ userId: number; error?: string } | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile">(null);
@@ -358,41 +350,19 @@ export default function App() {
   const noteTimer = useRef<number | undefined>(undefined);
   const discoTimer = useRef<number | undefined>(undefined);
   const waveTimer = useRef<number | undefined>(undefined);
-  const pinRetry = useRef<((pin: string) => void) | null>(null);
 
   const me = board.find((p) => p.user_id === meId) ?? null;
   const myAvatar: AvatarId = (meId != null && avatars[meId]) || "guy";
 
-  // Viewing (board/progress/day) never needs a PIN -- only mutating a
-  // user's own data does. `fn` receives the unlocked PIN (or undefined for
-  // legacy users who never set one) and is retried once a correct PIN is
-  // supplied; a 403 from the backend means a stale/wrong cached PIN, which
-  // gets cleared so the prompt reappears instead of failing silently.
-  const runWithPin = (userId: number, fn: (pin?: string) => Promise<void>) => {
-    const user = users?.find((u) => u.id === userId);
-    const cached = unlockedPins[userId];
-    if (user?.has_pin && cached === undefined) {
-      pinRetry.current = (pin: string) => {
-        fn(pin)
-          .then(() => {
-            setUnlockedPins((p) => ({ ...p, [userId]: pin }));
-            setPinPrompt(null);
-          })
-          .catch(() => setPinPrompt({ userId, error: "wrong PIN" }));
-      };
-      setPinPrompt({ userId });
-      return;
-    }
-    fn(cached).catch((e) => {
-      if (e instanceof Error && /pin/i.test(e.message)) {
-        setUnlockedPins((p) => {
-          const next = { ...p };
-          delete next[userId];
-          return next;
-        });
-      }
-      throw e;
-    });
+  // PIN prompting removed by request -- every mutation used to stop and ask
+  // for a PIN (even with the in-session cache, that meant once per reload),
+  // which was pure friction for a device only its own owner uses. The
+  // server no longer enforces PINs either (see backend's _require_pin /
+  // server/app.js's requirePin, both now no-ops), so calling straight
+  // through here still succeeds for accounts that have a pin_hash on file
+  // from before this change.
+  const runWithPin = (_userId: number, fn: (pin?: string) => Promise<void>) => {
+    fn(undefined);
   };
 
   const setAvatarFor = (userId: number, a: AvatarId) => {
@@ -565,37 +535,32 @@ export default function App() {
     if (meId == null || !detail) return;
     const curDetail = detail;
     const curMe = me;
-    runWithPin(meId, async (pin) => {
-      const wasPerfect = curMe?.perfect_today ?? false;
-      const wasFullClear = curDetail.tasks.length > 0 && curDetail.tasks.every((x) => x.done);
-      setDetail({
-        ...curDetail,
-        tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)),
-      });
-      // Put the optimistic tick back if the server refused it. The alarm keys
-      // off this exact flag, so without the rollback a failed save (wrong
-      // cached PIN, offline) still dismissed the alarm -- siren off, reps
-      // never actually recorded.
-      let res;
-      try {
-        res = await api.toggle(meId, t.id, day, !t.done, pin);
-      } catch (e) {
-        setDetail(curDetail);
-        throw e;
-      }
-      setDetail(res.day);
-      setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
-
-      const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
-      const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
-      if (day === todayISO() && !wasPerfect && res.progress.perfect_today) {
-        const hit = res.progress.badges.find((x) => x.day === res.progress.streak && x.earned);
-        flash(hit ? `${hit.name} unlocked - day ${res.progress.streak}` : `Day ${res.progress.day_number} locked in`);
-      } else if (becameFullClear) {
-        flash("Full clear - nothing left today");
-      }
-      if (becameFullClear) partyTime();
+    const wasPerfect = curMe?.perfect_today ?? false;
+    const wasFullClear = curDetail.tasks.length > 0 && curDetail.tasks.every((x) => x.done);
+    setDetail({
+      ...curDetail,
+      tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)),
     });
+    api
+      .toggle(meId, t.id, day, !t.done)
+      .then((res) => {
+        setDetail(res.day);
+        setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
+
+        const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
+        const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
+        if (day === todayISO() && !wasPerfect && res.progress.perfect_today) {
+          const hit = res.progress.badges.find((x) => x.day === res.progress.streak && x.earned);
+          flash(hit ? `${hit.name} unlocked - day ${res.progress.streak}` : `Day ${res.progress.day_number} locked in`);
+        } else if (becameFullClear) {
+          flash("Full clear - nothing left today");
+        }
+        if (becameFullClear) partyTime();
+      })
+      .catch((e) => {
+        setDetail(curDetail);
+        flash(e instanceof Error ? e.message : "Could not update task");
+      });
   };
 
   const addTask = (title: string) => {
@@ -715,17 +680,6 @@ export default function App() {
           }}
         />
       )}
-      {pinPrompt && (
-        <PinPrompt
-          name={users.find((u) => u.id === pinPrompt.userId)?.name ?? "that user"}
-          error={pinPrompt.error}
-          onCancel={() => {
-            pinRetry.current = null;
-            setPinPrompt(null);
-          }}
-          onSubmit={(pin) => pinRetry.current?.(pin)}
-        />
-      )}
       {shareUrl && <ShareDialog name={me.name} url={shareUrl} kind="share" onClose={() => setShareUrl(null)} />}
       {inviteUrl && <ShareDialog name={me.name} url={inviteUrl} kind="invite" onClose={() => setInviteUrl(null)} />}
 
@@ -742,6 +696,9 @@ export default function App() {
           <div className="game-title pixel-font">75 DAY HARD CHALLENGE</div>
           <div className="topbar-lives">
             <LivesHUD resets={me.resets} />
+            <div className="failure-banner-float">
+              <FailureBanner resets={me.resets} />
+            </div>
           </div>
         </header>
 
@@ -794,16 +751,12 @@ export default function App() {
             </button>
           </div>
 
-          <div className="failure-banner-float">
-            <FailureBanner resets={me.resets} />
-          </div>
-
           {openPanel === "leaderboard" && (
             <div className="panel-drawer">
               <div className="panel-drawer-head">
                 <h2>Leaderboard</h2>
-                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
-                  <IconClose />
+                <button className="panel-close panel-close-plank" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                  <IconPandaDescend />
                 </button>
               </div>
               <Rivals board={board} meId={me.user_id} />

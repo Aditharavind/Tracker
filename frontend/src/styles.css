@@ -9,6 +9,13 @@
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --body-font: var(--sans);
+  /* The same pixel/retro font "75 DAY HARD CHALLENGE" uses (see .pixel-font
+     below) -- every heading across the app uses this one family instead of
+     each screen picking its own, so the game identity reads consistently
+     from onboarding through to the deepest drawer panel. Body copy (task
+     names, notes, paragraphs) stays on --body-font -- Press Start 2P is a
+     wide bitmap face that turns illegible at paragraph sizes. */
+  --game-font: "Press Start 2P", var(--mono);
   --scanlines: none;
   --glow: none;
 
@@ -266,6 +273,31 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/* Every heading in the app, one family -- see --game-font above. Sized down
+   from each heading's old default because Press Start 2P's blocky glyphs run
+   noticeably wider than the sans/mono faces these were originally tuned for;
+   .brand-rock (the OnTrack wordmark) keeps its own distinct Titan One style
+   via higher selector specificity, so it's unaffected by this. */
+h1,
+h2,
+h3 {
+  font-family: var(--game-font);
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+}
+
+h1 {
+  font-size: clamp(16px, 4.4vw, 22px);
+}
+
+h2 {
+  font-size: clamp(13px, 3vw, 16px);
+}
+
+h3 {
+  font-size: clamp(11px, 2.6vw, 13px);
+}
+
 /* ---------------------------------------------------------------- shell */
 
 .shell,
@@ -484,8 +516,8 @@ textarea {
 
 .card-head h2 {
   margin: 0;
-  font-size: 12px;
-  letter-spacing: 0.13em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--dim);
   font-weight: 600;
@@ -1111,6 +1143,8 @@ textarea {
 
 .onboard h1 {
   margin: 0;
+  font-size: clamp(15px, 4.4vw, 19px);
+  line-height: 1.4;
 }
 
 .onboard .onboard-tagline {
@@ -1502,7 +1536,9 @@ textarea {
 }
 
 .alarm-overlay h1 {
-  font-size: 34px;
+  font-size: clamp(18px, 6vw, 24px);
+  letter-spacing: 0.02em;
+  line-height: 1.35;
   margin: 0;
 }
 
@@ -1652,8 +1688,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--mono);
-  font-size: 26px;
+  font-family: var(--game-font);
+  letter-spacing: 0.04em;
+  font-size: clamp(17px, 4vw, 21px);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text);
@@ -1968,9 +2005,19 @@ textarea {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 18px;
-  z-index: 8;
-  background: linear-gradient(to top, var(--forest-mid), transparent);
+  height: 76px;
+  z-index: 5;
+  background-color: #17190d;
+  background-image:
+    linear-gradient(to bottom, rgba(156, 218, 59, 0.72) 0 9px, rgba(49, 87, 31, 0.9) 9px 17px, transparent 17px),
+    linear-gradient(90deg, rgba(255, 224, 99, 0.11) 0 2px, transparent 2px 16px),
+    linear-gradient(rgba(0, 0, 0, 0.34) 0 2px, transparent 2px 14px),
+    radial-gradient(circle at 10% 40%, #625020 0 3px, transparent 3px),
+    radial-gradient(circle at 40% 74%, #796228 0 3px, transparent 3px),
+    radial-gradient(circle at 80% 46%, #423316 0 3px, transparent 3px);
+  background-size: 100% 100%, 16px 100%, 100% 14px, 46px 32px, 54px 38px, 50px 34px;
+  border-top: 2px solid rgba(217, 205, 107, 0.55);
+  box-shadow: inset 0 8px 12px rgba(197, 255, 66, 0.12), 0 -8px 20px rgba(0, 0, 0, 0.28);
 }
 
 .forest-path {
@@ -1982,8 +2029,8 @@ textarea {
      340px card with its own trailing page content below it, so ground
      level never actually touched a fixed bottom bar; the full-bleed
      stage-area's bottom edge now does. */
-  inset: 0 0 60px 0;
-  z-index: 5;
+  inset: 0 0 72px 0;
+  z-index: 6;
 }
 
 .forest-trail {
@@ -2005,30 +2052,66 @@ textarea {
 
 .start-sign {
   position: absolute;
-  transform: translate(-140%, 55%);
-  z-index: 6;
+  transform: translate(-50%, 92%);
+  z-index: 9;
   text-align: center;
 }
 
 .start-sign-post {
-  width: 3px;
-  height: 22px;
+  width: 4px;
+  height: 24px;
   margin: 0 auto;
-  background: var(--forest-stone);
+  background: linear-gradient(90deg, #4a3313, #6b4a1e 45%, #3a2810);
+  border-radius: 1px;
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.3);
 }
 
+/* A real wooden plank rather than a UI label -- horizontal grain streaks,
+   a routed border groove, and peg "nails" at the corners. */
 .start-sign-board {
-  margin-top: -4px;
-  padding: 2px 4px;
-  font-family: var(--mono);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--forest-cream);
-  background: color-mix(in srgb, var(--forest-stone) 70%, #000);
-  border: 1px solid var(--forest-stone);
-  border-radius: 2px;
+  position: relative;
+  margin-top: -3px;
+  padding: 4px 9px 5px;
+  font-family: "Titan One", var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: #f6e6b8;
+  background: linear-gradient(180deg, #8a5f28 0%, #7a5220 22%, #6b4a1e 50%, #5c3f19 78%, #4c3315 100%),
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 6px);
+  background-blend-mode: normal, overlay;
+  border: 1.5px solid #3a2810;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25), inset 0 -2px 2px rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 0 rgba(255, 224, 160, 0.2), 0 -1px 1px rgba(0, 0, 0, 0.65);
   white-space: nowrap;
+}
+
+.start-sign-board::before,
+.start-sign-board::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #241804;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.start-sign-board::before {
+  left: 3px;
+}
+
+.start-sign-board::after {
+  right: 3px;
+}
+
+/* The start sign used to just float over the background artwork -- give it
+   the same grainy stone/earth base every platform stands on (identical
+   texture recipe to .platform-stone) so it reads as planted on solid,
+   gamified ground rather than pasted on top of the scenery. */
+.start-ground {
+  display: none;
 }
 
 .platform {
@@ -2070,36 +2153,40 @@ textarea {
   opacity: 0.96;
 }
 
-.forest-step {
-  position: absolute;
-  width: clamp(10px, 1.4vw, 17px);
-  height: clamp(7px, 0.9vw, 11px);
-  transform: translate(-50%, 50%);
-  z-index: 5;
-  border-radius: 2px;
-  background: linear-gradient(to bottom, #9bcf42 0 42%, #3f6f24 42%);
-  border: 1px solid rgba(220, 205, 102, 0.72);
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35), 0 3px 0 rgba(0, 0, 0, 0.38), 0 0 7px rgba(240, 192, 74, 0.24);
-}
-
-.forest-step.cleared {
-  filter: brightness(1.14);
-}
-
 .coin {
   position: absolute;
+  z-index: 8;
   transform: translate(-50%, 50%);
   transition: opacity 0.3s ease, transform 0.3s ease;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--forest-gold) 60%, transparent));
+  filter: drop-shadow(0 0 5px var(--forest-gold)) drop-shadow(0 0 10px color-mix(in srgb, var(--forest-gold) 70%, transparent))
+    drop-shadow(0 2px 1px rgba(0, 0, 0, 0.5));
 }
 
-.coin:not(.collected) {
+.coin:not(.hidden) {
   animation: coin-bob 2.4s ease-in-out infinite;
 }
 
-.coin.collected {
+.coin.hidden {
   opacity: 0;
   transform: translate(-50%, 50%) scale(0.4);
+  animation: none;
+}
+
+@keyframes coin-absorb {
+  0% {
+    transform: translate(-50%, 50%) scale(1);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px var(--forest-gold)) drop-shadow(0 0 10px color-mix(in srgb, var(--forest-gold) 70%, transparent));
+  }
+  30% {
+    transform: translate(-50%, 50%) scale(1.35);
+    opacity: 1;
+    filter: drop-shadow(0 0 10px var(--forest-gold)) drop-shadow(0 0 18px var(--forest-gold));
+  }
+  100% {
+    transform: translate(-50%, 120%) scale(0.15);
+    opacity: 0;
+  }
 }
 
 @keyframes coin-bob {
@@ -2114,45 +2201,116 @@ textarea {
 
 .goal-flag {
   position: absolute;
-  transform: translate(-50%, 100%);
+  transform: translate(-50%, 34px);
   z-index: 6;
+  text-align: center;
 }
 
 .goal-pole {
-  width: 2px;
-  height: 46px;
+  width: 2.5px;
+  height: 50px;
   margin: 0 auto;
-  background: var(--forest-cream);
-  opacity: 0.85;
+  background: linear-gradient(90deg, #d8c48a, var(--forest-cream) 45%, #b8a066);
+  border-radius: 1px;
+  opacity: 0.92;
 }
 
 .goal-cloth {
   position: absolute;
   top: 0;
-  left: 1px;
-  width: 16px;
-  height: 11px;
+  left: 2px;
+  width: 20px;
+  height: 13px;
   background: var(--bad);
   clip-path: polygon(0 0, 100% 25%, 0 50%);
   opacity: 0.55;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, background 0.3s ease;
+  animation: flag-wave 2.6s ease-in-out infinite;
+  transform-origin: 0% 50%;
 }
 
+/* Gold-and-cream checkered "you made it" flag once the summit is reached,
+   instead of just a brighter version of the same plain triangle. */
 .goal-flag.reached .goal-cloth {
   opacity: 1;
-  background: var(--forest-gold);
+  background-color: var(--forest-gold);
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(20, 14, 4, 0.85) 0 3px,
+      transparent 3px 6px
+    ),
+    repeating-linear-gradient(-45deg, rgba(20, 14, 4, 0.85) 0 3px, transparent 3px 6px);
+}
+
+@keyframes flag-wave {
+  0%,
+  100% {
+    transform: skewY(0deg);
+  }
+  50% {
+    transform: skewY(4deg);
+  }
+}
+
+/* Victory board mounted at the base of the summit flagpole -- same carved
+   wood-plank language as the start sign, so the two ends of the run read as
+   one continuous set piece. */
+.goal-board {
+  margin-top: 2px;
+  padding: 4px 8px 5px;
+  font-family: "Titan One", var(--sans);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  color: #f6e6b8;
+  background: linear-gradient(180deg, #8a5f28 0%, #7a5220 22%, #6b4a1e 50%, #5c3f19 78%, #4c3315 100%),
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 6px);
+  background-blend-mode: normal, overlay;
+  border: 1.5px solid #3a2810;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25), inset 0 -2px 2px rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 0 rgba(255, 224, 160, 0.2), 0 -1px 1px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+  opacity: 0.65;
+  transition: opacity 0.3s ease, box-shadow 0.3s ease;
+}
+
+.goal-flag.reached .goal-board {
+  opacity: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25), inset 0 -2px 2px rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.35),
+    0 0 12px rgba(240, 192, 74, 0.55);
 }
 
 .panda-anchor {
   position: absolute;
-  transform: translate(-50%, 100%);
+  /* Stand the panda's feet on the platform's mossy top surface rather than
+     centering the sprite on the platform's anchor point (which left it
+     hanging mostly below the platform it was supposed to be standing on). */
+  transform: translate(-50%, -16px);
   z-index: 7;
-  transition: left 0.45s cubic-bezier(0.3, 0.9, 0.4, 1.05), bottom 0.45s cubic-bezier(0.3, 0.9, 0.4, 1.05);
+  /* Never draggable/selectable -- the model-viewer canvas has its own
+     camera-controls disabled already, but the wrapping element could still
+     pick up a text-selection drag or a native element-drag ghost. */
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* Delayed to start only once the run-in-place phase ends and the jump arc
+     begins, and finishes exactly as the landing beat starts -- matching
+     ForestScene's per-stair timeline (run 0-270ms, jump 270-500ms, land at
+     500ms, static until the next hop at 640ms). Without the delay the
+     sprite slid toward the destination immediately while still playing its
+     "running in place" bob, which is what read as jittering instead of a
+     clean, one-stair-at-a-time hop. */
+  transition: left 0.23s cubic-bezier(0.33, 0.1, 0.3, 1), bottom 0.23s cubic-bezier(0.33, 0.1, 0.3, 1);
+  transition-delay: 0.27s;
+  will-change: left, bottom;
 }
 
 .panda {
   transform-origin: 50% 100%;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .panda-model {
@@ -2160,6 +2318,9 @@ textarea {
   width: clamp(46px, 6vw, 72px);
   height: clamp(46px, 6vw, 72px);
   background: transparent;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
   --poster-color: transparent;
 }
 
@@ -2248,6 +2409,7 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .panda-anchor {
     transition: left 0.15s linear, bottom 0.15s linear;
+    transition-delay: 0s;
   }
   .panda-running,
   .panda-jumping,
@@ -2256,7 +2418,7 @@ textarea {
   .panda-falling {
     animation: panda-fade 0.15s ease-in-out;
   }
-  .coin:not(.collected) {
+  .coin:not(.hidden) {
     animation: none;
   }
   .forest-fireflies {
@@ -2415,6 +2577,11 @@ textarea {
 
 .topbar-lives {
   flex: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 250px;
 }
 
 /* ---- stage: forest fills whatever height is left -------------------- */
@@ -2509,25 +2676,33 @@ textarea {
   border-color: transparent;
 }
 
-/* ---- failure banner, floated above the bottom nav --------------------- */
+/* ---- failure banner, tucked under lives ------------------------------- */
 
 .failure-banner-float {
   position: absolute;
-  left: 32px;
-  right: 32px;
-  bottom: 18px;
-  z-index: 18;
-  max-width: 940px;
-  margin: 0 auto;
+  top: 42px;
+  right: 0;
+  left: auto;
+  bottom: auto;
+  z-index: 31;
+  width: min(300px, 42vw);
+  margin: 0;
+  text-align: right;
 }
 
 .failure-banner-float .failure-banner {
   margin: 0;
-  background: color-mix(in srgb, #06100c 82%, transparent);
-  border: 2px solid rgba(210, 177, 103, 0.28);
-  border-radius: 14px;
+  background: color-mix(in srgb, #06100c 76%, transparent);
+  border: 1.5px solid rgba(210, 177, 103, 0.26);
+  border-radius: 10px;
   color: var(--forest-cream, #f3e6c8);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38);
+  padding: 9px 11px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.failure-banner-float .failure-title {
+  justify-content: flex-end;
 }
 
 /* ---- panel drawers: leaderboard / stats / habits / profile ------------ */
@@ -2559,8 +2734,8 @@ textarea {
 
 .panel-drawer-head h2 {
   margin: 0;
-  font-size: 14px;
-  letter-spacing: 0.1em;
+  font-size: 12px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text);
 }
@@ -2578,6 +2753,16 @@ textarea {
 .panel-close:hover {
   background: var(--raised);
   color: var(--text);
+}
+
+/* Leaderboard drawer's dismiss control -- wider to fit the panda-on-a-plank
+   icon, with a warm wood-toned hover instead of the generic panel one. */
+.panel-close-plank {
+  width: 40px;
+}
+
+.panel-close-plank:hover {
+  background: color-mix(in srgb, #6b4a1e 30%, transparent);
 }
 
 .panel-section + .panel-section {
@@ -2705,8 +2890,9 @@ textarea {
   }
 
   .failure-banner-float {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
+    top: 42px;
+    right: 0;
+    left: auto;
+    width: min(240px, 58vw);
   }
 }
