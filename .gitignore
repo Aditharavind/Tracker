@@ -5,3 +5,5 @@ __pycache__/
 data.db
 .venv/
 .DS_Store
+.vercel/
+.env.local
