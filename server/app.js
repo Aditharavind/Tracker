@@ -22,6 +22,85 @@ class HttpError extends Error {
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+const PAGE_DEFAULT = 50;
+const PAGE_MAX = 200;
+
+/**
+ * Group membership is unbounded -- an invite link handed round a gym or posted
+ * publicly grows one board without limit, and /board computes full progress for
+ * every member it returns. Without a ceiling a single large board is enough to
+ * blow the function's memory and time budget, whatever the total user count.
+ *
+ * The response stays a plain array so existing clients are unaffected; the
+ * paging state rides on headers.
+ */
+function pageParams(query) {
+  const rawLimit = Number(query.limit);
+  const rawOffset = Number(query.offset);
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(Math.max(Math.trunc(rawLimit), 1), PAGE_MAX)
+    : PAGE_DEFAULT;
+  const offset = Number.isFinite(rawOffset) ? Math.max(Math.trunc(rawOffset), 0) : 0;
+  return { limit, offset };
+}
+
+function setPageHeaders(res, { limit, offset }, total) {
+  res.set("X-Total-Count", String(total));
+  res.set("X-Page-Limit", String(limit));
+  res.set("X-Page-Offset", String(offset));
+  if (offset + limit < total) res.set("X-Has-More", "1");
+}
+
+const RATE_WINDOW_MS = 60_000;
+/**
+ * 10 req/s sustained. Set high on purpose: mobile carriers and offices put
+ * thousands of people behind one address, so a tight per-IP limit would lock
+ * out real users long before it inconvenienced anyone. This is sized to catch
+ * a runaway loop, not to apportion capacity.
+ */
+const rateMax = () => Number(process.env.RATE_LIMIT_PER_MIN) || 600;
+
+/**
+ * Coarse per-IP backstop, and honest about being only that: serverless
+ * instances share no memory, so the fleet-wide ceiling is this times however
+ * many instances are warm. It exists because writes are unauthenticated (see
+ * requirePin) and one client in a retry loop should not be able to sit on the
+ * database. For a real guarantee put rate limiting at the edge, where it sees
+ * every request and can key on more than an address.
+ *
+ * The counter lives per app instance rather than per module so that each
+ * createApp() -- one per cold start in production, one per test here -- starts
+ * clean, instead of tests bleeding budget into each other.
+ */
+function createRateLimit() {
+  const hits = new Map();
+  // Read per instance rather than at import, so a deployment can retune it
+  // without a rebuild -- and so tests can set a small ceiling.
+  const max = rateMax();
+
+  return function rateLimit(req, res, next) {
+    const now = Date.now();
+    const ip = clientIp(req);
+    const entry = hits.get(ip);
+
+    if (!entry || now >= entry.reset) {
+      hits.set(ip, { count: 1, reset: now + RATE_WINDOW_MS });
+    } else if (entry.count >= max) {
+      res.set("Retry-After", String(Math.ceil((entry.reset - now) / 1000)));
+      return res.status(429).json({ error: "too many requests -- slow down" });
+    } else {
+      entry.count += 1;
+    }
+
+    // Sweep on write rather than on a timer: an interval would hold a
+    // serverless instance open, and an unbounded Map is the leak this guards.
+    if (hits.size > 10_000) {
+      for (const [key, value] of hits) if (now >= value.reset) hits.delete(key);
+    }
+    next();
+  };
+}
+
 async function loadUser(store, id) {
   const user = await store.getUser(id);
   if (!user) throw new HttpError(404, "user not found");
@@ -196,10 +275,13 @@ export function createRouter() {
       const me = await callerGroup(store, req.query.as);
       if (!me) return res.json([]);
       await touchSession(store, me, req);
-      const [users, group] = await Promise.all([
-        store.listUsersInGroup(me.group_id),
+      const page = pageParams(req.query);
+      const [users, group, total] = await Promise.all([
+        store.listUsersInGroup(me.group_id, page),
         store.getGroup(me.group_id),
+        store.countUsersInGroup(me.group_id),
       ]);
+      setPageHeaders(res, page, total);
       res.json(users.map((u) => userOut(u, u.id === me.id, group)));
     })
   );
@@ -227,8 +309,19 @@ export function createRouter() {
       const store = getStore();
       const group = await store.getGroupByInviteToken(req.params.token);
       if (!group) throw new HttpError(404, "invalid or expired invite");
-      const members = await store.listUsersInGroup(group.id);
-      res.json({ members: members.map((u) => ({ name: u.name, color: u.color })) });
+      // A preview, not a directory: show the first few and say how many more.
+      // This endpoint is public and uncredentialed, so it must not become a way
+      // to enumerate an entire board.
+      const page = { limit: 12, offset: 0 };
+      const [members, total] = await Promise.all([
+        store.listUsersInGroup(group.id, page),
+        store.countUsersInGroup(group.id),
+      ]);
+      res.set("Cache-Control", "public, max-age=30, s-maxage=30");
+      res.json({
+        members: members.map((u) => ({ name: u.name, color: u.color })),
+        total,
+      });
     })
   );
 
@@ -357,7 +450,12 @@ export function createRouter() {
       const me = await callerGroup(store, req.query.as);
       if (!me) return res.json([]);
       const today = dayFrom(req.query.today);
-      const users = await store.listUsersInGroup(me.group_id);
+      const page = pageParams(req.query);
+      const [users, total] = await Promise.all([
+        store.listUsersInGroup(me.group_id, page),
+        store.countUsersInGroup(me.group_id),
+      ]);
+      setPageHeaders(res, page, total);
       res.json(await boardFor(store, users, today));
     })
   );
@@ -372,6 +470,11 @@ export function createRouter() {
       const store = getStore();
       const user = await store.getUserByShareToken(req.params.token);
       if (!user) throw new HttpError(404, "invalid or expired link");
+      // Public, read-only, and the same for everyone holding the link -- so a
+      // link that gets passed around widely can be served from the edge instead
+      // of recomputing a full history per viewer. Half a minute is short enough
+      // that a tick still shows up while someone is watching.
+      res.set("Cache-Control", "public, max-age=30, s-maxage=30");
       res.json(await progressFor(store, user, dayFrom(req.query.today)));
     })
   );
@@ -550,6 +653,16 @@ export function createApp() {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "64kb" }));
+  app.use(createRateLimit());
+
+  // Everything here is either personal or mutable, so nothing may sit in a
+  // shared cache by default. The two public read-only endpoints opt back in
+  // individually below -- those are the ones a widely-shared link can hammer,
+  // and where a short edge TTL is worth real money at scale.
+  app.use((req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
 
   const router = createRouter();
   // Vercel may hand the function either the full "/api/users" path or the
@@ -562,8 +675,13 @@ export function createApp() {
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     const status = err.status ?? 500;
-    if (status >= 500) console.error(err);
-    res.status(status).json({ error: err.message ?? "server error" });
+    if (status >= 500) {
+      // Log the real cause, return a generic one: a 500 here is usually a
+      // database error, and those messages carry table and column names.
+      console.error(err);
+      return res.status(status).json({ error: "server error" });
+    }
+    res.status(status).json({ error: err.message ?? "request failed" });
   });
 
   return app;

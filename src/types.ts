@@ -13,7 +13,10 @@ export type User = {
 };
 
 export type InvitePreview = {
+  // A sample, not the whole board -- the endpoint is public and uncredentialed,
+  // so it caps what it lists. `total` is the real membership count.
   members: { name: string; color: string }[];
+  total: number;
 };
 
 export type Badge = {
