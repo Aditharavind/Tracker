@@ -1096,7 +1096,7 @@ h3 {
   inset: 0;
   z-index: -2;
   background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.55) 100%),
-    url("/assets/forest-background.png");
+    url("/assets/forest-background.webp");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: cover;
@@ -1932,7 +1932,7 @@ h3 {
   position: absolute;
   inset: 0;
   background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(0, 0, 0, 0.48) 100%),
-    url("/assets/forest-background.png");
+    url("/assets/forest-background.webp");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: cover;

@@ -32,16 +32,13 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // The 3D viewer chunk, the .glb models and the forest artwork are
-        // megabytes and aren't needed to open the app, so they stay out of the
-        // precache and load on demand instead. Precaching them would also blow
-        // past maximumFileSizeToCacheInBytes and fail the build.
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
-        globIgnores: [
-          "**/model-viewer-*.js",
-          "**/assets/forest-background.png",
-          "**/assets/panda-character.png",
-        ],
+        // The 3D viewer chunk and the .glb models are megabytes and aren't
+        // needed to open the app, so they stay out of the precache and load on
+        // demand instead. The forest background *is* precached: as WebP it is
+        // ~120KB rather than the 1.8MB PNG it replaced, and it is the first
+        // thing you see, so having it offline-ready is worth the space.
+        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2}"],
+        globIgnores: ["**/model-viewer-*.js"],
         maximumFileSizeToCacheInBytes: 600 * 1024,
         // The API must never be served from cache -- a stale streak is worse
         // than no streak. Navigation falls back to the shell when offline.
@@ -54,7 +51,7 @@ export default defineConfig({
           },
           {
             // big, immutable, rarely changed -- cache once, reuse forever
-            urlPattern: /model-viewer-.*\.js$|\.glb$|\/assets\/(forest-background|panda-character)\.png$/,
+            urlPattern: /model-viewer-.*\.js$|\.glb$/,
             handler: "CacheFirst",
             options: {
               cacheName: "heavy-assets",

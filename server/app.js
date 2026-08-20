@@ -29,14 +29,23 @@ async function loadUser(store, id) {
 }
 
 /**
- * Users created before PIN support have no pin_hash and stay unprotected,
- * exactly as they were, until they set one via PUT /users/:id/pin.
+ * Per-request PIN checks are disabled, matching the FastAPI backend this
+ * replaced -- its _require_pin was already a no-op "by request", because
+ * prompting on every single checkmark is pure friction on a device only its
+ * owner uses.
+ *
+ * This has to stay in step with the client. App.tsx's runWithPin sends no PIN
+ * and has no prompt UI, so enforcing here produced a "wrong PIN" toast on
+ * every task tick with no way to supply one.
+ *
+ * Deliberate trade-off, not an oversight: while this is a no-op, anyone who
+ * can reach the API and knows a user id can write to that user. PINs are still
+ * hashed, stored, and verified by POST /login -- which is what stops someone
+ * signing in as you -- so re-enabling this is a one-line change if the sharing
+ * model ever needs it.
  */
-function requirePin(user, pin) {
-  if (user.pin_hash && !verifySecret(String(pin ?? ""), user.pin_hash)) {
-    throw new HttpError(403, "wrong PIN");
-  }
-}
+// eslint-disable-next-line no-unused-vars
+function requirePin(_user, _pin) {}
 
 /**
  * Other members of your board can see your name, colour and progress, but
