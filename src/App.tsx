@@ -19,6 +19,10 @@ const LAST_USER = LAST_USER_KEY;
 const THEME_KEY = "75hard.theme";
 const AVATAR_KEY = "75hard.avatar";
 const SNOOZE_KEY = "75hard.snooze";
+// Set on sign-out. Without it the same-IP suggestion in the bootstrap effect
+// below signs you straight back in on the next load, which makes signing out
+// look broken. Cleared as soon as any user is chosen again.
+const SIGNED_OUT_KEY = "75hard.signedout";
 const SNOOZE_MIN = 5;
 
 /**
@@ -439,8 +443,10 @@ export default function App() {
       // today's behaviour, and editing still needs the right PIN either way.
       let saved: number | undefined;
       try {
-        const suggestion = await api.suggestSession();
-        if (suggestion.user_id != null) saved = suggestion.user_id;
+        if (!localStorage.getItem(SIGNED_OUT_KEY)) {
+          const suggestion = await api.suggestSession();
+          if (suggestion.user_id != null) saved = suggestion.user_id;
+        }
       } catch {
         // ignore -- fall through to the normal onboarding path
       }
@@ -452,6 +458,7 @@ export default function App() {
   useEffect(() => {
     if (meId == null) return;
     localStorage.setItem(LAST_USER, String(meId));
+    localStorage.removeItem(SIGNED_OUT_KEY);
     api.day(meId, day).then((d) => {
       setDetail(d);
       setNote(d.note);
@@ -616,6 +623,17 @@ export default function App() {
     });
   };
 
+  const signOut = () => {
+    if (!confirm("Sign out on this device? You'll need your name and PIN to get back in.")) return;
+    localStorage.removeItem(LAST_USER);
+    localStorage.setItem(SIGNED_OUT_KEY, "1");
+    setMeId(null);
+    setUsers([]);
+    setBoard([]);
+    setDetail(null);
+    setOpenPanel(null);
+  };
+
   if (users === null) return <Skeleton />;
 
   if (users.length === 0) {
@@ -626,6 +644,12 @@ export default function App() {
         avatar={pendingAvatar}
         onAvatar={setPendingAvatar}
         existing={[]}
+        onSignIn={async (name, pin) => {
+          const u = await api.login(name, pin);
+          setMeId(u.id);
+          await loadUsers(u.id);
+          await loadBoard(u.id);
+        }}
         onCreate={async (name, color, pin, wakeTime, reps) => {
           const u = await api.createUser(name, color, pin, wakeTime, reps);
           setAvatarFor(u.id, pendingAvatar);
@@ -983,9 +1007,15 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="card panel-section" style={{ textAlign: "center" }}>
+              <div
+                className="card panel-section"
+                style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}
+              >
                 <button className="btn ghost" onClick={restart}>
                   Reset my run
+                </button>
+                <button className="btn ghost" onClick={signOut}>
+                  Sign out
                 </button>
               </div>
             </div>

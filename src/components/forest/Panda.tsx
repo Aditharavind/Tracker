@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useModelViewer } from "../../modelViewer";
 
 export type PandaAnim = "idle" | "running" | "jumping" | "landing" | "celebrating" | "falling";
 
@@ -10,6 +11,9 @@ const RESTING: PandaAnim[] = ["idle"];
 export default function Panda({ anim }: { anim: PandaAnim }) {
   const active = anim === "running" || anim === "jumping" || anim === "celebrating";
   const ref = useRef<HTMLElement & { pause?: () => void; play?: () => void }>(null);
+  // Without this the tag is an unregistered custom element and the panda is
+  // simply absent -- no error, just an empty box on the platform.
+  const ready = useModelViewer();
 
   // model-viewer's own GLB clip (the "Idle" breathing bob) keeps looping
   // forever via `autoplay` even while the panda is meant to be standing
@@ -19,13 +23,15 @@ export default function Panda({ anim }: { anim: PandaAnim }) {
   // resume it for every state that's actually mid-motion.
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !ready) return;
     if (RESTING.includes(anim)) el.pause?.();
     else el.play?.();
-  }, [anim]);
+  }, [anim, ready]);
 
   return (
     <div className={`panda panda-${anim}`} role="img" aria-label="Your panda">
+      {!ready && <img className="panda-model panda-flat" src="/panda-runner.svg" alt="" aria-hidden="true" />}
+      {ready && (
       <model-viewer
         ref={ref}
         src="/avatars/panda.glb"
@@ -38,6 +44,7 @@ export default function Panda({ anim }: { anim: PandaAnim }) {
         interaction-prompt="none"
         class="panda-model"
       />
+      )}
     </div>
   );
 }
