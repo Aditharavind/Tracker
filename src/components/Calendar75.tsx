@@ -36,7 +36,10 @@ export default function Calendar75({
 
       <div className="legend">
         <span>
-          <i className="swatch" style={{ background: "var(--accent)" }} /> banked
+          <i className="swatch" style={{ boxShadow: "inset 0 0 0 1.5px var(--accent)" }} /> outline = pass/fail
+        </span>
+        <span>
+          <i className="swatch" style={{ background: "var(--accent)" }} /> fill = how much of the day landed
         </span>
         <span>
           <i
@@ -44,9 +47,6 @@ export default function Calendar75({
             style={{ background: "var(--raised)", boxShadow: "inset 0 0 0 1px var(--accent)" }}
           />{" "}
           today
-        </span>
-        <span>
-          <i className="swatch" style={{ background: "var(--future)" }} /> to go
         </span>
       </div>
     </div>

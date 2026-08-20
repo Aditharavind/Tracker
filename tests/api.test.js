@@ -326,3 +326,81 @@ test("an ambiguous name+PIN is refused rather than guessed", async () => {
   const res = await call("POST", "/login", { name: "Twin", pin: "5150" });
   assert.equal(res.status, 403, "must not silently pick one");
 });
+
+/**
+ * Invite links and the session suggestion were ported from the FastAPI backend
+ * when the Python service was dropped -- these pin the behaviour the frontend
+ * (JoinLobby, and App's cleared-storage path) relies on.
+ */
+test("a founder gets an invite link and someone can join the board through it", async () => {
+  const host = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Invite Host", color: "#e8734a", pin: "1234", start_date: todayISO() }),
+    })
+  ).json();
+  assert.ok(host.invite_token, "the founder is handed an invite token");
+
+  const preview = await (await fetch(`${base}/invite/${host.invite_token}`)).json();
+  assert.deepEqual(
+    preview.members,
+    [{ name: "Invite Host", color: "#e8734a" }],
+    "the preview lists who is already in the lobby, and nothing else"
+  );
+
+  const joined = await (
+    await fetch(`${base}/invite/${host.invite_token}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Invitee", color: "#4a9ee8", pin: "5678", start_date: todayISO() }),
+    })
+  ).json();
+  assert.equal(joined.invite_token, host.invite_token, "the joiner lands in the same group");
+
+  const board = await (await fetch(`${base}/board?today=${todayISO()}&as=${host.id}`)).json();
+  const names = board.map((p) => p.name);
+  assert.ok(names.includes("Invite Host") && names.includes("Invitee"), "both share one board");
+});
+
+test("an unknown invite token is refused rather than silently making a group", async () => {
+  const res = await fetch(`${base}/invite/definitely-not-a-token`);
+  assert.equal(res.status, 404);
+  const join = await fetch(`${base}/invite/definitely-not-a-token/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Nobody", color: "#000000", pin: "1111" }),
+  });
+  assert.equal(join.status, 404);
+});
+
+test("the preview never leaks ids, PINs or share links", async () => {
+  const host = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Leak Check", color: "#5cbd7e", pin: "4321", start_date: todayISO() }),
+    })
+  ).json();
+  const preview = await (await fetch(`${base}/invite/${host.invite_token}`)).json();
+  for (const m of preview.members) {
+    assert.deepEqual(Object.keys(m).sort(), ["color", "name"]);
+  }
+});
+
+test("session/suggest offers the last user seen from this address, and nothing when unseen", async () => {
+  const user = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Suggest Me", color: "#b76ae8", pin: "2468", start_date: todayISO() }),
+    })
+  ).json();
+
+  // The address is only recorded once the board is actually loaded.
+  await fetch(`${base}/users?as=${user.id}`);
+  const hit = await (await fetch(`${base}/session/suggest`)).json();
+  assert.equal(hit.user_id, user.id);
+  assert.equal(hit.name, "Suggest Me");
+  assert.ok(!("pin_hash" in hit) && !("share_token" in hit), "it is a hint, not a credential");
+});

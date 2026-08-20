@@ -1,4 +1,4 @@
-import type { DayDetail, Progress, TaskItem, User } from "./types";
+import type { DayDetail, InvitePreview, Progress, TaskItem, User } from "./types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -6,6 +6,8 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!res.ok) {
+    // The Express backend answers with {"error": "..."}; runWithPin matches
+    // /pin/i on this message, so the raw JSON envelope would break it.
     let message = res.statusText;
     try {
       message = (await res.json()).error ?? message;
@@ -31,6 +33,12 @@ export const todayISO = () => {
 export const api = {
   users: (asUserId?: number) => req<User[]>(`/users${asUserId != null ? `?as=${asUserId}` : ""}`),
 
+  // Convenience only, not auth: if this IP was last seen as a specific
+  // user, lets a browser with no saved local user (cleared storage, new
+  // device) get pre-selected instead of dropped on the onboarding screen.
+  // Editing still needs that user's PIN regardless of what this returns.
+  suggestSession: () => req<{ user_id: number | null; name?: string; color?: string }>("/session/suggest"),
+
   createUser: (
     name: string,
     color: string,
@@ -52,15 +60,18 @@ export const api = {
       }),
     }),
 
-  login: (name: string, pin: string) =>
-    req<User>("/login", { method: "POST", body: JSON.stringify({ name, pin }) }),
-
   board: (asUserId?: number) =>
-    req<Progress[]>(
-      `/board?today=${todayISO()}${asUserId != null ? `&as=${asUserId}` : ""}`
-    ),
+    req<Progress[]>(`/board?today=${todayISO()}${asUserId != null ? `&as=${asUserId}` : ""}`),
 
   sharedProgress: (token: string) => req<Progress>(`/share/${token}?today=${todayISO()}`),
+
+  inviteInfo: (token: string) => req<InvitePreview>(`/invite/${token}`),
+
+  joinInvite: (token: string, name: string, color: string, pin: string) =>
+    req<User>(`/invite/${token}/join`, {
+      method: "POST",
+      body: JSON.stringify({ name, color, pin, start_date: todayISO() }),
+    }),
 
   day: (userId: number, day: string) => req<DayDetail>(`/users/${userId}/day/${day}`),
 

@@ -7,6 +7,7 @@
  * seven core tasks whenever a user is inserted.
  */
 import { CORE_TASKS } from "../core-tasks.js";
+import { newShareToken } from "../security.js";
 
 export function createMemoryStore() {
   const groups = [];
@@ -22,9 +23,17 @@ export function createMemoryStore() {
     kind: "memory",
 
     async createGroup() {
-      const group = { id: (seq.group += 1), name: "My board" };
+      const group = { id: (seq.group += 1), name: "My board", invite_token: newShareToken() };
       groups.push(group);
       return clone(group);
+    },
+
+    async getGroup(id) {
+      return clone(groups.find((g) => g.id === Number(id)));
+    },
+
+    async getGroupByInviteToken(token) {
+      return clone(groups.find((g) => g.invite_token === token));
     },
 
     async listUsers() {
@@ -40,6 +49,14 @@ export function createMemoryStore() {
 
     async getUserByShareToken(token) {
       return clone(users.find((u) => u.share_token === token));
+    },
+
+    /** Most recently seen user from this address -- see /session/suggest. */
+    async getUserByLastIp(ip) {
+      const seen = users
+        .filter((u) => u.last_ip === ip && u.last_seen_at)
+        .sort((a, b) => String(b.last_seen_at).localeCompare(String(a.last_seen_at)));
+      return clone(seen[0]);
     },
 
     async getUser(id) {

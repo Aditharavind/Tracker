@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, shiftISO, todayISO } from "./api";
 import type { DayDetail, Progress, TaskItem, User } from "./types";
+import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
 import Checklist from "./components/Checklist";
 import Calendar75 from "./components/Calendar75";
 import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
-import Runner, { Avatar3D, Sprite, type AvatarId } from "./components/Runner";
+import { Avatar3D, Sprite, type AvatarId } from "./components/Runner";
+import ForestScene from "./components/forest/ForestScene";
+import LivesHUD from "./components/forest/LivesHUD";
+import FailureBanner from "./components/forest/FailureBanner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, playDiscoBeat, primeAudio } from "./discoSound";
 
-const LAST_USER = "75hard.user";
-type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void> };
-
+const LAST_USER = LAST_USER_KEY;
 const THEME_KEY = "75hard.theme";
 const AVATAR_KEY = "75hard.avatar";
 const SNOOZE_KEY = "75hard.snooze";
@@ -41,12 +43,129 @@ const msUntilTomorrow = () => {
   d.setHours(24, 0, 0, 0);
   return d.getTime() - Date.now();
 };
-const AVATARS: AvatarId[] = ["guy", "girl"];
+
+const AVATARS: AvatarId[] = ["guy", "girl", "panda"];
 
 const storedTheme = (): ThemeId => {
   const saved = localStorage.getItem(THEME_KEY) as ThemeId | null;
   return THEMES.some((t) => t.id === saved) ? (saved as ThemeId) : "dark";
 };
+
+function IconMenu() {
+  return (
+    <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
+      <path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconClose() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 2l12 12M14 2 2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Close control for the Leaderboard drawer specifically -- a tiny panda
+// climbing down a diagonal wooden plank, echoing the forest theme instead of
+// a generic X, per the request to reskin that one dismiss control.
+function IconPandaDescend() {
+  return (
+    <svg width="22" height="20" viewBox="0 0 22 20" aria-hidden="true">
+      <rect
+        x="2"
+        y="12"
+        width="20"
+        height="4.4"
+        rx="1"
+        transform="rotate(-24 2 12)"
+        fill="#6b4a1e"
+        stroke="#3a2810"
+        strokeWidth="1"
+      />
+      <rect x="3.4" y="13.9" width="16.4" height="0.9" transform="rotate(-24 3.4 13.9)" fill="#4c3315" opacity="0.6" />
+      <g transform="translate(6.4 2.4) rotate(-24)">
+        <circle cx="4" cy="4" r="3.6" fill="#f4f1ea" stroke="#241804" strokeWidth="0.6" />
+        <circle cx="1.3" cy="1.7" r="1.3" fill="#241804" />
+        <circle cx="6.7" cy="1.7" r="1.3" fill="#241804" />
+        <ellipse cx="2.3" cy="4.2" rx="1" ry="1.3" fill="#241804" />
+        <ellipse cx="5.7" cy="4.2" rx="1" ry="1.3" fill="#241804" />
+        <ellipse cx="4" cy="5.6" rx="0.7" ry="0.5" fill="#241804" />
+      </g>
+    </svg>
+  );
+}
+
+function IconHome() {
+  return (
+    <svg width="18" height="17" viewBox="0 0 18 17" fill="none" aria-hidden="true">
+      <path
+        d="M2 8 9 1.5 16 8v7.5a1 1 0 0 1-1 1h-3.5V11h-5v5.5H3a1 1 0 0 1-1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconStats() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.5" y="9" width="3.4" height="5.5" rx="0.8" fill="currentColor" />
+      <rect x="6.3" y="4.5" width="3.4" height="10" rx="0.8" fill="currentColor" />
+      <rect x="11.1" y="1.5" width="3.4" height="13" rx="0.8" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconHabits() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M4 5.5h8M4 8h8M4 10.5h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconProfile() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="5.2" r="3.2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M1.8 14.5c0.9-3.4 3.7-5 6.2-5s5.3 1.6 6.2 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconTrophy() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
+      <path d="M4.5 2h8v4.2a4 4 0 0 1-8 0Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <path
+        d="M4.5 3H2.2a1 1 0 0 0-1 1.2c0.4 2 1.7 3.3 3.3 3.6M12.5 3h2.3a1 1 0 0 1 1 1.2c-0.4 2-1.7 3.3-3.3 3.6"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <path d="M8.5 10.2V13M6 15h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconGear() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
+      <circle cx="8.5" cy="8.5" r="2.6" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M8.5 1.7v2M8.5 13.3v2M1.7 8.5h2M13.3 8.5h2M3.5 3.5l1.4 1.4M12.1 12.1l1.4 1.4M13.5 3.5l-1.4 1.4M4.9 12.1l-1.4 1.4"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 const storedAvatars = (): Record<number, AvatarId> => {
   try {
@@ -92,43 +211,17 @@ export function LevelRing({ p }: { p: Progress }) {
   );
 }
 
-function PinPrompt({
+function ShareDialog({
   name,
-  error,
-  onSubmit,
-  onCancel,
+  url,
+  kind,
+  onClose,
 }: {
   name: string;
-  error?: string;
-  onSubmit: (pin: string) => void;
-  onCancel: () => void;
+  url: string;
+  kind: "share" | "invite";
+  onClose: () => void;
 }) {
-  const [pin, setPin] = useState("");
-  return (
-    <div className="pin-backdrop" onClick={onCancel}>
-      <div className="pin-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{name}'s PIN</h3>
-        <p className="muted">Needed to edit {name}'s progress -- viewing never needs it.</p>
-        <input
-          className="field"
-          type="password"
-          inputMode="numeric"
-          autoFocus
-          maxLength={6}
-          value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          onKeyDown={(e) => e.key === "Enter" && pin && onSubmit(pin)}
-        />
-        {error && <p className="pin-error">{error}</p>}
-        <button className="btn primary wide" disabled={!pin} onClick={() => onSubmit(pin)}>
-          Unlock
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ShareDialog({ name, url, onClose }: { name: string; url: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -142,8 +235,12 @@ function ShareDialog({ name, url, onClose }: { name: string; url: string; onClos
   return (
     <div className="pin-backdrop" onClick={onClose}>
       <div className="share-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Share {name}'s progress</h3>
-        <p className="muted">Read only -- no PIN, no editing. Works for anyone who has the link.</p>
+        <h3>{kind === "share" ? `Share ${name}'s progress` : "Invite to the lobby"}</h3>
+        <p className="muted">
+          {kind === "share"
+            ? "Read only -- no PIN, no editing. Works for anyone who has the link."
+            : "Anyone with this link can join your lobby as a real, editable member and start their own run."}
+        </p>
         <input
           ref={inputRef}
           className="field"
@@ -199,29 +296,29 @@ function AlarmOverlay({
 }
 
 /**
- * Mirrors the real layout's boxes so the page doesn't jump when data lands.
- * Nothing here animates in from nothing -- it just fills in.
+ * Mirrors the real game-shell layout's boxes so the page doesn't jump when
+ * data lands -- shown while the first requests are in flight. Reuses the
+ * actual layout classes (game-topbar/stage-area/day-card-float/bottomnav)
+ * for correct positioning/sizing rather than a parallel set of skeleton-only
+ * layout rules, so it can't drift out of sync with the real shell.
  */
 function Skeleton() {
   return (
-    <div className="shell" aria-busy="true" aria-label="Loading">
-      <div className="skel-topbar">
-        <div className="skel skel-mark" />
-        <div className="skel skel-pill" />
-      </div>
-      <div className="skel-hero">
-        <div>
-          <div className="skel skel-count" />
-          <div className="skel skel-sub" />
+    <div className="game-shell" aria-busy="true" aria-label="Loading">
+      <div className="game-shell-inner">
+        <header className="game-topbar">
+          <div className="skel" style={{ width: 38, height: 38, borderRadius: 9 }} />
+          <div className="skel" style={{ width: 180, height: 14, borderRadius: 6 }} />
+          <div className="skel" style={{ width: 60, height: 22, borderRadius: 6 }} />
+        </header>
+        <div className="stage-area">
+          <div className="day-card-float skel" style={{ height: "60%" }} />
         </div>
-        <div className="skel skel-ring" />
-      </div>
-      <div className="skel-cols">
-        <div className="skel skel-card tall" />
-        <div>
-          <div className="skel skel-card" />
-          <div className="skel skel-card" style={{ marginTop: 18 }} />
-        </div>
+        <nav className="game-bottomnav">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skel" style={{ width: 46, height: 34, borderRadius: 8 }} />
+          ))}
+        </nav>
       </div>
     </div>
   );
@@ -237,14 +334,14 @@ export default function App() {
   const [noteState, setNoteState] = useState<"idle" | "saving" | "saved">("idle");
   const [toast, setToast] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeId>(storedTheme);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [avatars, setAvatars] = useState<Record<number, AvatarId>>(storedAvatars);
   const [pendingAvatar, setPendingAvatar] = useState<AvatarId>("guy");
   const [adding, setAdding] = useState(false);
   const [disco, setDisco] = useState(false);
-  const [unlockedPins, setUnlockedPins] = useState<Record<number, string>>({});
-  const [pinPrompt, setPinPrompt] = useState<{ userId: number; error?: string } | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile">(null);
+  const [habitDraft, setHabitDraft] = useState("");
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
   const [waving, setWaving] = useState(false);
   const [, forceTick] = useState(0);
@@ -253,41 +350,19 @@ export default function App() {
   const noteTimer = useRef<number | undefined>(undefined);
   const discoTimer = useRef<number | undefined>(undefined);
   const waveTimer = useRef<number | undefined>(undefined);
-  const pinRetry = useRef<((pin: string) => void) | null>(null);
 
   const me = board.find((p) => p.user_id === meId) ?? null;
   const myAvatar: AvatarId = (meId != null && avatars[meId]) || "guy";
 
-  // Viewing (board/progress/day) never needs a PIN -- only mutating a
-  // user's own data does. `fn` receives the unlocked PIN (or undefined for
-  // legacy users who never set one) and is retried once a correct PIN is
-  // supplied; a 403 from the backend means a stale/wrong cached PIN, which
-  // gets cleared so the prompt reappears instead of failing silently.
-  const runWithPin = (userId: number, fn: (pin?: string) => Promise<void>) => {
-    const user = users?.find((u) => u.id === userId);
-    const cached = unlockedPins[userId];
-    if (user?.has_pin && cached === undefined) {
-      pinRetry.current = (pin: string) => {
-        fn(pin)
-          .then(() => {
-            setUnlockedPins((p) => ({ ...p, [userId]: pin }));
-            setPinPrompt(null);
-          })
-          .catch(() => setPinPrompt({ userId, error: "wrong PIN" }));
-      };
-      setPinPrompt({ userId });
-      return;
-    }
-    fn(cached).catch((e) => {
-      if (e instanceof Error && /pin/i.test(e.message)) {
-        setUnlockedPins((p) => {
-          const next = { ...p };
-          delete next[userId];
-          return next;
-        });
-      }
-      throw e;
-    });
+  // PIN prompting removed by request -- every mutation used to stop and ask
+  // for a PIN (even with the in-session cache, that meant once per reload),
+  // which was pure friction for a device only its own owner uses. The
+  // server no longer enforces PINs either (see backend's _require_pin /
+  // server/app.js's requirePin, both now no-ops), so calling straight
+  // through here still succeeds for accounts that have a pin_hash on file
+  // from before this change.
+  const runWithPin = (_userId: number, fn: (pin?: string) => Promise<void>) => {
+    fn(undefined);
   };
 
   const setAvatarFor = (userId: number, a: AvatarId) => {
@@ -296,6 +371,11 @@ export default function App() {
       localStorage.setItem(AVATAR_KEY, JSON.stringify(next));
       return next;
     });
+  };
+
+  const flash = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2600);
   };
 
   // Expired deadlines are pruned on write so the record can't grow forever.
@@ -311,11 +391,6 @@ export default function App() {
       localStorage.setItem(SNOOZE_KEY, JSON.stringify(next));
       return next;
     });
-  };
-
-  const flash = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2600);
   };
 
   const partyTime = () => {
@@ -343,36 +418,35 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
-    // match the phone's status bar / address bar to the theme
-    const bg = getComputedStyle(document.body).backgroundColor;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", bg);
   }, [theme]);
 
-  // Chrome fires this instead of showing its own install banner; stashing it
-  // lets us offer the button at a sensible moment. iOS never fires it -- there
-  // you add to the home screen from the share sheet.
+  // The saved id is already in localStorage, so users/board don't need to
+  // wait on each other -- chaining them cost a round trip before anything
+  // could render. Only the no-saved-user case still has to resolve users
+  // (or a same-IP suggestion) first, since board needs to know who to ask for.
   useEffect(() => {
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
-  }, []);
-
-  // The saved id is already in localStorage, so users/board/day don't need to
-  // wait on each other -- chaining them cost three round trips before anything
-  // rendered. Only the no-saved-user case still has to resolve users first.
-  useEffect(() => {
-    const saved = Number(localStorage.getItem(LAST_USER)) || undefined;
-    if (saved) {
-      loadUsers(saved);
-      loadBoard(saved);
+    const storedId = Number(localStorage.getItem(LAST_USER)) || undefined;
+    if (storedId) {
+      loadUsers(storedId);
+      loadBoard(storedId);
       return;
     }
-    loadUsers(undefined).then((list) => {
-      if (list.length) loadBoard(list[0].id);
-    });
+    (async () => {
+      // No saved local user (cleared storage, new device) -- ask whether
+      // this IP was last seen as someone, so a returning player lands
+      // pre-selected on their own tile instead of the onboarding screen.
+      // Pure convenience: a wrong/missing suggestion just falls back to
+      // today's behaviour, and editing still needs the right PIN either way.
+      let saved: number | undefined;
+      try {
+        const suggestion = await api.suggestSession();
+        if (suggestion.user_id != null) saved = suggestion.user_id;
+      } catch {
+        // ignore -- fall through to the normal onboarding path
+      }
+      const list = await loadUsers(saved);
+      if (list.length) await loadBoard(saved ?? list[0].id);
+    })();
   }, [loadUsers, loadBoard]);
 
   useEffect(() => {
@@ -461,37 +535,32 @@ export default function App() {
     if (meId == null || !detail) return;
     const curDetail = detail;
     const curMe = me;
-    runWithPin(meId, async (pin) => {
-      const wasPerfect = curMe?.perfect_today ?? false;
-      const wasFullClear = curDetail.tasks.length > 0 && curDetail.tasks.every((x) => x.done);
-      setDetail({
-        ...curDetail,
-        tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)),
-      });
-      // Put the optimistic tick back if the server refused it. The alarm keys
-      // off this exact flag, so without the rollback a failed save (wrong
-      // cached PIN, offline) still dismissed the alarm -- siren off, reps
-      // never actually recorded.
-      let res;
-      try {
-        res = await api.toggle(meId, t.id, day, !t.done, pin);
-      } catch (e) {
-        setDetail(curDetail);
-        throw e;
-      }
-      setDetail(res.day);
-      setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
-
-      const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
-      const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
-      if (day === todayISO() && !wasPerfect && res.progress.perfect_today) {
-        const hit = res.progress.badges.find((x) => x.day === res.progress.streak && x.earned);
-        flash(hit ? `${hit.name} unlocked - day ${res.progress.streak}` : `Day ${res.progress.day_number} locked in`);
-      } else if (becameFullClear) {
-        flash("Full clear - nothing left today");
-      }
-      if (becameFullClear) partyTime();
+    const wasPerfect = curMe?.perfect_today ?? false;
+    const wasFullClear = curDetail.tasks.length > 0 && curDetail.tasks.every((x) => x.done);
+    setDetail({
+      ...curDetail,
+      tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)),
     });
+    api
+      .toggle(meId, t.id, day, !t.done)
+      .then((res) => {
+        setDetail(res.day);
+        setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
+
+        const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
+        const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
+        if (day === todayISO() && !wasPerfect && res.progress.perfect_today) {
+          const hit = res.progress.badges.find((x) => x.day === res.progress.streak && x.earned);
+          flash(hit ? `${hit.name} unlocked - day ${res.progress.streak}` : `Day ${res.progress.day_number} locked in`);
+        } else if (becameFullClear) {
+          flash("Full clear - nothing left today");
+        }
+        if (becameFullClear) partyTime();
+      })
+      .catch((e) => {
+        setDetail(curDetail);
+        flash(e instanceof Error ? e.message : "Could not update task");
+      });
   };
 
   const addTask = (title: string) => {
@@ -517,6 +586,13 @@ export default function App() {
     });
   };
 
+  const submitHabitDraft = () => {
+    const title = habitDraft.trim();
+    if (!title) return;
+    addTask(title);
+    setHabitDraft("");
+  };
+
   const editNote = (text: string) => {
     setNote(text);
     setNoteState("saving");
@@ -540,16 +616,6 @@ export default function App() {
     });
   };
 
-  const signOut = () => {
-    if (!confirm("Sign out on this device? You'll need your name and PIN to get back in.")) return;
-    localStorage.removeItem(LAST_USER);
-    setMeId(null);
-    setUsers([]);
-    setBoard([]);
-    setDetail(null);
-    setUnlockedPins({});
-  };
-
   if (users === null) return <Skeleton />;
 
   if (users.length === 0) {
@@ -560,13 +626,6 @@ export default function App() {
         avatar={pendingAvatar}
         onAvatar={setPendingAvatar}
         existing={[]}
-        onSignIn={async (name, pin) => {
-          const u = await api.login(name, pin);
-          setMeId(u.id);
-          setUnlockedPins((p) => ({ ...p, [u.id]: pin }));
-          await loadUsers(u.id);
-          await loadBoard(u.id);
-        }}
         onCreate={async (name, color, pin, wakeTime, reps) => {
           const u = await api.createUser(name, color, pin, wakeTime, reps);
           setAvatarFor(u.id, pendingAvatar);
@@ -581,9 +640,14 @@ export default function App() {
   if (!me || !detail) return <Skeleton />;
 
   const isToday = day === todayISO();
+  const bankedDays = me.calendar.filter((c) => c.status === "done").length;
+  const overallProgressPct = Math.round((bankedDays / 75) * 100);
+
+  const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
+    setOpenPanel((cur) => (cur === p ? null : p));
 
   return (
-    <div className={`shell${disco ? " disco" : ""}`} style={{ ["--u" as string]: me.color }}>
+    <div className={`game-shell${disco ? " disco" : ""}`} style={{ ["--u" as string]: me.color }}>
       {disco && (
         <div className="disco-overlay" aria-hidden="true">
           <span className="disco-ball">🪩</span>
@@ -616,207 +680,356 @@ export default function App() {
           }}
         />
       )}
-      {pinPrompt && (
-        <PinPrompt
-          name={users.find((u) => u.id === pinPrompt.userId)?.name ?? "that user"}
-          error={pinPrompt.error}
-          onCancel={() => {
-            pinRetry.current = null;
-            setPinPrompt(null);
-          }}
-          onSubmit={(pin) => pinRetry.current?.(pin)}
-        />
-      )}
-      {shareUrl && <ShareDialog name={me.name} url={shareUrl} onClose={() => setShareUrl(null)} />}
-      <div className={disco ? "disco-tint" : undefined}>
-      <header className="topbar">
-        <div className="wordmark">
-          <b>75</b>
-          <span>hard</span>
-        </div>
-        <div className="who">
-          <div className="avatars" role="group" aria-label="Your character">
-            {AVATARS.map((a) => (
-              <button
-                key={a}
-                className={`avatar-btn${a === myAvatar ? " on" : ""}`}
-                onClick={() => meId != null && setAvatarFor(meId, a)}
-                title={`play as ${a}`}
-                aria-label={`play as ${a}`}
-                aria-pressed={a === myAvatar}
-              >
-                <Sprite avatar={a} running={false} />
-              </button>
-            ))}
-          </div>
-          <ThemePicker theme={theme} onPick={setTheme} />
-          {users.map((u) => (
-            <button
-              key={u.id}
-              className={`pill${u.id === meId ? " on" : ""}`}
-              style={{ ["--u" as string]: u.color, color: u.id === meId ? u.color : undefined }}
-              onClick={() => setMeId(u.id)}
-            >
-              <i className="dot" />
-              {u.name}
-            </button>
-          ))}
-          {users.length < 4 && (
-            <button
-              className="pill"
-              onClick={async () => {
-                const name = prompt("Friend's name?");
-                if (!name?.trim()) return;
-                const pin = prompt("Pick a 4-6 digit PIN for editing their own progress:");
-                if (!pin?.trim()) return;
-                const palette = ["#4a9ee8", "#5cbd7e", "#b76ae8", "#e8c14a"];
-                try {
-                  await api.createUser(name.trim(), palette[users.length % palette.length], pin.trim(), null, 20, meId ?? undefined);
-                  await loadUsers(meId ?? undefined);
-                  await loadBoard(meId ?? undefined);
-                } catch (e) {
-                  alert(e instanceof Error ? e.message : "could not add");
-                }
-              }}
-            >
-              +
-            </button>
-          )}
+      {shareUrl && <ShareDialog name={me.name} url={shareUrl} kind="share" onClose={() => setShareUrl(null)} />}
+      {inviteUrl && <ShareDialog name={me.name} url={inviteUrl} kind="invite" onClose={() => setInviteUrl(null)} />}
+
+      <div className={`game-shell-inner${disco ? " disco-tint" : ""}`}>
+        <header className="game-topbar">
           <button
-            className="pill"
-            title="Get a read-only link to your progress -- no PIN, no editing"
-            onClick={() => {
-              const token = users.find((u) => u.id === meId)?.share_token;
-              if (!token) return;
-              setShareUrl(`${location.origin}${location.pathname}?share=${token}`);
-            }}
+            className="hamburger-btn"
+            aria-label="Menu"
+            aria-expanded={openPanel !== null}
+            onClick={() => togglePanel("profile")}
           >
-            Share
+            <IconMenu />
           </button>
-          <button
-            className="pill signout"
-            title="Sign out on this device"
-            aria-label="Sign out"
-            onClick={signOut}
-          >
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M6.2 2.4H3.4a1 1 0 0 0-1 1v9.2a1 1 0 0 0 1 1h2.8M10.2 11.2 13.4 8l-3.2-3.2M13.4 8H6.4"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      <section className="hero">
-        <div>
-          <div className="counter">
-            <span className="big num">{String(me.day_number).padStart(2, "0")}</span>
-            <span className="of">/ 75</span>
-          </div>
-          <div className="hero-sub">
-            <span className="streakchip">{me.streak} day streak</span>
-            <span className="sep">|</span>
-            <span>
-              best <b className="num">{me.best_streak}</b>
-            </span>
-            <span className="sep">|</span>
-            <span>
-              <b className="num">{me.perfect_days_ever}</b> perfect day
-              {me.perfect_days_ever === 1 ? "" : "s"}
-            </span>
-            {me.resets > 0 && (
-              <>
-                <span className="sep">|</span>
-                <span>
-                  <b className="num">{me.resets}</b> restart{me.resets > 1 ? "s" : ""}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-        <LevelRing p={me} />
-      </section>
-
-      <div className="cols">
-        <div>
-          <Runner detail={detail} avatar={myAvatar} onRemove={removeTask} />
-
-          <Checklist
-            detail={detail}
-            day={day}
-            onShift={(delta) => {
-              const next = shiftISO(day, delta);
-              if (next <= todayISO()) setDay(next);
-            }}
-            onToggle={toggle}
-            onAdd={addTask}
-            onRemove={removeTask}
-          />
-
-          <div className="card">
-            <div className="card-head">
-              <h2>{isToday ? "Still pending" : "That day"}</h2>
-              <span className="saved">
-                {noteState === "saving" ? "saving..." : noteState === "saved" ? "saved" : ""}
-              </span>
+          <div className="game-title pixel-font">75 DAY HARD CHALLENGE</div>
+          <div className="topbar-lives">
+            <LivesHUD resets={me.resets} />
+            <div className="failure-banner-float">
+              <FailureBanner resets={me.resets} />
             </div>
-            {detail.pending.length > 0 ? (
-              <p className="muted" style={{ margin: "0 0 12px" }}>
-                {detail.pending.map((t) => t.title).join(" · ")}
-              </p>
-            ) : (
-              <p className="muted" style={{ margin: "0 0 12px", color: "var(--good)" }}>
-                Everything ticked off. Clean day.
-              </p>
-            )}
-            <textarea
-              className="note"
-              placeholder="what's left, what went wrong, what you owe tomorrow..."
-              value={note}
-              onChange={(e) => editNote(e.target.value)}
+          </div>
+        </header>
+
+        <div className="stage-area">
+          <ForestScene detail={detail} dayNumber={me.day_number} seed={`${meId}:${day}`} resets={me.resets} />
+
+          <div className="day-card-float">
+            <Checklist
+              detail={detail}
+              day={day}
+              dayNumber={me.day_number}
+              onShift={(delta) => {
+                const next = shiftISO(day, delta);
+                if (next <= todayISO()) setDay(next);
+              }}
+              onToggle={toggle}
+              onAdd={addTask}
+              onRemove={removeTask}
+              hideAddRow
             />
           </div>
+
+          <div className="side-rail" role="group" aria-label="Quick access">
+            <button
+              className={`rail-btn${openPanel === "leaderboard" ? " on" : ""}`}
+              onClick={() => togglePanel("leaderboard")}
+              aria-label="Leaderboard"
+              aria-pressed={openPanel === "leaderboard"}
+              title="Leaderboard"
+            >
+              <IconTrophy />
+            </button>
+            <button
+              className={`rail-btn${openPanel === "stats" ? " on" : ""}`}
+              onClick={() => togglePanel("stats")}
+              aria-label="Stats"
+              aria-pressed={openPanel === "stats"}
+              title="Stats"
+            >
+              <IconStats />
+            </button>
+            <button
+              className={`rail-btn${openPanel === "profile" ? " on" : ""}`}
+              onClick={() => togglePanel("profile")}
+              aria-label="Settings"
+              aria-pressed={openPanel === "profile"}
+              title="Settings"
+            >
+              <IconGear />
+            </button>
+          </div>
+
+          {openPanel === "leaderboard" && (
+            <div className="panel-drawer">
+              <div className="panel-drawer-head">
+                <h2>Leaderboard</h2>
+                <button className="panel-close panel-close-plank" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                  <IconPandaDescend />
+                </button>
+              </div>
+              <Rivals board={board} meId={me.user_id} />
+            </div>
+          )}
+
+          {openPanel === "stats" && (
+            <div className="panel-drawer">
+              <div className="panel-drawer-head">
+                <h2>Stats</h2>
+                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                  <IconClose />
+                </button>
+              </div>
+              <div className="profile-stat-grid">
+                <div className="profile-stat">
+                  <div className="n num">{me.day_number}/75</div>
+                  <div className="l">Day</div>
+                </div>
+                <div className="profile-stat">
+                  <div className="n num">{overallProgressPct}%</div>
+                  <div className="l">Overall progress</div>
+                </div>
+                <div className="profile-stat">
+                  <div className="n num">{me.streak}</div>
+                  <div className="l">Current streak</div>
+                </div>
+                <div className="profile-stat">
+                  <div className="n num">{me.best_streak}</div>
+                  <div className="l">Best streak</div>
+                </div>
+                <div className="profile-stat">
+                  <div className="n num">{me.perfect_days_ever}</div>
+                  <div className="l">Perfect days</div>
+                </div>
+                <div className="profile-stat">
+                  <div className="n num">{me.resets}</div>
+                  <div className="l">Restarts</div>
+                </div>
+              </div>
+              <div className="panel-section" style={{ display: "flex", justifyContent: "center" }}>
+                <LevelRing p={me} />
+              </div>
+              <div className="panel-section">
+                <Badges p={me} />
+              </div>
+              <div className="panel-section">
+                <Calendar75
+                  cells={me.calendar}
+                  onPick={(iso) => {
+                    setDay(iso);
+                    setOpenPanel(null);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {openPanel === "habits" && (
+            <div className="panel-drawer">
+              <div className="panel-drawer-head">
+                <h2>Habits</h2>
+                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                  <IconClose />
+                </button>
+              </div>
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>Manage tasks</h2>
+                </div>
+                {detail.tasks.map((t) => (
+                  <div className="habit-row" key={t.id}>
+                    <span className="emoji">{t.emoji}</span>
+                    <span className="title">{t.title}</span>
+                    {!t.is_core && <span className="tag">bonus</span>}
+                    {t.locked && <span className="tag locked">locked</span>}
+                    {!t.locked && (
+                      <button className="kill" onClick={() => removeTask(t)} aria-label={`delete ${t.title}`}>
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <div className="addrow">
+                  <input
+                    placeholder="add a bonus habit..."
+                    value={habitDraft}
+                    maxLength={80}
+                    onChange={(e) => setHabitDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && submitHabitDraft()}
+                  />
+                  <button className="btn" onClick={submitHabitDraft}>
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>{isToday ? "Still pending" : "That day"}</h2>
+                  <span className="saved">
+                    {noteState === "saving" ? "saving..." : noteState === "saved" ? "saved" : ""}
+                  </span>
+                </div>
+                {detail.pending.length > 0 ? (
+                  <p className="muted" style={{ margin: "0 0 12px" }}>
+                    {detail.pending.map((t) => t.title).join(" · ")}
+                  </p>
+                ) : (
+                  <p className="muted" style={{ margin: "0 0 12px", color: "var(--good)" }}>
+                    Everything ticked off. Clean day.
+                  </p>
+                )}
+                <textarea
+                  className="note"
+                  placeholder="what's left, what went wrong, what you owe tomorrow..."
+                  value={note}
+                  onChange={(e) => editNote(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {openPanel === "profile" && (
+            <div className="panel-drawer">
+              <div className="panel-drawer-head">
+                <h2>Profile</h2>
+                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                  <IconClose />
+                </button>
+              </div>
+
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>Your character</h2>
+                </div>
+                <div className="avatars" role="group" aria-label="Your character">
+                  {AVATARS.map((a) => (
+                    <button
+                      key={a}
+                      className={`avatar-btn${a === myAvatar ? " on" : ""}`}
+                      onClick={() => meId != null && setAvatarFor(meId, a)}
+                      title={`play as ${a}`}
+                      aria-label={`play as ${a}`}
+                      aria-pressed={a === myAvatar}
+                    >
+                      <Sprite avatar={a} running={false} />
+                    </button>
+                  ))}
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <ThemePicker theme={theme} onPick={setTheme} />
+                </div>
+              </div>
+
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>Players</h2>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {users.map((u) => (
+                    <button
+                      key={u.id}
+                      className={`pill${u.id === meId ? " on" : ""}`}
+                      style={{ ["--u" as string]: u.color, color: u.id === meId ? u.color : undefined }}
+                      onClick={() => setMeId(u.id)}
+                    >
+                      <i className="dot" />
+                      {u.name}
+                    </button>
+                  ))}
+                  {users.length < 4 && (
+                    <button
+                      className="pill"
+                      onClick={async () => {
+                        const name = prompt("Friend's name?");
+                        if (!name?.trim()) return;
+                        const pin = prompt("Pick a 4-6 digit PIN for editing their own progress:");
+                        if (!pin?.trim()) return;
+                        const palette = ["#4a9ee8", "#5cbd7e", "#b76ae8", "#e8c14a"];
+                        try {
+                          await api.createUser(
+                            name.trim(),
+                            palette[users.length % palette.length],
+                            pin.trim(),
+                            null,
+                            20,
+                            meId ?? undefined
+                          );
+                          await loadUsers(meId ?? undefined);
+                          await loadBoard(meId ?? undefined);
+                        } catch (e) {
+                          alert(e instanceof Error ? e.message : "could not add");
+                        }
+                      }}
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button
+                    className="btn"
+                    title="Get a link that lets a friend join your lobby"
+                    onClick={() => {
+                      const token = users.find((u) => u.id === meId)?.invite_token;
+                      if (!token) return;
+                      setInviteUrl(`${location.origin}${location.pathname}?join=${token}`);
+                    }}
+                  >
+                    Invite
+                  </button>
+                  <button
+                    className="btn"
+                    title="Get a read-only link to your progress -- no PIN, no editing"
+                    onClick={() => {
+                      const token = users.find((u) => u.id === meId)?.share_token;
+                      if (!token) return;
+                      setShareUrl(`${location.origin}${location.pathname}?share=${token}`);
+                    }}
+                  >
+                    Share
+                  </button>
+                </div>
+              </div>
+
+              <div className="card panel-section" style={{ textAlign: "center" }}>
+                <button className="btn ghost" onClick={restart}>
+                  Reset my run
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div>
-          <Rivals board={board} meId={me.user_id} />
-          <Badges p={me} />
-        </div>
-      </div>
-
-      <div style={{ marginTop: 18 }}>
-        <Calendar75 cells={me.calendar} onPick={setDay} />
-      </div>
-
-      <div
-        style={{
-          marginTop: 22,
-          display: "flex",
-          gap: 10,
-          justifyContent: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        {installPrompt && (
+        <nav className="game-bottomnav" role="tablist" aria-label="Sections">
           <button
-            className="btn"
-            onClick={async () => {
-              await installPrompt.prompt();
-              setInstallPrompt(null);
-            }}
+            className={`nav-btn${openPanel === null ? " on" : ""}`}
+            role="tab"
+            aria-selected={openPanel === null}
+            onClick={() => setOpenPanel(null)}
           >
-            Add to home screen
+            <IconHome />
+            HOME
           </button>
-        )}
-        <button className="btn ghost" onClick={restart}>
-          Reset my run
-        </button>
-      </div>
+          <button
+            className={`nav-btn${openPanel === "stats" ? " on" : ""}`}
+            role="tab"
+            aria-selected={openPanel === "stats"}
+            onClick={() => togglePanel("stats")}
+          >
+            <IconStats />
+            STATS
+          </button>
+          <button
+            className={`nav-btn${openPanel === "habits" ? " on" : ""}`}
+            role="tab"
+            aria-selected={openPanel === "habits"}
+            onClick={() => togglePanel("habits")}
+          >
+            <IconHabits />
+            HABITS
+          </button>
+          <button
+            className={`nav-btn${openPanel === "profile" ? " on" : ""}`}
+            role="tab"
+            aria-selected={openPanel === "profile"}
+            onClick={() => togglePanel("profile")}
+          >
+            <IconProfile />
+            PROFILE
+          </button>
+        </nav>
       </div>
 
       {toast && <div className="toast">{toast}</div>}

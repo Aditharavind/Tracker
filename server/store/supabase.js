@@ -8,6 +8,7 @@
  * builder, minus the auth/realtime/storage machinery and its cold-start cost.
  */
 import { PostgrestClient } from "@supabase/postgrest-js";
+import { newShareToken } from "../security.js";
 
 const PAGE = 1000; // PostgREST's default cap -- it truncates silently past this
 
@@ -43,7 +44,19 @@ export function createSupabaseStore({ url, key }) {
     kind: "supabase",
 
     async createGroup() {
-      return unwrap(await db.from("groups").insert({}).select().single());
+      return unwrap(
+        await db.from("groups").insert({ invite_token: newShareToken() }).select().single()
+      );
+    },
+
+    async getGroup(id) {
+      return unwrap(await db.from("groups").select("*").eq("id", id).maybeSingle());
+    },
+
+    async getGroupByInviteToken(token) {
+      return unwrap(
+        await db.from("groups").select("*").eq("invite_token", token).maybeSingle()
+      );
     },
 
     async listUsers() {
@@ -58,6 +71,19 @@ export function createSupabaseStore({ url, key }) {
       return unwrap(
         await db.from("users").select("*").eq("share_token", token).maybeSingle()
       );
+    },
+
+    /** Most recently seen user from this address -- see /session/suggest. */
+    async getUserByLastIp(ip) {
+      const rows = unwrap(
+        await db
+          .from("users")
+          .select("*")
+          .eq("last_ip", ip)
+          .order("last_seen_at", { ascending: false, nullsFirst: false })
+          .limit(1)
+      );
+      return rows[0] ?? null;
     },
 
     async getUser(id) {

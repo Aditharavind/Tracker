@@ -42,7 +42,7 @@ function requirePin(user, pin) {
  * Other members of your board can see your name, colour and progress, but
  * never your share link -- that would let them hand your board to anyone.
  */
-function userOut(u, revealToken = false) {
+function userOut(u, revealToken = false, group = null) {
   const out = {
     id: u.id,
     name: u.name,
@@ -51,8 +51,39 @@ function userOut(u, revealToken = false) {
     wake_time: u.wake_time ?? null,
     has_pin: Boolean(u.pin_hash),
   };
-  if (revealToken) out.share_token = u.share_token;
+  // share_token is read-only progress; invite_token lets someone join the
+  // board as a real editable member. Neither is anyone else's business, so
+  // both are handed back only to the user themself.
+  if (revealToken) {
+    out.share_token = u.share_token;
+    if (group) out.invite_token = group.invite_token ?? null;
+  }
   return out;
+}
+
+/**
+ * Only ever used for the /session/suggest convenience below, which grants no
+ * access on its own. X-Forwarded-For is what Vercel sets; behind a proxy that
+ * doesn't, this degrades to the proxy's own address, which makes the
+ * suggestion less precise but never unsafe -- the PIN still gates every write.
+ */
+function clientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress ?? "unknown";
+}
+
+/** Records where a user was last seen, so a cleared browser can be offered them. */
+async function touchSession(store, user, req) {
+  try {
+    await store.updateUser(user.id, {
+      last_ip: clientIp(req),
+      last_seen_at: new Date().toISOString(),
+    });
+  } catch {
+    // A database still on migration-03 has no last_ip column. The suggestion
+    // is a nicety -- never fail a board load over it.
+  }
 }
 
 async function progressFor(store, user, today) {
@@ -120,8 +151,85 @@ export function createRouter() {
       const store = getStore();
       const me = await callerGroup(store, req.query.as);
       if (!me) return res.json([]);
-      const users = await store.listUsersInGroup(me.group_id);
-      res.json(users.map((u) => userOut(u, u.id === me.id)));
+      await touchSession(store, me, req);
+      const [users, group] = await Promise.all([
+        store.listUsersInGroup(me.group_id),
+        store.getGroup(me.group_id),
+      ]);
+      res.json(users.map((u) => userOut(u, u.id === me.id, group)));
+    })
+  );
+
+  /**
+   * Convenience only, never auth: if this address was last seen as a specific
+   * user, a browser with no saved local user (cleared storage, new device) gets
+   * pre-selected instead of dropped on the onboarding screen. Editing still
+   * needs that user's PIN, exactly as if they had picked their own tile.
+   */
+  r.get(
+    "/session/suggest",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const user = await store.getUserByLastIp(clientIp(req));
+      if (!user) return res.json({ user_id: null });
+      res.json({ user_id: user.id, name: user.name, color: user.color });
+    })
+  );
+
+  /** Public preview of who is already in the lobby. No ids, PINs or tokens. */
+  r.get(
+    "/invite/:token",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const group = await store.getGroupByInviteToken(req.params.token);
+      if (!group) throw new HttpError(404, "invalid or expired invite");
+      const members = await store.listUsersInGroup(group.id);
+      res.json({ members: members.map((u) => ({ name: u.name, color: u.color })) });
+    })
+  );
+
+  /**
+   * Unlike /share, this creates a real editable member with their own tasks
+   * and PIN. Name uniqueness is per board, matching POST /users.
+   */
+  r.post(
+    "/invite/:token/join",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const group = await store.getGroupByInviteToken(req.params.token);
+      if (!group) throw new HttpError(404, "invalid or expired invite");
+
+      const name = String(req.body?.name ?? "").trim();
+      const color = String(req.body?.color ?? "#e8734a");
+      const pin = String(req.body?.pin ?? "");
+      const wakeTime = req.body?.wake_time ?? null;
+      const repsTarget = Number(req.body?.reps_target ?? 20);
+      const startDate = req.body?.start_date;
+
+      if (!name) throw new HttpError(400, "name is required");
+      if (name.length > 40) throw new HttpError(400, "name is too long");
+      if (!PIN.test(pin)) throw new HttpError(400, "PIN must be 4-6 digits");
+      if (startDate && !ISO_DAY.test(startDate)) throw new HttpError(400, "bad start_date");
+      if (wakeTime !== null && !HH_MM.test(wakeTime)) throw new HttpError(400, "bad wake_time");
+      if (!Number.isInteger(repsTarget) || repsTarget < 1 || repsTarget > 999) {
+        throw new HttpError(400, "bad reps_target");
+      }
+      if (await store.getUserByNameInGroup(group.id, name)) {
+        throw new HttpError(409, "someone on this board already has that name");
+      }
+
+      const user = await store.createUser({
+        name,
+        color,
+        start_date: startDate || todayISO(),
+        pin_hash: hashSecret(pin),
+        wake_time: wakeTime,
+        group_id: group.id,
+        share_token: newShareToken(),
+      });
+
+      if (wakeTime !== null) await syncWakeTask(store, user, wakeTime, repsTarget);
+      res.status(201).json(userOut(user, true, group));
     })
   );
 
@@ -170,7 +278,7 @@ export function createRouter() {
       });
 
       if (wakeTime !== null) await syncWakeTask(store, user, wakeTime, repsTarget);
-      res.status(201).json(userOut(user, true));
+      res.status(201).json(userOut(user, true, await store.getGroup(groupId)));
     })
   );
 
@@ -193,7 +301,7 @@ export function createRouter() {
       if (matches.length !== 1) {
         throw new HttpError(403, "no account matches that name and PIN");
       }
-      res.json(userOut(matches[0], true));
+      res.json(userOut(matches[0], true, await store.getGroup(matches[0].group_id)));
     })
   );
 
@@ -385,7 +493,9 @@ export function createRouter() {
 
       const updated = await store.updateUser(user.id, { wake_time: wakeTime });
       await syncWakeTask(store, user, wakeTime, repsTarget);
-      res.json(userOut(updated ?? { ...user, wake_time: wakeTime }, true));
+      res.json(
+        userOut(updated ?? { ...user, wake_time: wakeTime }, true, await store.getGroup(user.group_id))
+      );
     })
   );
 

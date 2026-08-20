@@ -1,26 +1,33 @@
-import { useEffect, useRef, useState } from "react";
-import type { DayDetail, TaskItem } from "../types";
+import { useEffect, useState } from "react";
 
-export type AvatarId = "guy" | "girl";
+export type AvatarId = "guy" | "girl" | "panda";
 
 // Sourced from three.js's own official example assets (mrdoob/three.js,
 // examples/models/gltf) -- the well-known Mixamo-derived demo characters.
 // Michelle only ships a dance + T-pose (no walk/run/idle clips), so the two
 // avatars react differently to progress: he runs, she dances. Both read as
 // "my character celebrates a tick," just with different motions.
+//
+// "panda" is hand-authored (see scripts referenced in the panda.glb commit)
+// -- primitive ellipsoids rigged with plain node-TRS animation, no skinning,
+// same idle/active clip-name contract as the two Mixamo avatars so it drops
+// into the same picker without any special-casing.
 const AVATAR_SRC: Record<AvatarId, string> = {
   guy: "/avatars/male.glb",
   girl: "/avatars/female.glb",
+  panda: "/avatars/panda.glb",
 };
 const AVATAR_CLIP: Record<AvatarId, { idle: string; active: string }> = {
   guy: { idle: "Idle", active: "Run" },
   girl: { idle: "TPose", active: "SambaDance" },
+  panda: { idle: "Idle", active: "Hop" },
 };
 // The two source models were authored with opposite "forward" conventions --
 // verified empirically (headless screenshots at 0/90/180/270deg), not guessed.
 const AVATAR_CAMERA: Record<AvatarId, string> = {
   guy: "180deg 75deg 105%",
   girl: "0deg 75deg 105%",
+  panda: "0deg 80deg 105%",
 };
 
 /**
@@ -115,6 +122,12 @@ export function Sprite({ avatar, running }: { avatar: AvatarId; running: boolean
       {avatar === "girl" && (
         <path d="M8.5 10.5 13 14.5 17.5 10.5" fill="currentColor" opacity="0.9" />
       )}
+      {avatar === "panda" && (
+        <>
+          <circle cx="8.5" cy="2.6" r="2.1" fill="currentColor" />
+          <circle cx="17.5" cy="2.6" r="2.1" fill="currentColor" />
+        </>
+      )}
       <path
         className="leg-l"
         d="M13 19.5 9 27"
@@ -133,105 +146,3 @@ export function Sprite({ avatar, running }: { avatar: AvatarId; running: boolean
   );
 }
 
-export default function Runner({
-  detail,
-  avatar,
-  onRemove,
-}: {
-  detail: DayDetail;
-  avatar: AvatarId;
-  onRemove?: (t: TaskItem) => void;
-}) {
-  const tasks = detail.tasks;
-  const coreCount = tasks.filter((t) => t.is_core).length;
-  const doneCount = tasks.filter((t) => t.done).length;
-  const total = tasks.length;
-
-  const [running, setRunning] = useState(false);
-  const prevDone = useRef(doneCount);
-  const runTimer = useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    if (doneCount !== prevDone.current) {
-      prevDone.current = doneCount;
-      setRunning(true);
-      window.clearTimeout(runTimer.current);
-      runTimer.current = window.setTimeout(() => setRunning(false), 1400);
-    }
-    return () => window.clearTimeout(runTimer.current);
-  }, [doneCount]);
-
-  if (total === 0) return null;
-
-  const clearedCore = doneCount >= coreCount;
-  const clearedAll = doneCount === total;
-
-  // Step 0 is the starting platform (nobody done yet); steps 1..total sit
-  // one per task, each further right and higher than the last -- a
-  // staircase the avatar climbs (and jumps between) as tasks get ticked.
-  const stepRise = Math.min(16, 110 / Math.max(1, total));
-  const stepPos = (k: number) => ({
-    left: (k / (total + 1)) * 100,
-    bottom: 10 + k * stepRise,
-  });
-
-  return (
-    <div className="card">
-      <div className="card-head">
-        <h2>Today's run</h2>
-        <span className="count num">
-          {doneCount}/{total}
-        </span>
-      </div>
-
-      <div className="stairs">
-        <div className="ground" style={{ left: `${stepPos(0).left}%`, bottom: stepPos(0).bottom }} />
-
-        {tasks.map((t, i) => {
-          const { left, bottom } = stepPos(i + 1);
-          return (
-            <div key={t.id} className="step-wrap" style={{ left: `${left}%`, bottom }}>
-              <div
-                className={`step${t.is_core ? " core" : ""}${t.done ? " passed" : ""}`}
-                title={t.title}
-              />
-              {!t.locked && onRemove && (
-                <button
-                  className="checkpoint-kill"
-                  onClick={() => onRemove(t)}
-                  aria-label={`remove ${t.title}`}
-                  title={`remove ${t.title}`}
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-          );
-        })}
-
-        {coreCount > 0 && coreCount < total && (
-          <i
-            className={`flag${clearedCore ? " passed" : ""}`}
-            style={{ left: `${stepPos(coreCount).left}%`, bottom: stepPos(coreCount).bottom }}
-            title="core tasks done -- day survives"
-          />
-        )}
-
-        <i
-          className={`trophy${clearedAll ? " passed" : ""}`}
-          style={{ left: `${stepPos(total).left}%`, bottom: stepPos(total).bottom }}
-          title="everything done, clean day"
-        />
-
-        <div
-          className="runner"
-          style={{ left: `${stepPos(doneCount).left}%`, bottom: stepPos(doneCount).bottom }}
-        >
-          <div className={`hop${running ? " jumping" : ""}`}>
-            <Avatar3D avatar={avatar} running={running} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

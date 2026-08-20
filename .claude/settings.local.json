@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import fastapi, uvicorn, sqlmodel, pydantic, anthropic; print\\('ok'\\)\")",
+      "Bash(curl -s http://127.0.0.1:8000/api/users)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:5173/api/users)",
+      "Bash(taskkill //F //PID 3832)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s http://127.0.0.1:8000/api/users/1/day/2026-08-05)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{JSON.parse\\(d\\).tasks.forEach\\(t=>console.log\\(t.id,t.title,t.done\\)\\);}\\);\")"
+    ]
+  }
+}
