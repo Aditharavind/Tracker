@@ -39,6 +39,14 @@ export const api = {
   // Editing still needs that user's PIN regardless of what this returns.
   suggestSession: () => req<{ user_id: number | null; name?: string; color?: string }>("/session/suggest"),
 
+  /**
+   * Sign back in after signing out, or on a new device. This is the one place
+   * the PIN is still checked (server-side, against pin_hash) -- it has to be,
+   * or the name alone would hand over someone else's board.
+   */
+  login: (name: string, pin: string) =>
+    req<User>("/login", { method: "POST", body: JSON.stringify({ name, pin }) }),
+
   createUser: (
     name: string,
     color: string,
