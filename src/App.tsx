@@ -555,14 +555,36 @@ export default function App() {
     const curMe = me;
     const wasPerfect = curMe?.perfect_today ?? false;
     const wasFullClear = curDetail.tasks.length > 0 && curDetail.tasks.every((x) => x.done);
+
+    // Read the current value out of state rather than trusting `t.done`. `t`
+    // comes from the render that produced the click handler, so if anything has
+    // updated the list since -- a second tap, a refetch -- it is stale, and the
+    // request would ask for the opposite of what the box is showing. Deriving
+    // it here keeps the optimistic flip and the value we send in agreement.
+    const next = !(curDetail.tasks.find((x) => x.id === t.id)?.done ?? t.done);
+
     setDetail({
       ...curDetail,
-      tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: !x.done } : x)),
+      tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: next } : x)),
     });
     api
-      .toggle(meId, t.id, day, !t.done)
+      .toggle(meId, t.id, day, next)
       .then((res) => {
-        setDetail(res.day);
+        // This response is authoritative for the task it toggled, and stale for
+        // any other task whose own request is still in flight. Adopting it
+        // wholesale would flip those back to their pre-tap value until their own
+        // response landed -- a visible bounce on a second box you just tapped.
+        setDetail((cur) => {
+          if (!cur) return res.day;
+          return {
+            ...res.day,
+            tasks: res.day.tasks.map((x) =>
+              x.id !== t.id && pendingToggles.current.has(x.id)
+                ? { ...x, done: cur.tasks.find((c) => c.id === x.id)?.done ?? x.done }
+                : x
+            ),
+          };
+        });
         setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
 
         const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
@@ -576,7 +598,14 @@ export default function App() {
         if (becameFullClear) partyTime();
       })
       .catch((e) => {
-        setDetail(curDetail);
+        // Undo only this task. Restoring the whole snapshot would also wipe any
+        // other tick made since the tap, which is how one failed request used to
+        // make unrelated boxes flicker back off.
+        setDetail((cur) =>
+          cur
+            ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
+            : cur
+        );
         flash(e instanceof Error ? e.message : "Could not update task");
       })
       .finally(() => pendingToggles.current.delete(t.id));
