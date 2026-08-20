@@ -141,6 +141,27 @@ export function createSupabaseStore({ url, key }) {
       return readAll(() => db.from("completions").select("task_id, day").eq("user_id", userId));
     },
 
+    /**
+     * Batched variants for /board, which needs every member at once. Done one
+     * user at a time it was two round trips per member -- a six-person board
+     * meant twelve sequential-ish queries, on every board load and after every
+     * tick. These make it two, whatever the group size. Both carry user_id so
+     * the caller can group the rows back up.
+     */
+    async listTasksForUsers(userIds) {
+      if (!userIds.length) return [];
+      return readAll(() =>
+        db.from("tasks").select("*").in("user_id", userIds).eq("archived", false).order("sort").order("id")
+      );
+    },
+
+    async listCompletionsForUsers(userIds) {
+      if (!userIds.length) return [];
+      return readAll(() =>
+        db.from("completions").select("user_id, task_id, day").in("user_id", userIds)
+      );
+    },
+
     async listCompletionsForDay(userId, day) {
       return unwrap(
         await db.from("completions").select("task_id, day").eq("user_id", userId).eq("day", day)
