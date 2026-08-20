@@ -63,54 +63,18 @@ function Panda3D({ anim }: { anim: PandaAnim }) {
 }
 
 /**
- * Inline so it costs no request at all, and so the legs are real nodes: the
- * .panda-leg-l / .panda-leg-r swing in styles.css is written against exactly
- * these two classes, which is what gives the run its stride on top of the
- * whole-body bob.
+ * This is the same panda as panda.glb, not a redraw of it -- the model was
+ * rendered through model-viewer at the component's own camera-orbit, trimmed
+ * to its bounding box and saved at 3x the largest size the CSS ever draws it
+ * (72px, so 216px covers a DPR-3 phone). The GLB turned out to be flat
+ * pixel-art on a billboard rather than a genuinely 3D model, which is why a
+ * still is indistinguishable from it at this size -- for 10 KB instead of the
+ * 1.75 MB that model-viewer plus the .glb cost to show it.
  *
- * (public/panda-runner.svg is not this -- that file is a standalone animated
- * scene with its own platforms, meant to be opened directly in a browser.)
+ * Regenerate with scripts/capture-panda.mjs if the model ever changes.
  */
 const PandaFlat = () => (
-  <svg className="panda-model panda-flat" viewBox="0 0 40 44" aria-hidden="true">
-    {/* legs first, so the body overlaps the hips */}
-    <ellipse className="panda-leg-l" cx="16" cy="36" rx="3.4" ry="5" fill="#2b2b33" />
-    <ellipse className="panda-leg-r" cx="24" cy="36" rx="3.4" ry="5" fill="#2b2b33" />
-
-    {/* arms */}
-    <ellipse cx="10.5" cy="28" rx="3" ry="4.4" fill="#2b2b33" transform="rotate(-18 10.5 28)" />
-    <ellipse cx="29.5" cy="28" rx="3" ry="4.4" fill="#2b2b33" transform="rotate(18 29.5 28)" />
-
-    {/* body */}
-    <ellipse cx="20" cy="29" rx="8.6" ry="8" fill="#fff" stroke="#d3d3dc" strokeWidth="0.7" />
-
-    {/* ears behind the head so they read as ears, not lumps */}
-    <circle cx="12.5" cy="7.5" r="4.6" fill="#2b2b33" />
-    <circle cx="27.5" cy="7.5" r="4.6" fill="#2b2b33" />
-    <circle cx="12.5" cy="7.2" r="2" fill="#4a4a55" />
-    <circle cx="27.5" cy="7.2" r="2" fill="#4a4a55" />
-
-    {/* head */}
-    <circle cx="20" cy="15" r="11" fill="#fff" stroke="#d3d3dc" strokeWidth="0.7" />
-
-    {/* eye patches */}
-    <ellipse cx="15.4" cy="14.2" rx="3.7" ry="4.4" fill="#2b2b33" transform="rotate(-14 15.4 14.2)" />
-    <ellipse cx="24.6" cy="14.2" rx="3.7" ry="4.4" fill="#2b2b33" transform="rotate(14 24.6 14.2)" />
-    <circle cx="15.8" cy="14.2" r="1.7" fill="#fff" />
-    <circle cx="24.2" cy="14.2" r="1.7" fill="#fff" />
-    <circle cx="16.3" cy="13.7" r="0.7" fill="#2b2b33" />
-    <circle cx="24.7" cy="13.7" r="0.7" fill="#2b2b33" />
-
-    {/* nose + mouth */}
-    <ellipse cx="20" cy="19.4" rx="1.7" ry="1.3" fill="#2b2b33" />
-    <path
-      d="M20 20.9q-1.7 1.9-3.2 0.6M20 20.9q1.7 1.9 3.2 0.6"
-      stroke="#2b2b33"
-      strokeWidth="0.85"
-      strokeLinecap="round"
-      fill="none"
-    />
-  </svg>
+  <img className="panda-model panda-flat" src="/assets/panda-sprite.webp" alt="" aria-hidden="true" />
 );
 
 export default function Panda({ anim }: { anim: PandaAnim }) {
