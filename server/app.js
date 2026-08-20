@@ -103,6 +103,41 @@ async function progressFor(store, user, today) {
   return compute({ user, tasks, completions }, today || todayISO());
 }
 
+/**
+ * Every member's progress in two queries instead of two per member.
+ *
+ * The per-user version above is fine for one user, but /board ran it in a
+ * Promise.all over the whole group, so a six-person board issued twelve
+ * queries -- each reading that member's entire lifetime completion history --
+ * on every board load and after every task tick. That is the shape that stops
+ * scaling first: cost grows with members *and* with how far into the run
+ * everyone is.
+ */
+async function boardFor(store, users, today) {
+  if (!users.length) return [];
+  const ids = users.map((u) => u.id);
+  const [tasks, completions] = await Promise.all([
+    store.listTasksForUsers(ids),
+    store.listCompletionsForUsers(ids),
+  ]);
+
+  const bucket = (rows) => {
+    const by = new Map(ids.map((id) => [Number(id), []]));
+    for (const row of rows) by.get(Number(row.user_id))?.push(row);
+    return by;
+  };
+  const tasksBy = bucket(tasks);
+  const doneBy = bucket(completions);
+  const day = today || todayISO();
+
+  return users.map((user) =>
+    compute(
+      { user, tasks: tasksBy.get(Number(user.id)) ?? [], completions: doneBy.get(Number(user.id)) ?? [] },
+      day
+    )
+  );
+}
+
 async function dayFor(store, user, day) {
   const [tasks, done, note] = await Promise.all([
     store.listTasks(user.id),
@@ -323,7 +358,7 @@ export function createRouter() {
       if (!me) return res.json([]);
       const today = dayFrom(req.query.today);
       const users = await store.listUsersInGroup(me.group_id);
-      res.json(await Promise.all(users.map((u) => progressFor(store, u, today))));
+      res.json(await boardFor(store, users, today));
     })
   );
 

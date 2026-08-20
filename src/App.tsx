@@ -354,6 +354,7 @@ export default function App() {
   const noteTimer = useRef<number | undefined>(undefined);
   const discoTimer = useRef<number | undefined>(undefined);
   const waveTimer = useRef<number | undefined>(undefined);
+  const pendingToggles = useRef<Set<number>>(new Set());
 
   const me = board.find((p) => p.user_id === meId) ?? null;
   const myAvatar: AvatarId = (meId != null && avatars[meId]) || "guy";
@@ -538,8 +539,18 @@ export default function App() {
     Date.now() >= silencedUntil &&
     new Date().toTimeString().slice(0, 8) >= myUser!.wake_time!;
 
+  /**
+   * One request per task at a time. Without this, a quick double-tap fires two
+   * writes that disagree: the second reads `t.done` from the state the first
+   * already flipped optimistically, so it posts the opposite value, and
+   * whichever response lands last wins -- leaving the checkbox showing the
+   * opposite of what the server stored. Held in a ref because this must be
+   * true the instant the tap happens, not after a re-render.
+   */
   const toggle = (t: TaskItem) => {
     if (meId == null || !detail) return;
+    if (pendingToggles.current.has(t.id)) return;
+    pendingToggles.current.add(t.id);
     const curDetail = detail;
     const curMe = me;
     const wasPerfect = curMe?.perfect_today ?? false;
@@ -567,7 +578,8 @@ export default function App() {
       .catch((e) => {
         setDetail(curDetail);
         flash(e instanceof Error ? e.message : "Could not update task");
-      });
+      })
+      .finally(() => pendingToggles.current.delete(t.id));
   };
 
   const addTask = (title: string) => {

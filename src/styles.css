@@ -260,6 +260,36 @@ button {
   border: none;
   background: none;
   cursor: pointer;
+  /* The viewport allows pinch-zoom (deliberately -- see index.html), so mobile
+     browsers hold every tap for ~300ms waiting to see if it is the first half
+     of a double-tap-to-zoom. On buttons that delay is pure lag: it is why
+     checking a task felt unresponsive. `manipulation` keeps pinch-zoom and
+     scrolling, and drops only the double-tap-zoom gesture. */
+  touch-action: manipulation;
+  /* iOS paints a grey block over the whole button on touch, which reads as a
+     glitch on the big translucent panels. The :active states below are the
+     intended feedback. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active {
+  /* Immediate, local confirmation that the press landed -- it fires on
+     touchdown rather than waiting for the network round trip. */
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active {
+    transform: none;
+  }
+}
+
+input,
+textarea,
+select,
+a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 input,
@@ -595,6 +625,18 @@ h3 {
   display: grid;
   place-items: center;
   transition: 0.15s;
+  position: relative;
+}
+
+/* 20px is a fifth of the area a fingertip actually covers, which is why the
+   checkbox kept getting missed. Grow the *hit* area to 44px (the iOS/Android
+   minimum) with a transparent overlay, so the box stays visually 20px and the
+   row layout does not move. Anything it overlaps -- the emoji, the title --
+   toggles the same task anyway. */
+.box::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
 }
 
 .task:hover .box {
@@ -662,11 +704,17 @@ h3 {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
+/* Deleting a task sits inches from checking one, so this needs to be big
+   enough to hit deliberately but not so big it swallows taps meant for the
+   title. Real padding rather than a ::after overlay for exactly that reason --
+   an overlay here would reach back across the title and turn near-misses into
+   deletions. */
 .kill {
   color: var(--dimmer);
   font-size: 17px;
   line-height: 1;
-  padding: 0 4px;
+  padding: 11px 10px;
+  margin: -11px -6px -11px 0;
   flex: none;
 }
 

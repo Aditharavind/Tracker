@@ -154,6 +154,20 @@ export function createMemoryStore() {
       return completions.filter((c) => c.user_id === Number(userId)).map(clone);
     },
 
+    /** Batched variants for /board -- see the Supabase store for why. */
+    async listTasksForUsers(userIds) {
+      const ids = new Set(userIds.map(Number));
+      return tasks
+        .filter((t) => ids.has(Number(t.user_id)) && !t.archived)
+        .sort((a, b) => a.sort - b.sort || a.id - b.id)
+        .map(clone);
+    },
+
+    async listCompletionsForUsers(userIds) {
+      const ids = new Set(userIds.map(Number));
+      return completions.filter((c) => ids.has(Number(c.user_id))).map(clone);
+    },
+
     async listCompletionsForDay(userId, day) {
       return completions
         .filter((c) => c.user_id === Number(userId) && c.day === day)
