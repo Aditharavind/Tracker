@@ -40,11 +40,16 @@ export function createMemoryStore() {
       return users.map(clone).sort((a, b) => a.id - b.id);
     },
 
-    async listUsersInGroup(groupId) {
-      return users
+    async listUsersInGroup(groupId, page) {
+      const all = users
         .filter((u) => u.group_id === Number(groupId))
-        .sort((a, b) => a.id - b.id)
-        .map(clone);
+        .sort((a, b) => a.id - b.id);
+      const slice = page ? all.slice(page.offset, page.offset + page.limit) : all;
+      return slice.map(clone);
+    },
+
+    async countUsersInGroup(groupId) {
+      return users.filter((u) => u.group_id === Number(groupId)).length;
     },
 
     async getUserByShareToken(token) {

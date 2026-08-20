@@ -35,6 +35,16 @@ const unwrap = ({ data, error }) => {
   return data;
 };
 
+/**
+ * Whether this database has run migration-05 (the indexed `name_lower` column).
+ * null = not yet determined. Resolved once per process, then cached.
+ */
+let hasNameLower = null;
+
+/** PostgREST reports an unknown column as 42703, or names it in the message. */
+const isMissingColumn = (error) =>
+  error?.code === "42703" || /column .*name_lower.* does not exist/i.test(error?.message ?? "");
+
 export function createSupabaseStore({ url, key }) {
   const db = new PostgrestClient(`${url.replace(/\/$/, "")}/rest/v1`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -63,8 +73,19 @@ export function createSupabaseStore({ url, key }) {
       return unwrap(await db.from("users").select("*").order("id"));
     },
 
-    async listUsersInGroup(groupId) {
-      return unwrap(await db.from("users").select("*").eq("group_id", groupId).order("id"));
+    async listUsersInGroup(groupId, page) {
+      let q = db.from("users").select("*").eq("group_id", groupId).order("id");
+      if (page) q = q.range(page.offset, page.offset + page.limit - 1);
+      return unwrap(await q);
+    },
+
+    async countUsersInGroup(groupId) {
+      const { count, error } = await db
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("group_id", groupId);
+      if (error) throw Object.assign(new Error(error.message), { supabase: error });
+      return count ?? 0;
     },
 
     async getUserByShareToken(token) {
@@ -90,7 +111,29 @@ export function createSupabaseStore({ url, key }) {
       return unwrap(await db.from("users").select("*").eq("id", id).maybeSingle());
     },
 
+    /**
+     * POST /login has to find an account by name across the whole table. `ilike`
+     * cannot use a btree index, so this was a sequential scan of every user on
+     * every sign-in attempt -- the first thing to fall over as the table grows.
+     *
+     * migration-05 adds a stored `name_lower` generated column and indexes it,
+     * turning the scan into a lookup. The fallback keeps a deploy that lands
+     * before its migration working rather than 500ing every login; it is
+     * checked once per process, not per request.
+     */
     async listUsersByName(name) {
+      const lowered = String(name).toLowerCase();
+      if (hasNameLower !== false) {
+        const { data, error } = await db.from("users").select("*").eq("name_lower", lowered);
+        if (!error) {
+          hasNameLower = true;
+          return data;
+        }
+        if (!isMissingColumn(error)) {
+          throw Object.assign(new Error(error.message), { supabase: error });
+        }
+        hasNameLower = false;
+      }
       return unwrap(await db.from("users").select("*").ilike("name", name));
     },
 

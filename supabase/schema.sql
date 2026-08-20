@@ -41,6 +41,8 @@ create table if not exists public.users (
   -- Grants nothing: every write still needs the PIN.
   last_ip      text,
   last_seen_at timestamptz,
+  -- Lets sign-in match on an indexed equality instead of an unindexable ILIKE.
+  name_lower  text generated always as (lower(name)) stored,
   created_at  timestamptz not null default now(),
   constraint users_share_token_key unique (share_token),
   constraint users_name_not_blank check (length(btrim(name)) > 0)
@@ -104,9 +106,15 @@ create index if not exists day_notes_user_day_idx
 create index if not exists users_group_idx
   on public.users (group_id, id);
 
--- names only need to be unique among people who can see each other
-create unique index if not exists users_group_name_key
-  on public.users (group_id, name);
+-- Sign-in looks an account up by name across the whole table, so it needs an
+-- index it can actually use -- see migration-05 for why ILIKE could not.
+create index if not exists users_name_lower_idx
+  on public.users (name_lower);
+
+-- Names only need to be unique among people who can see each other, and the
+-- app compares them case-insensitively, so the index has to as well.
+create unique index if not exists users_group_name_lower_key
+  on public.users (group_id, name_lower);
 
 -- ---------------------------------------------------------------- triggers
 
