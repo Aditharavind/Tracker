@@ -117,29 +117,38 @@ test("a share link is public, read-only progress", async () => {
   assert.equal((await call("GET", "/share/not-a-real-token")).status, 404);
 });
 
-test("mutations need the right PIN", async () => {
+/**
+ * Per-request PIN checks are deliberately off -- see requirePin in
+ * server/app.js. The client sends no PIN and has no prompt UI, so enforcing
+ * here meant an undismissable "wrong PIN" on every task tick. This pins the
+ * decision so it can't be reverted by accident on one side only.
+ */
+test("mutations go through without a PIN, and a wrong one is not rejected either", async () => {
   const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
   const t = tasks[0].id;
-
-  const wrong = await call("POST", `/users/${adith.id}/toggle`, {
-    task_id: t, day: TODAY, done: true, today: TODAY, pin: "0000",
-  });
-  assert.equal(wrong.status, 403);
 
   const missing = await call("POST", `/users/${adith.id}/toggle`, {
     task_id: t, day: TODAY, done: true, today: TODAY,
   });
-  assert.equal(missing.status, 403);
+  assert.equal(missing.status, 200, "no PIN supplied is fine");
+
+  const wrong = await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: t, day: TODAY, done: false, today: TODAY, pin: "0000",
+  });
+  assert.equal(wrong.status, 200, "a wrong PIN is ignored rather than refused");
 
   assert.equal(
-    (await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "x", pin: "0000" })).status,
-    403
+    (await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "x" })).status,
+    200
   );
-  assert.equal(
-    (await call("POST", `/users/${adith.id}/tasks`, { title: "x", pin: "0000" })).status,
-    403
-  );
-  assert.equal((await call("POST", `/users/${adith.id}/restart`, { pin: "0000" })).status, 403);
+  assert.equal((await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "" })).status, 200);
+});
+
+test("signing in is still gated -- that is what stops someone taking your board", async () => {
+  assert.equal((await call("POST", "/login", { name: "Adith", pin: "0000" })).status, 403);
+  const ok = await call("POST", "/login", { name: "Adith", pin: PIN });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.id, adith.id);
 });
 
 test("ticking every core task banks the day", async () => {
@@ -262,11 +271,10 @@ test("signing up with a wake time seeds the locked task straight away", async ()
   assert.equal(tasks.find((t) => t.locked).title, "30 reps to wake up");
 });
 
-test("changing your PIN needs the old one", async () => {
-  assert.equal(
-    (await call("PUT", `/users/${rahul.id}/pin`, { new_pin: "9999", pin: "0000" })).status,
-    403
-  );
+test("a new PIN still has to be well-formed, and it is what login then accepts", async () => {
+  // The old PIN is no longer required to set a new one (requirePin is a
+  // no-op), but the *shape* of the new one is still validated -- otherwise a
+  // one-digit PIN would sail through and weaken the one check that remains.
   assert.equal(
     (await call("PUT", `/users/${rahul.id}/pin`, { new_pin: "12", pin: "1111" })).status,
     400
@@ -275,12 +283,10 @@ test("changing your PIN needs the old one", async () => {
     (await call("PUT", `/users/${rahul.id}/pin`, { new_pin: "9999", pin: "1111" })).status,
     200
   );
-  // the new one works, the old one doesn't
-  assert.equal((await call("POST", `/users/${rahul.id}/restart`, { pin: "1111" })).status, 403);
-  assert.equal(
-    (await call("POST", `/users/${rahul.id}/restart`, { pin: "9999", today: TODAY })).status,
-    200
-  );
+
+  // Login follows the change: the new PIN works, the old one no longer does.
+  assert.equal((await call("POST", "/login", { name: "Rahul", pin: "1111" })).status, 403);
+  assert.equal((await call("POST", "/login", { name: "Rahul", pin: "9999" })).status, 200);
 });
 
 test("restart returns to day 1 but keeps XP and trophies", async () => {
