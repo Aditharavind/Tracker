@@ -16,9 +16,13 @@
 -- A board. You only ever see other members of your own group, which is what
 -- stops two strangers who both open the app landing on the same board.
 create table if not exists public.groups (
-  id         bigint generated always as identity primary key,
-  name       text        not null default 'My board',
-  created_at timestamptz not null default now()
+  id           bigint generated always as identity primary key,
+  name         text        not null default 'My board',
+  -- link that lets someone join this board as a real, editable member --
+  -- distinct from users.share_token, which is read-only progress
+  invite_token text,
+  created_at   timestamptz not null default now(),
+  constraint groups_invite_token_key unique (invite_token)
 );
 
 create table if not exists public.users (
@@ -33,6 +37,10 @@ create table if not exists public.users (
   pin_hash    text,        -- pbkdf2, see server/security.js
   wake_time   time,
   share_token text,        -- public read-only progress link
+  -- Where this user was last seen, for the /session/suggest convenience only.
+  -- Grants nothing: every write still needs the PIN.
+  last_ip      text,
+  last_seen_at timestamptz,
   created_at  timestamptz not null default now(),
   constraint users_share_token_key unique (share_token),
   constraint users_name_not_blank check (length(btrim(name)) > 0)
@@ -162,3 +170,7 @@ alter table public.day_notes   enable row level security;
 -- Handy checks after running the file:
 --   select tablename, rowsecurity from pg_tables where schemaname = 'public';
 --   select * from public.users;
+
+-- Backs the /session/suggest lookup (most recent user from an address).
+create index if not exists users_last_ip_idx
+  on public.users (last_ip, last_seen_at desc);

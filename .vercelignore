@@ -1,0 +1,18 @@
+# Vercel decides what kind of project this is from the files it receives. Any
+# main.py exporting an ASGI `app` makes it a Python deployment, and it then
+# demands a pyproject.toml entrypoint instead of building the Vite app -- the
+# "No python entrypoint found in default locations" failure.
+#
+# The FastAPI backend that caused it is gone from this repo (ported to
+# server/ + api/index.js, Express on Vercel functions). What remains is the
+# reference clone below, which is gitignored but NOT excluded from a CLI
+# deploy -- `vercel deploy` uploads the working directory and consults only
+# this file. Without this line it would reintroduce the same error.
+Tracker/
+
+# Build output -- Vercel runs the build itself.
+dist/
+dev-dist/
+
+# Not referenced by `npm run build` (tsconfig includes only src/).
+tests/
