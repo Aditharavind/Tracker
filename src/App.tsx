@@ -355,9 +355,18 @@ export default function App() {
   const discoTimer = useRef<number | undefined>(undefined);
   const waveTimer = useRef<number | undefined>(undefined);
   const pendingToggles = useRef<Set<number>>(new Set());
+  const queuedToggles = useRef<Map<number, boolean>>(new Map());
+  const intendedDone = useRef<Map<number, boolean>>(new Map());
 
   const me = board.find((p) => p.user_id === meId) ?? null;
   const myAvatar: AvatarId = (meId != null && avatars[meId]) || "guy";
+
+  // The toggle path runs across awaits and re-taps, so it must read the values
+  // as they are when it runs, not as they were when the tap was handled.
+  const latestDetail = useRef(detail);
+  latestDetail.current = detail;
+  const latestMe = useRef(me);
+  latestMe.current = me;
 
   // PIN prompting removed by request -- every mutation used to stop and ask
   // for a PIN (even with the in-session cache, that meant once per reload),
@@ -549,26 +558,48 @@ export default function App() {
    */
   const toggle = (t: TaskItem) => {
     if (meId == null || !detail) return;
-    if (pendingToggles.current.has(t.id)) return;
-    pendingToggles.current.add(t.id);
-    const curDetail = detail;
-    const curMe = me;
-    const wasPerfect = curMe?.perfect_today ?? false;
-    const wasFullClear = curDetail.tasks.length > 0 && curDetail.tasks.every((x) => x.done);
 
-    // Read the current value out of state rather than trusting `t.done`. `t`
-    // comes from the render that produced the click handler, so if anything has
-    // updated the list since -- a second tap, a refetch -- it is stale, and the
-    // request would ask for the opposite of what the box is showing. Deriving
-    // it here keeps the optimistic flip and the value we send in agreement.
-    const next = !(curDetail.tasks.find((x) => x.id === t.id)?.done ?? t.done);
+    // What the box is showing, right now, this instant. `t.done` is from the
+    // render that built the handler, and even latestDetail only catches up on
+    // the next render -- so two taps inside one frame would both read the same
+    // value and compute the same flip. intendedDone is written synchronously,
+    // so a burst of taps alternates the way the person tapping expects.
+    const showing =
+      intendedDone.current.get(t.id) ??
+      latestDetail.current?.tasks.find((x) => x.id === t.id)?.done ??
+      t.done;
+    const next = !showing;
+    intendedDone.current.set(t.id, next);
 
-    setDetail({
-      ...curDetail,
-      tasks: curDetail.tasks.map((x) => (x.id === t.id ? { ...x, done: next } : x)),
-    });
+    // Every tap moves the box, always. Dropping taps that arrive while a
+    // request is in flight is what made a slow connection look like the box
+    // was rejecting the change: you tapped to uncheck, nothing moved, and it
+    // read as having re-checked itself.
+    setDetail((cur) =>
+      cur ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: next } : x)) } : cur
+    );
+
+    // One request per task at a time, but never a lost intent: if one is
+    // already out, park the new value and send it when that one settles.
+    if (pendingToggles.current.has(t.id)) {
+      queuedToggles.current.set(t.id, next);
+      return;
+    }
+    sendToggle(t.id, next);
+  };
+
+  /** Issues one toggle write, then drains whatever the user asked for meanwhile. */
+  const sendToggle = (taskId: number, next: boolean) => {
+    if (meId == null) return;
+    pendingToggles.current.add(taskId);
+
+    const wasPerfect = latestMe.current?.perfect_today ?? false;
+    const curTasks = latestDetail.current?.tasks ?? [];
+    const wasFullClear = curTasks.length > 0 && curTasks.every((x) => x.done);
+    const t = { id: taskId };
+
     api
-      .toggle(meId, t.id, day, next)
+      .toggle(meId, taskId, day, next)
       .then((res) => {
         // This response is authoritative for the task it toggled, and stale for
         // any other task whose own request is still in flight. Adopting it
@@ -598,17 +629,31 @@ export default function App() {
         if (becameFullClear) partyTime();
       })
       .catch((e) => {
-        // Undo only this task. Restoring the whole snapshot would also wipe any
-        // other tick made since the tap, which is how one failed request used to
-        // make unrelated boxes flicker back off.
-        setDetail((cur) =>
-          cur
-            ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
-            : cur
-        );
+        // Undo only this task, and only if the user has not since asked for
+        // something else -- a queued intent is newer than this failure, so
+        // reverting to the pre-request value would fight the person tapping.
+        if (!queuedToggles.current.has(t.id)) {
+          setDetail((cur) =>
+            cur
+              ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
+              : cur
+          );
+        }
         flash(e instanceof Error ? e.message : "Could not update task");
       })
-      .finally(() => pendingToggles.current.delete(t.id));
+      .finally(() => {
+        pendingToggles.current.delete(t.id);
+        const queued = queuedToggles.current.get(t.id);
+        if (queued === undefined) {
+          // Settled and nothing outstanding: hand authority back to server state.
+          intendedDone.current.delete(t.id);
+          return;
+        }
+        queuedToggles.current.delete(t.id);
+        // Only worth a round trip if it actually differs from what we just wrote.
+        if (queued !== next) sendToggle(t.id, queued);
+        else intendedDone.current.delete(t.id);
+      });
   };
 
   const addTask = (title: string) => {
