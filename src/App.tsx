@@ -41,6 +41,44 @@ const storedSnooze = (): Record<number, number> => {
   }
 };
 
+const SNAPSHOT_KEY = "75hard.snapshot.v1";
+
+type Snapshot = {
+  userId: number;
+  day: string;
+  users: User[];
+  board: Progress[];
+  detail: DayDetail;
+};
+
+/**
+ * Last known board, kept on the device so a return visit paints real content
+ * on the first frame instead of a loading skeleton.
+ *
+ * The service worker already caches the code, but the *data* needed four
+ * chained API calls before anything could render -- suggest, then users and
+ * board, then the day. On a phone that is most of the wait: the app was
+ * sitting there fully loaded, waiting on round trips. This is the stale half
+ * of stale-while-revalidate; the fetches still run and replace it.
+ */
+const readSnapshot = (): Snapshot | null => {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as Snapshot | null;
+    if (!s || !s.users?.length || !s.detail) return null;
+    // A snapshot from another day is worse than none: day number, streak and
+    // the calendar are all computed against "today", so yesterday's would be
+    // visibly wrong for as long as it took the refetch to land.
+    if (s.day !== todayISO()) return null;
+    // Only for whoever this device is signed in as.
+    if (s.userId !== (Number(localStorage.getItem(LAST_USER)) || null)) return null;
+    return s;
+  } catch {
+    return null;
+  }
+};
+
 /** Local midnight tonight, so a dismiss lasts exactly until tomorrow's alarm. */
 const msUntilTomorrow = () => {
   const d = new Date();
@@ -329,11 +367,13 @@ function Skeleton() {
 }
 
 export default function App() {
-  const [users, setUsers] = useState<User[] | null>(null);
-  const [meId, setMeId] = useState<number | null>(null);
-  const [board, setBoard] = useState<Progress[]>([]);
+  // Read once, lazily, before any state that seeds from it.
+  const [boot] = useState(readSnapshot);
+  const [users, setUsers] = useState<User[] | null>(boot?.users ?? null);
+  const [meId, setMeId] = useState<number | null>(boot?.userId ?? null);
+  const [board, setBoard] = useState<Progress[]>(boot?.board ?? []);
   const [day, setDay] = useState(todayISO());
-  const [detail, setDetail] = useState<DayDetail | null>(null);
+  const [detail, setDetail] = useState<DayDetail | null>(boot?.detail ?? null);
   const [note, setNote] = useState("");
   const [noteState, setNoteState] = useState<"idle" | "saving" | "saved">("idle");
   const [toast, setToast] = useState<string | null>(null);
@@ -524,6 +564,24 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [snoozed, meId]);
 
+  // Keep the on-device snapshot current. Debounced because the board object is
+  // sizeable and localStorage writes are synchronous on the main thread -- doing
+  // one per tick would trade the load time we just won for jank while tapping.
+  useEffect(() => {
+    if (meId == null || !users?.length || !detail || !board.length) return;
+    if (day !== todayISO()) return; // only ever cache today; see readSnapshot
+    const id = window.setTimeout(() => {
+      try {
+        const snap: Snapshot = { userId: meId, day, users, board, detail };
+        localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap));
+      } catch {
+        // Out of quota, or storage blocked. The cache is an optimisation --
+        // losing it costs a skeleton on next load, nothing more.
+      }
+    }, 800);
+    return () => window.clearTimeout(id);
+  }, [meId, users, board, detail, day]);
+
   // Web Audio refuses to start outside a user gesture, so an alarm firing on a
   // timer plays nothing unless the context was already unlocked. Grab the first
   // tap of the session to warm it up.
@@ -712,6 +770,8 @@ export default function App() {
   const signOut = () => {
     if (!confirm("Sign out on this device? You'll need your name and PIN to get back in.")) return;
     localStorage.removeItem(LAST_USER);
+    // Their board must not be sitting on this device for whoever signs in next.
+    localStorage.removeItem(SNAPSHOT_KEY);
     localStorage.setItem(SIGNED_OUT_KEY, "1");
     setMeId(null);
     setUsers([]);
