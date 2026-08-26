@@ -7,7 +7,18 @@ import { useEffect, useRef, useState } from "react";
 // from `resets` going up), so a screen shot of a broken run still explains
 // itself. The source of truth stays `resets`/`streak` from the server; nothing
 // here is inferred from the heart icons themselves.
-export default function LivesHUD({ resets }: { resets: number }) {
+export default function LivesHUD({
+  resets,
+  expanded,
+  onToggle,
+}: {
+  resets: number;
+  // The failure note is attached to this control rather than sitting open over
+  // the forest, so this has to be a real button: hover alone would leave it
+  // unreachable on a phone and invisible to a keyboard.
+  expanded?: boolean;
+  onToggle?: () => void;
+}) {
   const prevResets = useRef(resets);
   const [broken, setBroken] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -25,10 +36,15 @@ export default function LivesHUD({ resets }: { resets: number }) {
   const full = !broken;
 
   return (
-    <div
+    <button
+      type="button"
       className="lives-block"
-      role="group"
-      aria-label={full ? "3 lives, run alive" : "run reset -- lives restored"}
+      aria-expanded={!!expanded}
+      onClick={onToggle}
+      aria-label={
+        (full ? "3 lives, run alive" : "run reset -- lives restored") +
+        ". Show what happens if you miss a task."
+      }
     >
       <div className="lives">
         {[0, 1, 2].map((i) => (
@@ -36,6 +52,6 @@ export default function LivesHUD({ resets }: { resets: number }) {
         ))}
       </div>
       <span className="lives-label">LIVES</span>
-    </div>
+    </button>
   );
 }

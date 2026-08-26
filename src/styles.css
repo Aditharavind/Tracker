@@ -2668,6 +2668,47 @@ h3 {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 
+/* The default browser scrollbar is a grey slab against the forest -- it was
+   the one piece of stock chrome left on the screen. Scoped to this card
+   rather than global so the drawers keep the platform scrollbar their longer
+   content actually benefits from. Firefox gets the two-property version;
+   WebKit/Blink the fuller one. Both keep the track transparent so the card's
+   own translucency shows through. */
+.day-card-float {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(210, 177, 103, 0.42) transparent;
+}
+
+.day-card-float::-webkit-scrollbar {
+  width: 8px;
+}
+
+.day-card-float::-webkit-scrollbar-track {
+  background: transparent;
+  /* inset from the rounded corner so the thumb never clips the card border */
+  margin: 10px 0;
+}
+
+.day-card-float::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(210, 177, 103, 0.55),
+    rgba(124, 195, 106, 0.55)
+  );
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.day-card-float::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(210, 177, 103, 0.85),
+    rgba(124, 195, 106, 0.85)
+  );
+  background-clip: padding-box;
+}
+
 .day-card-float.card {
   margin: 0;
 }
@@ -2726,6 +2767,11 @@ h3 {
 
 /* ---- failure banner, tucked under lives ------------------------------- */
 
+/* The failure note is an explanation of the hearts, not a standing alert --
+   it sat permanently over the forest saying "MISSED A TASK?" at people who
+   had not missed anything. It now belongs to the LIVES control: revealed on
+   hover for a pointer, and on tap/focus for everything else (`.open` is set
+   by the button, so a phone and a keyboard can both reach it). */
 .failure-banner-float {
   position: absolute;
   top: 42px;
@@ -2736,6 +2782,44 @@ h3 {
   width: min(300px, 42vw);
   margin: 0;
   text-align: right;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  pointer-events: none;
+}
+
+.topbar-lives {
+  position: relative;
+}
+
+.topbar-lives:hover .failure-banner-float,
+.topbar-lives:focus-within .failure-banner-float,
+.topbar-lives.open .failure-banner-float {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* The hearts are now a button; keep them looking like a readout. */
+.lives-block {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.lives-block:hover .lives-label,
+.topbar-lives.open .lives-label {
+  color: var(--dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .failure-banner-float {
+    transition: none;
+    transform: none;
+  }
 }
 
 .failure-banner-float .failure-banner {
