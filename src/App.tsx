@@ -388,6 +388,7 @@ export default function App() {
   const [habitDraft, setHabitDraft] = useState("");
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
   const [waving, setWaving] = useState(false);
+  const [livesOpen, setLivesOpen] = useState(false);
   const [, forceTick] = useState(0);
   const todayRef = useRef(todayISO());
   const minuteRef = useRef("");
@@ -659,19 +660,33 @@ export default function App() {
     api
       .toggle(meId, taskId, day, next)
       .then((res) => {
-        // This response is authoritative for the task it toggled, and stale for
-        // any other task whose own request is still in flight. Adopting it
-        // wholesale would flip those back to their pre-tap value until their own
-        // response landed -- a visible bounce on a second box you just tapped.
+        // The write was accepted (a non-2xx would have thrown), so `next` is
+        // what the box must show. The day payload that comes back with it is a
+        // convenience read, and a convenience read is not worth overruling the
+        // user's own action: anything that made it disagree -- a stale read
+        // after the write, a racing request, a proxy serving a cached body --
+        // would show up as the box silently flipping back on its own, which is
+        // precisely the fault being chased here. Take the rest of the payload,
+        // keep our value for the task we just wrote, and keep the optimistic
+        // value for any sibling whose own write is still in flight.
+        if (res.day.tasks.find((x) => x.id === t.id)?.done !== next) {
+          console.warn("[toggle] server echoed a different value than written", {
+            taskId: t.id,
+            wrote: next,
+            echoed: res.day.tasks.find((x) => x.id === t.id)?.done,
+          });
+        }
         setDetail((cur) => {
           if (!cur) return res.day;
           return {
             ...res.day,
-            tasks: res.day.tasks.map((x) =>
-              x.id !== t.id && pendingToggles.current.has(x.id)
-                ? { ...x, done: cur.tasks.find((c) => c.id === x.id)?.done ?? x.done }
-                : x
-            ),
+            tasks: res.day.tasks.map((x) => {
+              if (x.id === t.id) return { ...x, done: next };
+              if (pendingToggles.current.has(x.id)) {
+                return { ...x, done: cur.tasks.find((c) => c.id === x.id)?.done ?? x.done };
+              }
+              return x;
+            }),
           };
         });
         setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
@@ -864,9 +879,16 @@ export default function App() {
             <IconMenu />
           </button>
           <div className="game-title pixel-font">75 DAY HARD CHALLENGE</div>
-          <div className="topbar-lives">
-            <LivesHUD resets={me.resets} />
-            <div className="failure-banner-float">
+          <div
+            className={`topbar-lives${livesOpen ? " open" : ""}`}
+            onMouseLeave={() => setLivesOpen(false)}
+          >
+            <LivesHUD
+              resets={me.resets}
+              expanded={livesOpen}
+              onToggle={() => setLivesOpen((v) => !v)}
+            />
+            <div className="failure-banner-float" role="tooltip">
               <FailureBanner resets={me.resets} />
             </div>
           </div>
