@@ -180,7 +180,17 @@ export default function ForestScene({
   if (total === 0) return null;
 
   return (
-    <div className="forest-scene" data-stage={stage.id} data-reduced-motion={reducedMotion || undefined}>
+    <div
+      className="forest-scene"
+      data-stage={stage.id}
+      data-reduced-motion={reducedMotion || undefined}
+      // The climb has to earn room per step, or extra tasks just pack more
+      // platforms into the same strip until they overlap into one blob -- which
+      // reads as "the steps didn't grow" even though the count did. The CSS
+      // turns this into a min-height, and scales the step art down past the
+      // point where full-size steps would collide.
+      style={{ ["--step-count" as string]: total }}
+    >
       <div className="forest-bg" aria-hidden="true" />
       <div className="forest-layer-far" aria-hidden="true" />
       <div className="forest-layer-mid" aria-hidden="true" />

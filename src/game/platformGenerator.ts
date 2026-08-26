@@ -19,7 +19,10 @@ const ROUTE: Point[] = [
   { x: 0.88, y: 0.84 },
 ];
 
-const CLIMB_HEIGHT = 0.72;
+// How much of the path area the staircase spans. Kept high so consecutive
+// steps get as much vertical separation as the scene can give them -- the
+// pitch between steps is what stops a long task list reading as one blob.
+const CLIMB_HEIGHT = 0.86;
 
 // Deterministic layout: same seed + task count always produces the same path.
 // The route is intentionally Mario-like: it climbs vertically every step, but

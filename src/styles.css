@@ -1914,6 +1914,11 @@ h3 {
    own visuals change chapter to chapter, never app chrome/layout. */
 
 .forest-scene {
+  /* Steps shrink once there are more of them than the climb has room for at
+     full size. Floored so a very long task list still reads as platforms
+     rather than pebbles. --step-count is set by ForestScene. */
+  --step-scale: clamp(0.7, calc(9 / var(--step-count, 7)), 1);
+
   --forest-bg-top: #0c1710;
   --forest-bg-bottom: #060a07;
   --forest-far: #12271a;
@@ -2165,13 +2170,13 @@ h3 {
 .platform {
   position: absolute;
   transform: translate(-50%, 50%);
-  width: clamp(62px, 7vw, 96px);
+  width: calc(clamp(62px, 7vw, 96px) * var(--step-scale, 1));
   z-index: 6;
   filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 8px rgba(240, 192, 74, 0.25));
 }
 
 .platform-moss {
-  height: 12px;
+  height: calc(12px * var(--step-scale, 1));
   border-radius: 3px;
   background: linear-gradient(to bottom, #a8d84f 0 28%, var(--forest-moss) 28% 68%, #31571f 68%);
   border: 1.5px solid #d7cc77;
@@ -2185,7 +2190,7 @@ h3 {
 }
 
 .platform-stone {
-  height: clamp(20px, 3vw, 32px);
+  height: calc(clamp(20px, 3vw, 32px) * var(--step-scale, 1));
   margin: 0 5px;
   border-radius: 0 0 4px 4px;
   background-color: #27220f;
@@ -3005,10 +3010,24 @@ h3 {
   }
 
   .stage-area .forest-scene {
+    /* Half the screen belongs to the day card here, so the climb has far less
+       height per step than the full-bleed desktop stage and has to shrink the
+       step art harder to keep them distinct. */
+    --step-scale: clamp(0.5, calc(5 / var(--step-count, 7)), 1);
     position: relative;
     inset: auto;
     flex: 1;
-    min-height: 180px;
+    /* One step per task, so the climb needs height per task or the platforms
+       stack into each other. ~26px of pitch each, floored at the old 180px and
+       capped so the day card underneath still has somewhere to live. */
+    min-height: clamp(180px, calc(96px + var(--step-count, 7) * 26px), 52vh);
+  }
+
+  /* ...which only works if the card can actually give the room back. It scrolls
+     its own content (see .day-card-float), so shrinking it costs nothing. */
+  .day-card-float {
+    min-height: 0;
+    flex: 0 1 auto;
   }
 
   .side-rail {
