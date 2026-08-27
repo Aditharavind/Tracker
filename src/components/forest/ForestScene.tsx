@@ -9,6 +9,8 @@ import Coin from "./Coin";
 import GoalFlag from "./GoalFlag";
 import StartSign from "./StartSign";
 import ZombiePlant from "./ZombiePlant";
+import Clouds from "./Clouds";
+import Scenery from "./Scenery";
 import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 
 export function usePrefersReducedMotion(): boolean {
@@ -75,6 +77,15 @@ export default function ForestScene({
   const safeVisualIndex = Math.min(visualIndex, platforms.length);
   const pandaPoint = safeVisualIndex === 0 ? start : platforms[safeVisualIndex - 1];
 
+  // Follow-cam (skill §6): slide the whole level sideways so the active
+  // character stays in clear space near mid-screen, instead of tucked under
+  // the floating Day card at the level's left edge. Purely presentational --
+  // it reads off the panda's already-derived visual position and never feeds
+  // back into state. Clamped so the goal flag never slams into the right
+  // edge; panning the start toward centre is unclamped because the forest
+  // photo simply covers whatever it reveals.
+  const camX = Math.max(-26, Math.min(40, 50 - pct(pandaPoint).left));
+
   const prevDone = useRef(doneCount);
   const prevResets = useRef(resets);
   const timers = useRef<number[]>([]);
@@ -135,14 +146,19 @@ export default function ForestScene({
     }
 
     const target = pandaIndex;
-    const HOP_MS = 640;
+    const HOP_MS = 680;
     const hop = (from: number) => {
+      // Scamper along the platform first (feet on the ground, running in
+      // place)...
       setAnim("running");
-      queue(() => setAnim("jumping"), HOP_MS * 0.42);
+      // ...then leave it: the position change and the jump arc are kicked off
+      // in the same beat, so the character actually travels across the gap
+      // while airborne instead of hopping in place and sliding over after.
       queue(() => {
-        setAnim("landing");
+        setAnim("jumping");
         setVisualIndex(from + 1);
-      }, HOP_MS * 0.78);
+      }, HOP_MS * 0.3);
+      queue(() => setAnim("landing"), HOP_MS * 0.74);
       queue(() => {
         const arrived = from + 1;
         if (arrived < target) {
@@ -192,15 +208,29 @@ export default function ForestScene({
       // into one blob -- which reads as "the level didn't grow" even though
       // the count did. The CSS scales the platform art down past the point
       // where full-size platforms would collide.
-      style={{ ["--step-count" as string]: total }}
+      style={{
+        ["--step-count" as string]: total,
+        ["--cam-x" as string]: `${camX}%`,
+      }}
     >
-      <div className="forest-bg" aria-hidden="true" />
-      <div className="forest-layer-far" aria-hidden="true" />
-      <div className="forest-layer-mid" aria-hidden="true" />
+      {/* Parallax stack (skill §14): each layer carries a fraction of the
+          follow-cam shift so the world reads as depth in motion, not a flat
+          backdrop sliding as one piece. Stage 1 swaps the painted sky +
+          silhouette layers for the hand-drawn forest-bg-1 art (CSS keys this
+          off [data-stage="1"]); the drifting clouds and fireflies stay on
+          top. Stages 2-6 keep the CSS parallax, re-tinted per chapter. */}
+      <div className="forest-photo" aria-hidden="true" />
+      <div className="forest-sky" aria-hidden="true" />
+      <div className="forest-mountains" aria-hidden="true" />
+      <Clouds seed={seed} />
+      <div className="forest-trees-far" aria-hidden="true" />
+      <div className="forest-trees-mid" aria-hidden="true" />
       <div className="forest-texture" aria-hidden="true" />
       <div className="forest-fireflies" aria-hidden="true" />
 
       <div className="forest-path">
+        <Scenery seed={seed} taskCount={total} />
+
         <svg className="forest-trail" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <polyline
             points={pathPoints.map((p) => `${pct(p).left},${(1 - p.y) * 100}`).join(" ")}
@@ -209,8 +239,8 @@ export default function ForestScene({
           />
         </svg>
 
-        <StartSign left={7} bottom={0} />
-        <ZombiePlant left={20} bottom={0} />
+        <StartSign left={6} bottom={0} />
+        <ZombiePlant left={18} bottom={0} />
 
         {tasks.map((t, i) => {
           const p = platforms[i];
@@ -223,7 +253,12 @@ export default function ForestScene({
           );
         })}
 
-        <GoalFlag left={pct(goal).left} bottom={pct(goal).bottom} reached={reachedGoal} />
+        <GoalFlag
+          left={pct(goal).left}
+          bottom={pct(goal).bottom}
+          reached={reachedGoal}
+          dayNumber={dayNumber}
+        />
 
         <div
           className="panda-anchor"

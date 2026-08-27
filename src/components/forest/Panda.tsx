@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useModelViewer } from "../../modelViewer";
 import { CHARACTER_SPRITE, DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 
-export type PandaAnim = "idle" | "running" | "jumping" | "landing" | "celebrating" | "falling";
+export type PandaAnim = "idle" | "running" | "jumping" | "landing" | "celebrating" | "falling" | "dancing";
 
 /**
  * Draw the forest panda with the 3D model instead of the flat sprite.
@@ -26,7 +26,7 @@ const USE_3D_PANDA = false;
 const RESTING: PandaAnim[] = ["idle"];
 
 function Panda3D({ anim }: { anim: PandaAnim }) {
-  const active = anim === "running" || anim === "jumping" || anim === "celebrating";
+  const active = anim === "running" || anim === "jumping" || anim === "celebrating" || anim === "dancing";
   const ref = useRef<HTMLElement & { pause?: () => void; play?: () => void }>(null);
   // Without this the tag is an unregistered custom element and the panda is
   // simply absent -- no error, just an empty box on the platform.
@@ -74,7 +74,12 @@ function Panda3D({ anim }: { anim: PandaAnim }) {
  * Regenerate from the reference sheet if the source art ever changes.
  */
 const PandaFlat = ({ character }: { character: CharacterId }) => (
-  <img className="panda-model panda-flat" src={CHARACTER_SPRITE[character]} alt="" aria-hidden="true" />
+  <img
+    className={`panda-model panda-flat panda-flat-${character}`}
+    src={CHARACTER_SPRITE[character]}
+    alt=""
+    aria-hidden="true"
+  />
 );
 
 export default function Panda({

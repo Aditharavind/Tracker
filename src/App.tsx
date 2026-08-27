@@ -10,6 +10,10 @@ import Rivals from "./components/Rivals";
 import { Avatar3D, Sprite, type AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
+import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
+import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
+import CharacterTurntable from "./components/forest/CharacterTurntable";
+import { getStage, type StageMeta } from "./game/stageSystem";
 import CharacterSelect from "./components/CharacterSelect";
 import { CHARACTER_SPRITE, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
@@ -431,6 +435,8 @@ export default function App() {
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
   const [waving, setWaving] = useState(false);
   const [livesOpen, setLivesOpen] = useState(false);
+  const [dayCompleteOpen, setDayCompleteOpen] = useState(false);
+  const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [, forceTick] = useState(0);
   const todayRef = useRef(todayISO());
   const minuteRef = useRef("");
@@ -454,6 +460,60 @@ export default function App() {
   latestDetail.current = detail;
   const latestMe = useRef(me);
   latestMe.current = me;
+
+  // Level-clear screen (skill §13): pop it once, the first render where every
+  // task for *today* is ticked. A per-day localStorage flag keeps it from
+  // re-opening on later refreshes/re-renders of the same finished day; it is
+  // celebratory only and never gates day advancement (that stays date-driven).
+  const dayCompleteKey = meId != null ? `75hard.daydone:${meId}:${day}` : null;
+  useEffect(() => {
+    if (!dayCompleteKey || !detail || day !== todayISO()) return;
+    const allDone = detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
+    if (!allDone) return;
+    try {
+      if (localStorage.getItem(dayCompleteKey) === "1") return;
+    } catch {
+      /* private mode -- just show it */
+    }
+    setDayCompleteOpen(true);
+  }, [detail, day, dayCompleteKey]);
+
+  const closeDayComplete = () => {
+    setDayCompleteOpen(false);
+    try {
+      if (dayCompleteKey) localStorage.setItem(dayCompleteKey, "1");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // New-world unlock (skill STAGE 4): the run reaching a chapter's first day
+  // means that many days banked without a reset ("25 days consistency" ->
+  // World 3), so announce it once per stage. day_number is the source of
+  // truth for the stage, so this is purely a celebratory readout.
+  const meDayNumber = me?.day_number ?? 0;
+  useEffect(() => {
+    if (meId == null || meDayNumber < 1) return;
+    const stage = getStage(meDayNumber);
+    if (stage.id <= 1 || meDayNumber !== stage.minDay) return;
+    const key = `75hard.world:${meId}:${stage.id}`;
+    try {
+      if (localStorage.getItem(key) === "1") return;
+    } catch {
+      /* private mode -- just show it */
+    }
+    setWorldUnlock(stage);
+  }, [meId, meDayNumber]);
+
+  const closeWorldUnlock = () => {
+    const stage = worldUnlock;
+    setWorldUnlock(null);
+    try {
+      if (stage && meId != null) localStorage.setItem(`75hard.world:${meId}:${stage.id}`, "1");
+    } catch {
+      /* ignore */
+    }
+  };
 
   // PIN prompting removed by request -- every mutation used to stop and ask
   // for a PIN (even with the in-session cache, that meant once per reload),
@@ -942,6 +1002,20 @@ export default function App() {
           onClose={() => setCharacterPanelOpen(false)}
         />
       )}
+      {dayCompleteOpen && (
+        <DayCompleteOverlay
+          dayNumber={me.day_number}
+          tasksCompleted={detail.tasks.filter((t) => t.done).length}
+          totalTasks={detail.tasks.length}
+          coins={coinsEarned}
+          streak={me.streak}
+          character={myCharacter}
+          onClose={closeDayComplete}
+        />
+      )}
+      {worldUnlock && (
+        <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
+      )}
 
       <div className={`game-shell-inner${disco ? " disco-tint" : ""}`}>
         <header className="game-topbar">
@@ -1179,7 +1253,21 @@ export default function App() {
                 <div className="card-head">
                   <h2>Your character</h2>
                 </div>
-                <div className="avatars" role="group" aria-label="Your character">
+                <CharacterTurntable
+                  current={myCharacter}
+                  onSelect={(c) => meId != null && setCharacterFor(meId, c)}
+                />
+                <div style={{ marginTop: 14 }}>
+                  <ThemePicker theme={theme} onPick={setTheme} />
+                </div>
+              </div>
+
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>Runner avatar</h2>
+                  <span className="muted">the sprite that celebrates ticks / disco</span>
+                </div>
+                <div className="avatars" role="group" aria-label="Runner avatar">
                   {AVATARS.map((a) => (
                     <button
                       key={a}
@@ -1192,9 +1280,6 @@ export default function App() {
                       <Sprite avatar={a} running={false} />
                     </button>
                   ))}
-                </div>
-                <div style={{ marginTop: 14 }}>
-                  <ThemePicker theme={theme} onPick={setTheme} />
                 </div>
               </div>
 
