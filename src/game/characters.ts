@@ -21,6 +21,18 @@ export const CHARACTER_SPRITE: Record<CharacterId, string> = {
   redpanda: "/assets/redpanda-sprite.webp",
 };
 
+// Billboard .glb built by scripts/build-characters-glb.mjs -- flat pixel-art
+// on a quad with Idle / Hop / Dance clips. Used only where model-viewer is
+// already worth its weight (Profile turntable, Day-complete dance) -- never on
+// the first-load critical path; the in-world character stays the flat sprite.
+export const CHARACTER_MODEL: Record<CharacterId, string> = {
+  panda: "/assets/characters/panda.glb",
+  koala: "/assets/characters/koala.glb",
+  redpanda: "/assets/characters/redpanda.glb",
+};
+
+export type CharacterAnim = "Idle" | "Hop" | "Dance";
+
 export const DEFAULT_CHARACTER: CharacterId = "panda";
 
 export function isCharacterId(v: unknown): v is CharacterId {

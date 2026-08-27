@@ -57,11 +57,13 @@ export function generatePlatforms(dayNumber: number, taskCount: number, seed: st
 }
 
 export function startPoint(): Point {
-  return { x: 0.04, y: 0.06 };
+  // y ~ 0: the character stands on the ground strip next to the START sign,
+  // not floating on an invisible ledge above it.
+  return { x: 0.04, y: 0.0 };
 }
 
 export function goalPoint(_taskCount: number): Point {
-  return { x: 0.97, y: 0.1 };
+  return { x: 0.97, y: 0.0 };
 }
 
 function sampleTerrain(t: number): Point {

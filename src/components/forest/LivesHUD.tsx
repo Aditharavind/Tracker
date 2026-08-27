@@ -21,16 +21,31 @@ export default function LivesHUD({
 }) {
   const prevResets = useRef(resets);
   const [broken, setBroken] = useState(false);
+  // Bumped whenever the hearts should play their staggered fill-in: once on
+  // mount, and again each time a run resets and the lives are restored. The
+  // key remounts the heart spans so the CSS fill animation actually re-runs
+  // instead of being ignored as "already applied".
+  const [fillKey, setFillKey] = useState(0);
   const timer = useRef<number | undefined>(undefined);
+  const healTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (resets > prevResets.current) {
       setBroken(true);
       window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => setBroken(false), 2200);
+      window.clearTimeout(healTimer.current);
+      // Break first, then heal: the hearts shatter, sit empty a beat, then
+      // refill one after another.
+      timer.current = window.setTimeout(() => {
+        setBroken(false);
+        setFillKey((k) => k + 1);
+      }, 1400);
     }
     prevResets.current = resets;
-    return () => window.clearTimeout(timer.current);
+    return () => {
+      window.clearTimeout(timer.current);
+      window.clearTimeout(healTimer.current);
+    };
   }, [resets]);
 
   const full = !broken;
@@ -48,7 +63,12 @@ export default function LivesHUD({
     >
       <div className="lives">
         {[0, 1, 2].map((i) => (
-          <span key={i} className={`heart${full ? " full" : " empty"}${broken ? " break" : ""}`} aria-hidden="true" />
+          <span
+            key={`${fillKey}-${i}`}
+            className={`heart${full ? " full" : " empty"}${broken ? " break" : ""}${full ? " fill" : ""}`}
+            style={{ ["--i" as string]: i }}
+            aria-hidden="true"
+          />
         ))}
       </div>
       <span className="lives-label">LIVES</span>

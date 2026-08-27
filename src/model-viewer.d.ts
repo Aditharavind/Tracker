@@ -9,6 +9,9 @@ type ModelViewerAttributes = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTML
   "disable-zoom"?: boolean;
   "interaction-prompt"?: string;
   "camera-orbit"?: string;
+  "auto-rotate"?: boolean;
+  "auto-rotate-delay"?: number;
+  "rotation-per-second"?: string;
   // React does not translate className -> class for custom elements (tag
   // names with a hyphen), so the literal `class` attribute must be used.
   class?: string;

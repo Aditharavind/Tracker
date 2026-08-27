@@ -1853,6 +1853,43 @@ h3 {
   color: var(--line);
 }
 
+/* Staggered fill-in: hearts wipe from empty to red one after another, on
+   first mount and again after a run resets. The ::after is the coloured
+   heart clipped by a bottom-up wipe; ::before (below) stays as the dim
+   socket outline it fills into. */
+.heart.fill::before {
+  color: var(--line);
+  background: color-mix(in srgb, var(--bad) 22%, transparent);
+}
+
+.heart.fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--bad);
+  clip-path: path(
+    "M7 12.5 C2 9 0 6.3 0 3.9 C0 1.7 1.7 0 3.8 0 C5.1 0 6.2 0.7 7 1.9 C7.8 0.7 8.9 0 10.2 0 C12.3 0 14 1.7 14 3.9 C14 6.3 12 9 7 12.5 Z"
+  );
+  transform-origin: 50% 100%;
+  animation: heart-fill 0.5s cubic-bezier(0.2, 1.4, 0.5, 1) both;
+  animation-delay: calc(var(--i, 0) * 0.14s + 0.1s);
+}
+
+@keyframes heart-fill {
+  0% {
+    transform: scaleY(0);
+    opacity: 0.2;
+  }
+  70% {
+    transform: scaleY(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
 .heart.break {
   animation: heart-break 2.2s ease-in-out;
 }
@@ -1984,35 +2021,11 @@ h3 {
   --forest-cream: #fff6e0;
 }
 
-.forest-bg {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(0, 0, 0, 0.48) 100%),
-    url("/assets/forest-background.webp");
-  background-repeat: no-repeat;
-  background-position: center bottom;
-  background-size: cover;
-  image-rendering: pixelated;
-  z-index: 0;
-}
-
-.forest-layer-far {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: radial-gradient(ellipse 70% 40% at 20% 100%, var(--forest-far), transparent 70%),
-    radial-gradient(ellipse 60% 45% at 80% 100%, var(--forest-far), transparent 70%);
-  opacity: 0.8;
-  display: none;
-}
+/* .forest-bg / .forest-layer-* (the photo backdrop + radial-blob layers) were
+   replaced by the CSS parallax stack -- see "forest world v2" at the end of
+   this file (.forest-sky / .forest-mountains / .forest-trees-*). */
 
 .forest-layer-mid {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: radial-gradient(ellipse 50% 30% at 40% 100%, var(--forest-mid), transparent 75%),
-    radial-gradient(ellipse 45% 35% at 95% 100%, var(--forest-mid), transparent 75%),
-    radial-gradient(ellipse 40% 28% at 0% 100%, var(--forest-mid), transparent 75%);
   display: none;
 }
 
@@ -2085,8 +2098,15 @@ h3 {
      340px card with its own trailing page content below it, so ground
      level never actually touched a fixed bottom bar; the full-bleed
      stage-area's bottom edge now does. */
-  inset: 0 0 72px 0;
+  inset: 0 0 64px 0;
   z-index: 6;
+  /* Follow-cam: --cam-x is set per render by ForestScene to keep the active
+     character near mid-screen (never behind the Day card). The whole path
+     layer -- platforms, coins, trail, start sign, plant, goal, character --
+     slides together; the ground strip (.forest-fg) and HUD stay put. */
+  transform: translateX(var(--cam-x, 0));
+  transition: transform 0.55s cubic-bezier(0.33, 0.1, 0.25, 1);
+  will-change: transform;
 }
 
 .forest-trail {
@@ -2108,14 +2128,17 @@ h3 {
 
 .start-sign {
   position: absolute;
-  transform: translate(-50%, 92%);
+  /* Was translate(-50%, 92%) -- that shoved almost the whole board down past
+     the path's 72px bottom inset and behind the foreground grass, so the
+     sign was effectively invisible. Sit it just above the ground line. */
+  transform: translate(-50%, 14%);
   z-index: 9;
   text-align: center;
 }
 
 .start-sign-post {
-  width: 4px;
-  height: 24px;
+  width: 5px;
+  height: 34px;
   margin: 0 auto;
   background: linear-gradient(90deg, #4a3313, #6b4a1e 45%, #3a2810);
   border-radius: 1px;
@@ -2127,10 +2150,10 @@ h3 {
 .start-sign-board {
   position: relative;
   margin-top: -3px;
-  padding: 4px 9px 5px;
+  padding: 6px 13px 7px;
   font-family: "Titan One", var(--sans);
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font-size: 13px;
+  letter-spacing: 0.08em;
   color: #f6e6b8;
   background: linear-gradient(180deg, #8a5f28 0%, #7a5220 22%, #6b4a1e 50%, #5c3f19 78%, #4c3315 100%),
     repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 6px);
@@ -2312,11 +2335,16 @@ h3 {
    wood-plank language as the start sign, so the two ends of the run read as
    one continuous set piece. */
 .goal-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   margin-top: 2px;
-  padding: 4px 8px 5px;
+  padding: 5px 10px 6px;
   font-family: "Titan One", var(--sans);
-  font-size: 8px;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
   color: #f6e6b8;
   background: linear-gradient(180deg, #8a5f28 0%, #7a5220 22%, #6b4a1e 50%, #5c3f19 78%, #4c3315 100%),
     repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 6px);
@@ -2326,8 +2354,17 @@ h3 {
   box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25), inset 0 -2px 2px rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.35);
   text-shadow: 0 1px 0 rgba(255, 224, 160, 0.2), 0 -1px 1px rgba(0, 0, 0, 0.65);
   white-space: nowrap;
-  opacity: 0.65;
+  opacity: 0.94;
   transition: opacity 0.3s ease, box-shadow 0.3s ease;
+}
+
+.goal-board-day {
+  font-size: 0.8em;
+  color: #d9c48a;
+}
+
+.goal-board-state {
+  color: var(--forest-gold, #f0c04a);
 }
 
 .goal-flag.reached .goal-board {
@@ -2349,15 +2386,15 @@ h3 {
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  /* Delayed to start only once the run-in-place phase ends and the jump arc
-     begins, and finishes exactly as the landing beat starts -- matching
-     ForestScene's per-stair timeline (run 0-270ms, jump 270-500ms, land at
-     500ms, static until the next hop at 640ms). Without the delay the
-     sprite slid toward the destination immediately while still playing its
-     "running in place" bob, which is what read as jittering instead of a
-     clean, one-stair-at-a-time hop. */
-  transition: left 0.23s cubic-bezier(0.33, 0.1, 0.3, 1), bottom 0.23s cubic-bezier(0.33, 0.1, 0.3, 1);
-  transition-delay: 0.27s;
+  /* Travel happens while airborne. ForestScene changes the anchor's target
+     in the same beat it sets anim="jumping" (~0.3 * 680ms in), and the
+     character lands at ~0.74 * 680ms -- so the horizontal slide runs 0-300ms
+     with no delay, covering exactly the gap-crossing window, and the
+     vertical hop arc on top (@keyframes panda-jump) makes it read as a jump
+     over the gap rather than a glide. The run-in-place bob plays before any
+     of this, on the current platform. */
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.34, 0.9, 0.5, 1);
+  transition-delay: 0s;
   will-change: left, bottom;
 }
 
@@ -2371,8 +2408,8 @@ h3 {
 
 .panda-model {
   display: block;
-  width: clamp(46px, 6vw, 72px);
-  height: clamp(46px, 6vw, 72px);
+  width: clamp(58px, 7.6vw, 92px);
+  height: clamp(58px, 7.6vw, 92px);
   background: transparent;
   pointer-events: none;
   user-select: none;
@@ -2380,12 +2417,29 @@ h3 {
   --poster-color: transparent;
 }
 
+/* The character art is chunky pixel-art on a 360px canvas -- let the browser
+   nearest-neighbour it up so the pixels stay hard-edged instead of smearing
+   into a blur at the size the CSS actually draws it. object-fit keeps the
+   sprite's own proportions whatever box it lands in. */
+.panda-flat {
+  object-fit: contain;
+  object-position: center bottom;
+  image-rendering: pixelated;
+}
+
+/* The red panda's tail eats canvas width, so at a shared box size its body
+   reads a touch smaller than the panda/koala -- nudge it back to match. */
+.panda-flat-redpanda {
+  transform: scale(1.08);
+  transform-origin: center bottom;
+}
+
 .panda-running {
   animation: panda-run 0.35s ease-in-out infinite;
 }
 
 .panda-jumping {
-  animation: panda-jump 0.45s ease-in-out;
+  animation: panda-jump 0.34s ease-out;
 }
 
 .panda-landing {
@@ -2412,10 +2466,13 @@ h3 {
 
 @keyframes panda-jump {
   0% {
-    transform: translateY(0) scale(1, 1);
+    transform: translateY(0) scale(1.08, 0.92);
   }
-  40% {
-    transform: translateY(-22px) scale(0.95, 1.05);
+  35% {
+    transform: translateY(-34px) scale(0.9, 1.12);
+  }
+  70% {
+    transform: translateY(-30px) scale(0.94, 1.06);
   }
   100% {
     transform: translateY(0) scale(1, 1);
@@ -2466,6 +2523,12 @@ h3 {
   .panda-anchor {
     transition: left 0.15s linear, bottom 0.15s linear;
     transition-delay: 0s;
+  }
+  /* Follow-cam still tracks the character (so it never ends up behind the
+     Day card) -- it just snaps there instead of gliding. */
+  .forest-path,
+  .forest-bg {
+    transition: none;
   }
   .panda-running,
   .panda-jumping,
@@ -2659,6 +2722,7 @@ h3 {
   width: 26px;
   height: 26px;
   object-fit: contain;
+  image-rendering: pixelated;
   display: block;
 }
 
@@ -2719,10 +2783,13 @@ h3 {
   max-height: calc(100% - 56px - 176px);
   overflow-y: auto;
   z-index: 15;
-  background: color-mix(in srgb, #08120e 72%, transparent);
-  border: 2px solid rgba(210, 177, 103, 0.34);
+  /* Opaque: the level scrolls and parallaxes behind it now, and a
+     translucent card let the moving world bleed through and fight the task
+     text for legibility. Solid panel, pixel-art double border. */
+  background: #0b1712;
+  border: 2px solid rgba(210, 177, 103, 0.5);
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
 /* The default browser scrollbar is a grey slab against the forest -- it was
@@ -3199,6 +3266,7 @@ h3 {
   width: 88px;
   height: 88px;
   object-fit: contain;
+  image-rendering: pixelated;
   filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5));
 }
 
@@ -3270,5 +3338,710 @@ h3 {
   .character-card-sprite {
     width: 64px;
     height: 64px;
+  }
+}
+
+/* ============================================================ forest world v2 */
+/* Full pixel-art parallax scene (skill §14) replacing the single photo
+   backdrop: painted sky + repeating mountain / tree silhouettes + drifting
+   clouds, each layer carrying a fraction of the follow-cam shift (--cam-x,
+   set by ForestScene) so depth reads as motion. Stage palette vars
+   (--forest-bg-top etc, still defined on .forest-scene per chapter) drive
+   the colours, so the six stages keep re-tinting the world. */
+
+.forest-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    var(--forest-bg-top) 0%,
+    color-mix(in srgb, var(--forest-bg-top) 62%, var(--forest-mid)) 52%,
+    var(--forest-bg-bottom) 100%
+  );
+}
+
+/* Hand-drawn backdrop for the first chapter (Forest Entrance). Only shown
+   for stage 1; the other chapters fall back to the CSS parallax stack until
+   they get their own art. Overscanned + a slice of the follow-cam shift so
+   it parallaxes gently instead of sitting dead still. */
+.forest-photo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: none;
+  background-image: url("/assets/forest-bg-1.webp");
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: cover;
+  image-rendering: pixelated;
+  transform: scale(1.12) translateX(calc(var(--cam-x, 0%) * 0.1));
+  transition: transform 0.5s cubic-bezier(0.33, 0.1, 0.25, 1);
+}
+
+.forest-scene[data-stage="1"] .forest-photo {
+  display: block;
+}
+
+/* The photo already carries its own sky, mountains and tree line -- drop the
+   CSS equivalents on stage 1 so they don't double up. Drifting clouds and
+   fireflies stay. */
+.forest-scene[data-stage="1"] .forest-sky,
+.forest-scene[data-stage="1"] .forest-mountains,
+.forest-scene[data-stage="1"] .forest-trees-far,
+.forest-scene[data-stage="1"] .forest-trees-mid {
+  display: none;
+}
+
+.forest-sky::after {
+  content: "";
+  position: absolute;
+  top: 9%;
+  right: 13%;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 246, 214, 0.85), rgba(255, 246, 214, 0.12) 62%, transparent 74%);
+}
+
+.forest-mountains,
+.forest-trees-far,
+.forest-trees-mid {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+  transition: transform 0.5s cubic-bezier(0.33, 0.1, 0.25, 1);
+  will-change: transform;
+}
+
+.forest-mountains {
+  z-index: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='240'><polygon points='0,240 110,70 210,160 320,34 430,150 520,88 600,160 600,240' fill='%231e3a2a'/><polygon points='0,240 150,130 260,190 380,120 500,182 600,150 600,240' fill='%23274a33'/></svg>");
+  background-position: center 74%;
+  background-size: 680px 240px;
+  opacity: 0.9;
+  transform: translateX(calc(var(--cam-x, 0%) * 0.06));
+}
+
+.forest-trees-far {
+  z-index: 2;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='190'><g fill='%230e2015'><ellipse cx='52' cy='128' rx='48' ry='60'/><ellipse cx='156' cy='116' rx='58' ry='72'/><ellipse cx='268' cy='132' rx='50' ry='62'/><ellipse cx='366' cy='120' rx='56' ry='66'/></g></svg>");
+  background-position: left bottom;
+  background-size: 440px 200px;
+  opacity: 0.72;
+  transform: translateX(calc(var(--cam-x, 0%) * 0.16));
+}
+
+.forest-trees-mid {
+  z-index: 3;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='170'><g fill='%231c3a26'><rect x='45' y='104' width='11' height='60'/><ellipse cx='50' cy='90' rx='42' ry='52'/><rect x='158' y='98' width='13' height='68'/><ellipse cx='165' cy='80' rx='50' ry='60'/><rect x='262' y='110' width='11' height='56'/><ellipse cx='267' cy='96' rx='40' ry='48'/></g></svg>");
+  background-position: left bottom;
+  background-size: 340px 180px;
+  opacity: 0.85;
+  transform: translateX(calc(var(--cam-x, 0%) * 0.4));
+}
+
+/* ---- drifting clouds ---- */
+
+.forest-clouds {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  transform: translateX(calc(var(--cam-x, 0%) * 0.1));
+  transition: transform 0.5s cubic-bezier(0.33, 0.1, 0.25, 1);
+  pointer-events: none;
+}
+
+.cloud {
+  position: absolute;
+  width: calc(34px * var(--cloud-scale, 1));
+  height: calc(12px * var(--cloud-scale, 1));
+  background: #cfdde8;
+  border-radius: 999px;
+  image-rendering: pixelated;
+  box-shadow: 0 4px 0 -1px rgba(0, 0, 0, 0.14);
+  animation: cloud-drift var(--cloud-dur, 44s) linear infinite;
+  animation-delay: var(--cloud-delay, 0s);
+}
+
+/* Two stacked puffs give the flat bar an actual cloud silhouette. */
+.cloud::before,
+.cloud::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  background: #cfdde8;
+  border-radius: 50%;
+}
+
+.cloud::before {
+  left: 14%;
+  width: 52%;
+  height: 220%;
+}
+
+.cloud::after {
+  right: 10%;
+  width: 40%;
+  height: 165%;
+}
+
+@keyframes cloud-drift {
+  from {
+    left: -14%;
+  }
+  to {
+    left: 112%;
+  }
+}
+
+/* ---- Mario-style set dressing (Scenery.tsx) ---- */
+
+.forest-scenery {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.scn-bricks {
+  position: absolute;
+  display: flex;
+  transform: translate(-50%, 50%);
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.32));
+}
+
+.scn-brick {
+  width: 17px;
+  height: 17px;
+  background: linear-gradient(180deg, #b5642f 0 45%, #9a4f22 45% 100%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 8px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 8px);
+  border: 1.5px solid #3a1e10;
+  box-shadow: inset 1px 1px 0 rgba(255, 220, 170, 0.35);
+}
+
+.scn-question {
+  position: absolute;
+  width: 19px;
+  height: 19px;
+  transform: translate(-50%, 50%);
+  display: grid;
+  place-items: center;
+  font: 700 13px/1 "Titan One", var(--sans);
+  color: #6b3d10;
+  background: linear-gradient(180deg, #f4c94e 0 46%, #e0a92e 46% 100%);
+  border: 1.5px solid #6b3d10;
+  box-shadow: inset 1px 1px 0 rgba(255, 245, 205, 0.6), 0 4px 0 rgba(0, 0, 0, 0.32);
+  animation: scn-qbob 2.4s ease-in-out infinite;
+}
+
+@keyframes scn-qbob {
+  0%,
+  100% {
+    transform: translate(-50%, 50%) translateY(0);
+  }
+  50% {
+    transform: translate(-50%, 50%) translateY(-3px);
+  }
+}
+
+.scn-pipe {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, 0);
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.32));
+}
+
+.scn-pipe-lip {
+  width: 48px;
+  height: 15px;
+  background: linear-gradient(180deg, #4fbf5a 0 40%, #2f8f3c 40% 100%);
+  border: 2px solid #16451d;
+  border-radius: 3px 3px 0 0;
+}
+
+.scn-pipe-body {
+  width: 38px;
+  height: var(--pipe-h, 40px);
+  margin-top: -2px;
+  background: linear-gradient(90deg, #2f8f3c 0 18%, #57c766 18% 34%, #2f8f3c 34% 100%);
+  border: 2px solid #16451d;
+}
+
+/* ---- victory character dance ---- */
+
+.panda-dancing {
+  animation: panda-dance 0.86s ease-in-out infinite;
+}
+
+@keyframes panda-dance {
+  0%,
+  100% {
+    transform: translate(-4px, 0) rotate(-8deg);
+  }
+  50% {
+    transform: translate(4px, -9px) rotate(8deg);
+  }
+}
+
+/* ============================================================ day-complete */
+
+.daycomplete {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: radial-gradient(ellipse at center, rgba(10, 20, 14, 0.82), rgba(4, 8, 6, 0.94));
+  animation: daycomplete-in 0.28s ease-out;
+}
+
+@keyframes daycomplete-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.daycomplete-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.daycomplete-confetti span {
+  position: absolute;
+  top: -6%;
+  width: 7px;
+  height: 11px;
+  border-radius: 1px;
+  animation: daycomplete-fall linear infinite;
+}
+
+@keyframes daycomplete-fall {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(112vh) rotate(540deg);
+  }
+}
+
+.daycomplete-card {
+  position: relative;
+  width: min(420px, 92vw);
+  padding: 26px 22px 22px;
+  text-align: center;
+  background: #0b1712;
+  border: 3px solid var(--forest-gold, #f0c04a);
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+  color: var(--forest-cream, #f3e6c8);
+}
+
+.daycomplete-kicker {
+  margin: 0 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--forest-gold, #f0c04a);
+}
+
+.daycomplete-title {
+  margin: 0 0 14px;
+  font-size: 20px;
+  line-height: 1.25;
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+.daycomplete-stage {
+  position: relative;
+  height: 132px;
+  margin: 4px auto 16px;
+}
+
+.daycomplete-dancer {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+}
+
+.daycomplete-model {
+  display: block;
+  width: 110px;
+  height: 110px;
+  image-rendering: pixelated;
+  object-fit: contain;
+  --poster-color: transparent;
+}
+
+.worldunlock-model {
+  display: block;
+  width: 100px;
+  height: 100px;
+  image-rendering: pixelated;
+  object-fit: contain;
+  --poster-color: transparent;
+}
+
+.daycomplete-podium {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 118px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 35%, #f4c94e, #b07d1f 70%, #7c5514 100%);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
+}
+
+.daycomplete-podium::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+  width: 118px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 245, 205, 0.5);
+}
+
+.daycomplete-score {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+.daycomplete-score > div {
+  flex: 1;
+  max-width: 108px;
+  padding: 9px 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(210, 177, 103, 0.3);
+  border-radius: 10px;
+}
+
+.daycomplete-score dt {
+  margin: 0 0 4px;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: var(--dimmer, #9aa);
+}
+
+.daycomplete-score dd {
+  margin: 0;
+  font-size: 13px;
+  color: #fff;
+}
+
+.daycomplete-continue {
+  padding: 11px 22px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: #201603;
+  background: linear-gradient(180deg, #ffd76a, #e7ad2c);
+  border: 2px solid #6b3d10;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #6b3d10;
+  cursor: pointer;
+}
+
+.daycomplete-continue:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #6b3d10;
+}
+
+/* ============================================================ turntable */
+
+.turntable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.turntable-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.turntable-arrow {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+  color: var(--forest-cream, #f3e6c8);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1.5px solid rgba(210, 177, 103, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.turntable-arrow:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.turntable-stage {
+  position: relative;
+  width: 176px;
+  height: 156px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.turntable-model {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  width: 118px;
+  height: 118px;
+  image-rendering: pixelated;
+  --poster-color: transparent;
+  z-index: 2;
+}
+
+.turntable-disc {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: 116px;
+  height: 34px;
+  z-index: 1;
+}
+
+.turntable-disc-top,
+.turntable-disc-side {
+  position: absolute;
+  left: 0;
+  width: 116px;
+  border-radius: 50%;
+}
+
+.turntable-disc-top {
+  top: 0;
+  height: 26px;
+  background: radial-gradient(ellipse at 50% 35%, #3a5f6e, #22323b 72%);
+  border: 2px solid rgba(180, 210, 220, 0.35);
+  animation: turntable-spin 4s linear infinite;
+}
+
+.turntable-disc-side {
+  top: 12px;
+  height: 22px;
+  background: linear-gradient(180deg, #22323b, #16232a);
+  filter: brightness(0.8);
+}
+
+@keyframes turntable-spin {
+  0% {
+    box-shadow: inset 16px 0 20px -12px rgba(0, 0, 0, 0.75);
+  }
+  50% {
+    box-shadow: inset -16px 0 20px -12px rgba(0, 0, 0, 0.75);
+  }
+  100% {
+    box-shadow: inset 16px 0 20px -12px rgba(0, 0, 0, 0.75);
+  }
+}
+
+.turntable-choose {
+  padding: 9px 20px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #201603;
+  background: linear-gradient(180deg, #ffd76a, #e7ad2c);
+  border: 2px solid #6b3d10;
+  border-radius: 9px;
+  box-shadow: 0 3px 0 #6b3d10;
+  cursor: pointer;
+}
+
+.turntable-choose:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #6b3d10;
+}
+
+.turntable-choose.is-current {
+  color: var(--forest-cream, #f3e6c8);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(124, 195, 106, 0.5);
+  box-shadow: none;
+  cursor: default;
+}
+
+.turntable-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--forest-gold, #f0c04a);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud,
+  .panda-dancing,
+  .scn-question,
+  .turntable-disc-top,
+  .heart.fill::after {
+    animation: none;
+  }
+  .daycomplete-confetti {
+    display: none;
+  }
+  .forest-mountains,
+  .forest-trees-far,
+  .forest-trees-mid,
+  .forest-clouds {
+    transition: none;
+  }
+}
+
+/* ============================================================ world-unlock */
+
+.worldunlock {
+  position: fixed;
+  inset: 0;
+  z-index: 121;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: radial-gradient(ellipse at center, rgba(12, 22, 34, 0.9), rgba(4, 8, 12, 0.97));
+  animation: daycomplete-in 0.3s ease-out;
+}
+
+.worldunlock-motes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.worldunlock-motes span {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--forest-gold, #f0c04a);
+  box-shadow: 0 0 6px 2px rgba(240, 192, 74, 0.5);
+  animation: worldunlock-mote ease-in-out infinite alternate;
+}
+
+@keyframes worldunlock-mote {
+  from {
+    opacity: 0.15;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 0.9;
+    transform: translateY(-6px);
+  }
+}
+
+.worldunlock-card {
+  position: relative;
+  width: min(440px, 92vw);
+  padding: 24px 22px 22px;
+  text-align: center;
+  background: #0b1220;
+  border: 3px solid #6fb3d6;
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.65), 0 0 40px rgba(111, 179, 214, 0.25),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+  color: var(--forest-cream, #f3e6c8);
+}
+
+.worldunlock-kicker {
+  margin: 0 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: #8fd3f0;
+}
+
+.worldunlock-count {
+  margin: 0 0 4px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--forest-gold, #f0c04a);
+}
+
+.worldunlock-count span {
+  color: var(--dimmer, #9aa);
+}
+
+.worldunlock-name {
+  margin: 0 0 10px;
+  font-size: 21px;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+.worldunlock-blurb {
+  margin: 0 auto 6px;
+  max-width: 30ch;
+  font-size: 12px;
+  color: var(--forest-cream, #f3e6c8);
+  opacity: 0.85;
+}
+
+.worldunlock-days {
+  margin: 0 0 8px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--dimmer, #9aa);
+}
+
+.worldunlock-hero {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 108px;
+  margin: 2px 0 14px;
+}
+
+.worldunlock-enter {
+  padding: 11px 24px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: #06202b;
+  background: linear-gradient(180deg, #a8e0f4, #6fb3d6);
+  border: 2px solid #2b5f76;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #2b5f76;
+  cursor: pointer;
+}
+
+.worldunlock-enter:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #2b5f76;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .worldunlock-motes {
+    display: none;
   }
 }
