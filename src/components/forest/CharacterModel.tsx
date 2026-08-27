@@ -26,7 +26,12 @@ export default function CharacterModel({
 
   return (
     <div className={`charmodel${className ? ` ${className}` : ""}`}>
-      <img className="charmodel-sprite" src={CHARACTER_SPRITE[character]} alt="" aria-hidden="true" />
+      <img
+        className={`charmodel-sprite charmodel-sprite-${anim.toLowerCase()}`}
+        src={CHARACTER_SPRITE[character]}
+        alt=""
+        aria-hidden="true"
+      />
       {ready && (
         <model-viewer
           key={character}
