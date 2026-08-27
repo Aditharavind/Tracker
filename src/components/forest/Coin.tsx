@@ -5,17 +5,21 @@ export default function Coin({
   left,
   bottom,
   visible,
+  multiplier,
 }: {
   left: number;
   bottom: number;
   visible: boolean;
+  // A bonus coin -- e.g. the x5 stashed near the end of the level.
+  multiplier?: number;
 }) {
   return (
     <div
-      className={`coin${visible ? "" : " hidden"}`}
+      className={`coin${visible ? "" : " hidden"}${multiplier ? " coin-bonus" : ""}`}
       style={{ left: `${left}%`, bottom: `${bottom}%` }}
       aria-hidden="true"
     >
+      {multiplier ? <span className="coin-mult pixel-font">×{multiplier}</span> : null}
       <svg width="26" height="26" viewBox="0 0 17 17">
         <circle cx="8.5" cy="8.5" r="8.1" fill="#3a2708" opacity="0.55" />
         <circle cx="8.5" cy="8.5" r="7.6" fill="#f0c04a" stroke="#8a5a17" strokeWidth="1" />

@@ -7,7 +7,7 @@ import Checklist from "./components/Checklist";
 import Calendar75 from "./components/Calendar75";
 import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
-import { Avatar3D, Sprite, type AvatarId } from "./components/Runner";
+import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
@@ -19,7 +19,7 @@ import { CHARACTER_SPRITE, isCharacterId, type CharacterId } from "./game/charac
 import FailureBanner from "./components/forest/FailureBanner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
 import SnoozePanda from "./components/SnoozePanda";
-import { playAlarmSiren, playDiscoBeat, primeAudio } from "./discoSound";
+import { playAlarmSiren, primeAudio } from "./discoSound";
 
 const LAST_USER = LAST_USER_KEY;
 const THEME_KEY = "75hard.theme";
@@ -92,8 +92,6 @@ const msUntilTomorrow = () => {
   d.setHours(24, 0, 0, 0);
   return d.getTime() - Date.now();
 };
-
-const AVATARS: AvatarId[] = ["guy", "girl", "panda"];
 
 const storedTheme = (): ThemeId => {
   const saved = localStorage.getItem(THEME_KEY) as ThemeId | null;
@@ -422,12 +420,13 @@ export default function App() {
   const [noteState, setNoteState] = useState<"idle" | "saving" | "saved">("idle");
   const [toast, setToast] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeId>(storedTheme);
-  const [avatars, setAvatars] = useState<Record<number, AvatarId>>(storedAvatars);
+  // Value unused since the Runner-avatar picker was removed; the setter still
+  // persists the pick chosen during onboarding.
+  const [, setAvatars] = useState<Record<number, AvatarId>>(storedAvatars);
   const [pendingAvatar, setPendingAvatar] = useState<AvatarId>("guy");
   const [characters, setCharacters] = useState<Record<number, CharacterId>>(storedCharacters);
   const [characterPanelOpen, setCharacterPanelOpen] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [disco, setDisco] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile">(null);
@@ -441,14 +440,12 @@ export default function App() {
   const todayRef = useRef(todayISO());
   const minuteRef = useRef("");
   const noteTimer = useRef<number | undefined>(undefined);
-  const discoTimer = useRef<number | undefined>(undefined);
   const waveTimer = useRef<number | undefined>(undefined);
   const pendingToggles = useRef<Set<number>>(new Set());
   const queuedToggles = useRef<Map<number, boolean>>(new Map());
   const intendedDone = useRef<Map<number, boolean>>(new Map());
 
   const me = board.find((p) => p.user_id === meId) ?? null;
-  const myAvatar: AvatarId = (meId != null && avatars[meId]) || "guy";
   // Deliberately no `|| DEFAULT_CHARACTER` fallback -- undefined here is what
   // drives the mandatory character-select gate below (skill §0). Once set,
   // it never resets.
@@ -461,30 +458,26 @@ export default function App() {
   const latestMe = useRef(me);
   latestMe.current = me;
 
-  // Level-clear screen (skill §13): pop it once, the first render where every
-  // task for *today* is ticked. A per-day localStorage flag keeps it from
-  // re-opening on later refreshes/re-renders of the same finished day; it is
-  // celebratory only and never gates day advancement (that stays date-driven).
-  const dayCompleteKey = meId != null ? `75hard.daydone:${meId}:${day}` : null;
+  // Level-clear screen (skill §13): pops the moment every task for *today* is
+  // ticked. Suppressed only for the rest of this session once dismissed (a
+  // ref, not localStorage) -- so a reload after finishing shows it again, and
+  // unchecking then re-completing a task re-triggers it. Celebratory only;
+  // never gates day advancement (that stays date-driven).
+  const dayCompleteDismissed = useRef<string | null>(null);
   useEffect(() => {
-    if (!dayCompleteKey || !detail || day !== todayISO()) return;
+    if (!detail || meId == null || day !== todayISO()) return;
     const allDone = detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
-    if (!allDone) return;
-    try {
-      if (localStorage.getItem(dayCompleteKey) === "1") return;
-    } catch {
-      /* private mode -- just show it */
+    if (!allDone) {
+      if (dayCompleteDismissed.current === day) dayCompleteDismissed.current = null;
+      return;
     }
+    if (dayCompleteDismissed.current === day) return;
     setDayCompleteOpen(true);
-  }, [detail, day, dayCompleteKey]);
+  }, [detail, day, meId]);
 
   const closeDayComplete = () => {
     setDayCompleteOpen(false);
-    try {
-      if (dayCompleteKey) localStorage.setItem(dayCompleteKey, "1");
-    } catch {
-      /* ignore */
-    }
+    dayCompleteDismissed.current = day;
   };
 
   // New-world unlock (skill STAGE 4): the run reaching a chapter's first day
@@ -561,13 +554,6 @@ export default function App() {
       localStorage.setItem(SNOOZE_KEY, JSON.stringify(next));
       return next;
     });
-  };
-
-  const partyTime = () => {
-    setDisco(true);
-    playDiscoBeat(4200);
-    window.clearTimeout(discoTimer.current);
-    discoTimer.current = window.setTimeout(() => setDisco(false), 4200);
   };
 
   // Boards are scoped per group server-side -- `asUserId` tells the backend
@@ -814,7 +800,6 @@ export default function App() {
         } else if (becameFullClear) {
           flash("Full clear - nothing left today");
         }
-        if (becameFullClear) partyTime();
       })
       .catch((e) => {
         // Undo only this task, and only if the user has not since asked for
@@ -890,9 +875,18 @@ export default function App() {
   const restart = () => {
     if (meId == null) return;
     if (!confirm("Wipe the current run and start again from day 1 today?")) return;
-    runWithPin(meId, async (pin) => {
-      await api.restart(meId, pin);
-      await loadBoard(meId);
+    const id = meId;
+    runWithPin(id, async (pin) => {
+      await api.restart(id, pin);
+      // Reload BOTH the board and today's tasks -- restart clears completions
+      // server-side, so the checklist / forest must refetch or they keep
+      // showing the old run's ticks.
+      const [, fresh] = await Promise.all([loadBoard(id), api.day(id, todayISO())]);
+      setDay(todayISO());
+      setDetail(fresh);
+      setNote(fresh.note);
+      setNoteState("idle");
+      setOpenPanel(null);
       flash("Back to day 1. Go.");
     });
   };
@@ -959,17 +953,7 @@ export default function App() {
     setOpenPanel((cur) => (cur === p ? null : p));
 
   return (
-    <div className={`game-shell${disco ? " disco" : ""}`} style={{ ["--u" as string]: me.color }}>
-      {disco && (
-        <div className="disco-overlay" aria-hidden="true">
-          <span className="disco-ball">🪩</span>
-        </div>
-      )}
-      {disco && (
-        <div className="disco-finale">
-          <Avatar3D avatar={myAvatar} running zoomed />
-        </div>
-      )}
+    <div className="game-shell" style={{ ["--u" as string]: me.color }}>
       {waving && <SnoozePanda minutes={SNOOZE_MIN} />}
       {alarmActive && lockedTask && (
         <AlarmOverlay
@@ -1017,7 +1001,7 @@ export default function App() {
         <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
       )}
 
-      <div className={`game-shell-inner${disco ? " disco-tint" : ""}`}>
+      <div className="game-shell-inner">
         <header className="game-topbar">
           <button
             className="hamburger-btn"
@@ -1068,6 +1052,14 @@ export default function App() {
           />
 
           <div className="day-card-float">
+            <button
+              type="button"
+              className="daycard-reset pixel-font"
+              onClick={restart}
+              title="Wipe this run and start again from day 1"
+            >
+              RESET RUN
+            </button>
             <Checklist
               detail={detail}
               day={day}
@@ -1244,10 +1236,14 @@ export default function App() {
 
           {openPanel === "profile" && (
             <div className="panel-drawer">
-              <div className="panel-drawer-head">
+              <div className="panel-drawer-head panel-drawer-head-sticky">
                 <h2>Profile</h2>
-                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
-                  <IconClose />
+                <button
+                  className="panel-close panel-close-red pixel-font"
+                  aria-label="Close"
+                  onClick={() => setOpenPanel(null)}
+                >
+                  ✕
                 </button>
               </div>
 
@@ -1261,27 +1257,6 @@ export default function App() {
                 />
                 <div style={{ marginTop: 14 }}>
                   <ThemePicker theme={theme} onPick={setTheme} />
-                </div>
-              </div>
-
-              <div className="card panel-section">
-                <div className="card-head">
-                  <h2>Runner avatar</h2>
-                  <span className="muted">the sprite that celebrates ticks / disco</span>
-                </div>
-                <div className="avatars" role="group" aria-label="Runner avatar">
-                  {AVATARS.map((a) => (
-                    <button
-                      key={a}
-                      className={`avatar-btn${a === myAvatar ? " on" : ""}`}
-                      onClick={() => meId != null && setAvatarFor(meId, a)}
-                      title={`play as ${a}`}
-                      aria-label={`play as ${a}`}
-                      aria-pressed={a === myAvatar}
-                    >
-                      <Sprite avatar={a} running={false} />
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -1360,9 +1335,6 @@ export default function App() {
                 className="card panel-section"
                 style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}
               >
-                <button className="btn ghost" onClick={restart}>
-                  Reset my run
-                </button>
                 <button className="btn ghost" onClick={signOut}>
                   Sign out
                 </button>

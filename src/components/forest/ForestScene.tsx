@@ -33,6 +33,18 @@ export function usePrefersReducedMotion(): boolean {
 const X_GUTTER = 8;
 const pct = (p: Point) => ({ left: X_GUTTER + p.x * (100 - X_GUTTER * 2), bottom: p.y * 100 });
 
+// Slide + scale the generated platforms into [lo, hi] on the x axis, keeping
+// their relative spacing and jitter. Used to guarantee a run-up before the
+// first platform without touching the (independently tested) generator.
+function remapPlatformRun<T extends Point>(platforms: T[], lo: number, hi: number): T[] {
+  if (platforms.length === 0) return platforms;
+  if (platforms.length === 1) return [{ ...platforms[0], x: lo }];
+  const first = platforms[0].x;
+  const last = platforms[platforms.length - 1].x;
+  const span = last - first || 1;
+  return platforms.map((p) => ({ ...p, x: lo + ((p.x - first) / span) * (hi - lo) }));
+}
+
 export default function ForestScene({
   detail,
   dayNumber,
@@ -53,19 +65,31 @@ export default function ForestScene({
   const reducedMotion = usePrefersReducedMotion();
   const stage = getStage(dayNumber);
 
-  const platforms = generatePlatforms(dayNumber, total, seed);
-  const pandaIndex = pandaPlatformIndex(doneCount, total);
   const start = startPoint();
-  const goal = goalPoint(total);
+  const pandaIndex = pandaPlatformIndex(doneCount, total);
+
+  // Deterministic layout, then remapped so (a) the first platform sits a fat
+  // run-up past the START sign (~300px on desktop) and (b) platforms keep a
+  // consistent gap regardless of task count. The level is wider than the
+  // viewport -- the follow-cam scrolls it -- so relative spacing + jitter are
+  // preserved rather than squashed to fit.
+  const rawPlatforms = generatePlatforms(dayNumber, total, seed);
+  const LEAD_X = 0.26; // START sign -> first platform (~300px)
+  const SPACING_X = 0.12; // platform -> platform
+  const runLo = start.x + LEAD_X;
+  const runHi = runLo + Math.max(1, total - 1) * SPACING_X;
+  const platforms = remapPlatformRun(rawPlatforms, runLo, runHi);
+  const goal = { ...goalPoint(total), x: runHi + 0.13 };
   const reachedGoal = total > 0 && doneCount === total;
   const pathPoints = [start, ...platforms, goal];
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
-  // On mount the character is parked back at the START sign and runs forward
-  // to its resting spot (skill §0 / CLAUDE.md §9: "idle -> short run ->
-  // ready"). Purely cosmetic entry flourish -- the resting spot is still the
-  // state-derived position, never a platform ahead of the completed count.
-  const [runIn, setRunIn] = useState(true);
+  // Mount flourish (skill §0 / CLAUDE.md §9): the character is parked AT the
+  // START sign, then runs to its ready spot next to the first platform. This
+  // is the only scripted travel -- everything after is task-driven hops.
+  // "parked" snaps it to the sign; "running" lets the position transition
+  // carry it forward while .panda-running plays; null = arrived, idle.
+  const [runInPhase, setRunInPhase] = useState<"parked" | "running" | null>("parked");
   // The panda's *visual* position on the staircase -- deliberately decoupled
   // from pandaIndex (the real, state-derived position). pandaIndex can jump
   // by more than one step in a single update (several tasks completed at
@@ -82,6 +106,13 @@ export default function ForestScene({
   const safeVisualIndex = Math.min(visualIndex, platforms.length);
   const pandaPoint = safeVisualIndex === 0 ? start : platforms[safeVisualIndex - 1];
 
+  // Where the character is drawn: normally pandaPoint, but during the "parked"
+  // beat of the mount flourish it sits back at the START sign so the run
+  // reads as sign -> first platform.
+  const SIGN_POINT: Point = { x: -0.06, y: 0 };
+  const atStartRest = safeVisualIndex === 0;
+  const displayPoint = runInPhase === "parked" && atStartRest ? SIGN_POINT : pandaPoint;
+
   // Follow-cam (skill §6): slide the whole level sideways so the active
   // character stays in clear space near mid-screen, instead of tucked under
   // the floating Day card at the level's left edge. Purely presentational --
@@ -89,7 +120,16 @@ export default function ForestScene({
   // back into state. Clamped so the goal flag never slams into the right
   // edge; panning the start toward centre is unclamped because the forest
   // photo simply covers whatever it reveals.
-  const camX = Math.max(-26, Math.min(40, 50 - pct(pandaPoint).left));
+  // Lower bound = don't scroll past the goal (keep it around mid-screen);
+  // the level is now wider than one viewport, so this has to track the goal
+  // rather than being a fixed number.
+  const minCam = Math.min(46, 50 - pct(goal).left);
+  let camX = Math.max(minCam, Math.min(46, 50 - pct(pandaPoint).left));
+  // Early in the level the character sits near the far-left edge, right where
+  // the Day card overlays. Push the pan further so the START sign + character
+  // always clear the card's right edge (skill §21 "let task cards cover the
+  // gameplay path" -> don't).
+  if (atStartRest) camX = Math.max(camX, 40);
 
   const prevDone = useRef(doneCount);
   const prevResets = useRef(resets);
@@ -116,14 +156,17 @@ export default function ForestScene({
   // second, real mount is what actually leaves it in the correct end state.
   useEffect(() => {
     if (reducedMotion) {
-      setRunIn(false);
+      setRunInPhase(null);
       return;
     }
     setAnim("running");
-    // Next frame: release the START-sign offset so the character runs forward
-    // into place (CSS transitions .panda-anchor's transform).
-    queue(() => setRunIn(false), 60);
-    queue(() => setAnim("idle"), 1000);
+    // Release the parked offset a frame later so the position transition
+    // (see .panda-anchor[data-runin="running"]) carries it sign -> ready.
+    queue(() => setRunInPhase("running"), 90);
+    queue(() => {
+      setRunInPhase(null);
+      setAnim("idle");
+    }, 1300);
     return clearQueue;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -157,19 +200,16 @@ export default function ForestScene({
     }
 
     const target = pandaIndex;
-    const HOP_MS = 680;
+    // Completing a task ("checking a checkpoint") sends the character forward:
+    // it RUNS along the current platform, then jumps to the next and lands.
+    const HOP_MS = 620;
     const hop = (from: number) => {
-      // Scamper along the platform first (feet on the ground, running in
-      // place)...
       setAnim("running");
-      // ...then leave it: the position change and the jump arc are kicked off
-      // in the same beat, so the character actually travels across the gap
-      // while airborne instead of hopping in place and sliding over after.
       queue(() => {
         setAnim("jumping");
         setVisualIndex(from + 1);
-      }, HOP_MS * 0.3);
-      queue(() => setAnim("landing"), HOP_MS * 0.74);
+      }, HOP_MS * 0.42);
+      queue(() => setAnim("landing"), HOP_MS * 0.8);
       queue(() => {
         const arrived = from + 1;
         if (arrived < target) {
@@ -258,10 +298,20 @@ export default function ForestScene({
         {tasks.map((t, i) => {
           const p = platforms[i];
           const { left, bottom } = pct(p);
+          // A couple of the platforms are stretched into longer ledges so the
+          // run reads as varied terrain, not a row of identical blocks.
+          const wide = total >= 4 && (i === 1 || i === total - 2);
+          // The bonus x5 coin sits on the second-to-last platform.
+          const bonus = total >= 3 && i === total - 2;
           return (
             <div key={t.id}>
-              <Platform left={left} bottom={bottom} cleared={t.done} title={t.title} />
-              <Coin left={left} bottom={bottom + 6} visible={i >= safeVisualIndex} />
+              <Platform left={left} bottom={bottom} cleared={t.done} title={t.title} wide={wide} />
+              <Coin
+                left={left}
+                bottom={bottom + 6}
+                visible={i >= safeVisualIndex}
+                multiplier={bonus ? 5 : undefined}
+              />
             </div>
           );
         })}
@@ -275,8 +325,8 @@ export default function ForestScene({
 
         <div
           className="panda-anchor"
-          data-runin={runIn && safeVisualIndex === 0 ? "" : undefined}
-          style={{ left: `${pct(pandaPoint).left}%`, bottom: `${pct(pandaPoint).bottom}%` }}
+          data-runin={runInPhase && atStartRest ? runInPhase : undefined}
+          style={{ left: `${pct(displayPoint).left}%`, bottom: `${pct(displayPoint).bottom}%` }}
         >
           <Panda anim={anim} character={character} />
         </div>

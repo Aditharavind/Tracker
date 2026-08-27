@@ -3,15 +3,17 @@ export default function Platform({
   bottom,
   cleared,
   title,
+  wide,
 }: {
   left: number;
   bottom: number;
   cleared: boolean;
   title: string;
+  wide?: boolean;
 }) {
   return (
     <div
-      className={`platform${cleared ? " cleared" : ""}`}
+      className={`platform${cleared ? " cleared" : ""}${wide ? " platform-wide" : ""}`}
       style={{ left: `${left}%`, bottom: `${bottom}%` }}
       title={title}
     >

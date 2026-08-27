@@ -61,9 +61,10 @@ export function generatePlatforms(
 }
 
 export function startPoint(): Point {
-  // y ~ 0: the character stands on the ground strip next to the START sign,
-  // not floating on an invisible ledge above it.
-  return { x: 0.04, y: 0.0 };
+  // Sits in the clear stretch of ground to the RIGHT of the START sign (the
+  // sign renders at the far-left of the scene), with a run-up gap still left
+  // before the first platform. y ~ 0: on the ground strip, not floating.
+  return { x: 0.2, y: 0.0 };
 }
 
 export function goalPoint(_taskCount: number): Point {

@@ -32,10 +32,6 @@ export type PandaAnim =
  */
 const USE_3D_PANDA = true;
 
-// Truly at rest -- landing/falling are brief transitional beats (a squash on
-// touchdown, a stumble on reset), not places the panda should sit and idle-
-// loop, so only "idle" itself freezes the model.
-const RESTING: PandaAnim[] = ["idle"];
 
 function Panda3D({
   anim,
@@ -44,11 +40,6 @@ function Panda3D({
   anim: PandaAnim;
   character: CharacterId;
 }) {
-  const active =
-    anim === "running" ||
-    anim === "jumping" ||
-    anim === "celebrating" ||
-    anim === "dancing";
   const ref = useRef<HTMLElement & { pause?: () => void; play?: () => void }>(
     null,
   );
@@ -56,34 +47,40 @@ function Panda3D({
   // simply absent -- no error, just an empty box on the platform.
   const ready = useModelViewer();
 
-  // model-viewer's own GLB clip (the "Idle" breathing bob) keeps looping
-  // forever via `autoplay` even while the panda is meant to be standing
-  // still on a platform -- that continuous micro-motion, stacked on top of
-  // the CSS landing/hop transforms, is what read as flickering/instability
-  // once landed. Freeze the model outright once it's genuinely at rest;
-  // resume it for every state that's actually mid-motion.
+  // Keep the model's Idle clip playing (barely-there breathing bob). Never
+  // pause it -- a paused <model-viewer> blanks out the moment the layout
+  // reflows under it.
   useEffect(() => {
     const el = ref.current;
     if (!el || !ready) return;
-    if (RESTING.includes(anim)) el.pause?.();
-    else el.play?.();
-  }, [anim, ready]);
+    el.play?.();
+  }, [ready]);
 
-  if (!ready) return <PandaFlat character={DEFAULT_CHARACTER} />;
-
+  // The flat sprite is ALWAYS the base layer and carries every bit of MOTION
+  // (run on the ground, jump between platforms) via CSS. The 3D model is
+  // overlaid ONLY while the character is at rest -- a gently breathing Idle
+  // on a platform. Keeping it out of the fast run/jump/land churn is what
+  // stops it blanking out ("vanishing from the stairs"); and if it fails to
+  // paint at all, the sprite underneath is simply still there.
+  const atRest = anim === "idle";
   return (
-    <model-viewer
-      ref={ref}
-      src={CHARACTER_MODEL[character]}
-      alt="Reference panda character"
-      animation-name={active ? "Hop" : "Idle"}
-      autoplay
-      camera-orbit="0deg 90deg 105%"
-      camera-controls={false}
-      disable-zoom
-      interaction-prompt="none"
-      class="panda-model"
-    />
+    <div className="panda-model panda-3d">
+      <PandaFlat character={character} />
+      {ready && atRest && (
+        <model-viewer
+          ref={ref}
+          src={CHARACTER_MODEL[character]}
+          alt="Your character"
+          animation-name="Idle"
+          autoplay
+          camera-orbit="0deg 90deg 105%"
+          camera-controls={false}
+          disable-zoom
+          interaction-prompt="none"
+          class="panda-3d-viewer"
+        />
+      )}
+    </div>
   );
 }
 
