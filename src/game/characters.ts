@@ -31,7 +31,7 @@ export const CHARACTER_MODEL: Record<CharacterId, string> = {
   redpanda: "/assets/characters/redpanda.glb",
 };
 
-export type CharacterAnim = "Idle" | "Hop" | "Dance";
+export type CharacterAnim = "Idle" | "Run" | "Hop" | "Dance";
 
 export const DEFAULT_CHARACTER: CharacterId = "panda";
 

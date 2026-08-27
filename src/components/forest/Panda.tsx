@@ -47,8 +47,7 @@ function Panda3D({
   // simply absent -- no error, just an empty box on the platform.
   const ready = useModelViewer();
 
-  // Keep the model's Idle clip playing (barely-there breathing bob). Never
-  // pause it -- a paused <model-viewer> blanks out the moment the layout
+  // Never pause -- a paused <model-viewer> blanks out the moment the layout
   // reflows under it.
   useEffect(() => {
     const el = ref.current;
@@ -56,22 +55,24 @@ function Panda3D({
     el.play?.();
   }, [ready]);
 
-  // The flat sprite is ALWAYS the base layer and carries every bit of MOTION
-  // (run on the ground, jump between platforms) via CSS. The 3D model is
-  // overlaid ONLY while the character is at rest -- a gently breathing Idle
-  // on a platform. Keeping it out of the fast run/jump/land churn is what
-  // stops it blanking out ("vanishing from the stairs"); and if it fails to
-  // paint at all, the sprite underneath is simply still there.
-  const atRest = anim === "idle";
+  // Collapse the six anim states onto the model's three motion clips, so the
+  // animation-name attribute changes at most twice per hop instead of four
+  // times (rapid churn is what used to blank the viewer).
+  const clip =
+    anim === "running" ? "Run" : anim === "jumping" || anim === "landing" ? "Hop" : anim === "dancing" || anim === "celebrating" ? "Dance" : "Idle";
+
+  // The flat sprite is ALWAYS the base layer; the rigged model sits on top and
+  // covers it once painted. If the viewer is slow / loses its WebGL context,
+  // the sprite (with its own CSS run cycle) is simply still there.
   return (
     <div className="panda-model panda-3d">
       <PandaFlat character={character} />
-      {ready && atRest && (
+      {ready && (
         <model-viewer
           ref={ref}
           src={CHARACTER_MODEL[character]}
           alt="Your character"
-          animation-name="Idle"
+          animation-name={clip}
           autoplay
           camera-orbit="0deg 90deg 105%"
           camera-controls={false}
