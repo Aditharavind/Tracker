@@ -61,6 +61,11 @@ export default function ForestScene({
   const pathPoints = [start, ...platforms, goal];
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
+  // On mount the character is parked back at the START sign and runs forward
+  // to its resting spot (skill §0 / CLAUDE.md §9: "idle -> short run ->
+  // ready"). Purely cosmetic entry flourish -- the resting spot is still the
+  // state-derived position, never a platform ahead of the completed count.
+  const [runIn, setRunIn] = useState(true);
   // The panda's *visual* position on the staircase -- deliberately decoupled
   // from pandaIndex (the real, state-derived position). pandaIndex can jump
   // by more than one step in a single update (several tasks completed at
@@ -110,9 +115,15 @@ export default function ForestScene({
   // playing "running" forever. Letting the effect simply re-run on the
   // second, real mount is what actually leaves it in the correct end state.
   useEffect(() => {
-    if (reducedMotion) return;
+    if (reducedMotion) {
+      setRunIn(false);
+      return;
+    }
     setAnim("running");
-    queue(() => setAnim("idle"), 700);
+    // Next frame: release the START-sign offset so the character runs forward
+    // into place (CSS transitions .panda-anchor's transform).
+    queue(() => setRunIn(false), 60);
+    queue(() => setAnim("idle"), 1000);
     return clearQueue;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -239,8 +250,10 @@ export default function ForestScene({
           />
         </svg>
 
-        <StartSign left={6} bottom={0} />
-        <ZombiePlant left={18} bottom={0} />
+        <div className="start-area" aria-hidden="true">
+          <StartSign left={0} bottom={0} />
+          <ZombiePlant left={0} bottom={0} />
+        </div>
 
         {tasks.map((t, i) => {
           const p = platforms[i];
@@ -262,6 +275,7 @@ export default function ForestScene({
 
         <div
           className="panda-anchor"
+          data-runin={runIn && safeVisualIndex === 0 ? "" : undefined}
           style={{ left: `${pct(pandaPoint).left}%`, bottom: `${pct(pandaPoint).bottom}%` }}
         >
           <Panda anim={anim} character={character} />

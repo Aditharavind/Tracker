@@ -32,7 +32,11 @@ const TERRAIN: Point[] = [
 // forward progress through a horizontal side-scroller. Height comes from
 // TERRAIN, sampled at each platform's x, plus jitter -- varied but never a
 // directional climb.
-export function generatePlatforms(dayNumber: number, taskCount: number, seed: string): Platform[] {
+export function generatePlatforms(
+  dayNumber: number,
+  taskCount: number,
+  seed: string,
+): Platform[] {
   if (taskCount <= 0) return [];
 
   const random = createSeededRandom(`${seed}:${dayNumber}:${taskCount}`);
