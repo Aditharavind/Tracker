@@ -34,11 +34,14 @@ export default defineConfig({
       workbox: {
         // The 3D viewer chunk and the .glb models are megabytes and aren't
         // needed to open the app, so they stay out of the precache and load on
-        // demand instead. The forest background *is* precached: as WebP it is
-        // ~120KB rather than the 1.8MB PNG it replaced, and it is the first
+        // demand instead. model-viewer also code-splits its Draco/Basis
+        // decoders into sibling chunks (one is ~720KB, over the size limit and
+        // enough to fail the build if precached), so those ride along in the
+        // same 3D-only bucket. The forest background *is* precached: as WebP it
+        // is ~120KB rather than the 1.8MB PNG it replaced, and it is the first
         // thing you see, so having it offline-ready is worth the space.
         globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2}"],
-        globIgnores: ["**/model-viewer-*.js"],
+        globIgnores: ["**/model-viewer-*.js", "**/draco_*.js", "**/basis_transcoder-*.js"],
         maximumFileSizeToCacheInBytes: 600 * 1024,
         // The API must never be served from cache -- a stale streak is worse
         // than no streak. Navigation falls back to the shell when offline.
@@ -51,7 +54,7 @@ export default defineConfig({
           },
           {
             // big, immutable, rarely changed -- cache once, reuse forever
-            urlPattern: /model-viewer-.*\.js$|\.glb$/,
+            urlPattern: /model-viewer-.*\.js$|draco_.*\.js$|basis_transcoder-.*\.js$|\.glb$/,
             handler: "CacheFirst",
             options: {
               cacheName: "heavy-assets",

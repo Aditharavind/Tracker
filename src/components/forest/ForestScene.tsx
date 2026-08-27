@@ -9,8 +9,9 @@ import Coin from "./Coin";
 import GoalFlag from "./GoalFlag";
 import StartSign from "./StartSign";
 import ZombiePlant from "./ZombiePlant";
+import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 
-function usePrefersReducedMotion(): boolean {
+export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
@@ -35,11 +36,13 @@ export default function ForestScene({
   dayNumber,
   seed,
   resets,
+  character = DEFAULT_CHARACTER,
 }: {
   detail: DayDetail;
   dayNumber: number;
   seed: string;
   resets: number;
+  character?: CharacterId;
 }) {
   const tasks = detail.tasks;
   const total = tasks.length;
@@ -184,11 +187,11 @@ export default function ForestScene({
       className="forest-scene"
       data-stage={stage.id}
       data-reduced-motion={reducedMotion || undefined}
-      // The climb has to earn room per step, or extra tasks just pack more
-      // platforms into the same strip until they overlap into one blob -- which
-      // reads as "the steps didn't grow" even though the count did. The CSS
-      // turns this into a min-height, and scales the step art down past the
-      // point where full-size steps would collide.
+      // The level's width has to earn room per platform, or extra tasks just
+      // pack more platforms into the same horizontal strip until they overlap
+      // into one blob -- which reads as "the level didn't grow" even though
+      // the count did. The CSS scales the platform art down past the point
+      // where full-size platforms would collide.
       style={{ ["--step-count" as string]: total }}
     >
       <div className="forest-bg" aria-hidden="true" />
@@ -226,7 +229,7 @@ export default function ForestScene({
           className="panda-anchor"
           style={{ left: `${pct(pandaPoint).left}%`, bottom: `${pct(pandaPoint).bottom}%` }}
         >
-          <Panda anim={anim} />
+          <Panda anim={anim} character={character} />
         </div>
       </div>
 

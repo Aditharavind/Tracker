@@ -10,66 +10,78 @@ export type Platform = Point & {
   taskIndex: number; // 0-based index into today's task list
 };
 
-const ROUTE: Point[] = [
-  { x: 0.26, y: 0.14 },
-  { x: 0.58, y: 0.24 },
-  { x: 0.78, y: 0.42 },
-  { x: 0.52, y: 0.58 },
-  { x: 0.72, y: 0.72 },
-  { x: 0.88, y: 0.84 },
+// Height (y) sampled across the level's left-to-right span. This is terrain,
+// not a climb: it wanders low/mid/high with no directional trend, which is
+// what makes the level read as a Mario-style side view instead of a
+// staircase. y is clamped well under 1.0 (see clampY) so no platform ever
+// gets tall enough to crowd the HUD.
+const TERRAIN: Point[] = [
+  { x: 0.0, y: 0.1 },
+  { x: 0.16, y: 0.34 },
+  { x: 0.3, y: 0.16 },
+  { x: 0.46, y: 0.46 },
+  { x: 0.6, y: 0.24 },
+  { x: 0.74, y: 0.48 },
+  { x: 0.88, y: 0.18 },
+  { x: 1.0, y: 0.12 },
 ];
 
-// How much of the path area the staircase spans. Kept high so consecutive
-// steps get as much vertical separation as the scene can give them -- the
-// pitch between steps is what stops a long task list reading as one blob.
-const CLIMB_HEIGHT = 0.86;
-
-// Deterministic layout: same seed + task count always produces the same path.
-// The route is intentionally Mario-like: it climbs vertically every step, but
-// major landings drift left and right so it reads as platforms instead of a
-// uniform diagonal staircase. The vertical rise between consecutive steps is
-// exactly uniform (equal Δy every task) so the panda's climb reads as an even
-// staircase -- only the horizontal drift (sampled from the route's x at that
-// same height fraction) varies, which is what keeps it visually interesting.
+// Deterministic layout: same seed + task count always produces the same
+// path. Platforms are spread left to right, evenly by task order (x is
+// monotonic -- task 1 is always left of task 2), so the level reads as
+// forward progress through a horizontal side-scroller. Height comes from
+// TERRAIN, sampled at each platform's x, plus jitter -- varied but never a
+// directional climb.
 export function generatePlatforms(dayNumber: number, taskCount: number, seed: string): Platform[] {
   if (taskCount <= 0) return [];
 
   const random = createSeededRandom(`${seed}:${dayNumber}:${taskCount}`);
+  // Even spacing between consecutive platforms. Jitter is capped at a
+  // fraction of this gap so it can never push platforms out of task order,
+  // regardless of how many tasks the day has.
+  const gap = 1 / (taskCount + 1);
+  const jitterXAmp = gap * 0.15;
 
   return Array.from({ length: taskCount }, (_, index) => {
-    const t = (index + 1) / (taskCount + 1);
-    const y = t * CLIMB_HEIGHT;
-    const routeX = sampleRoute(t).x;
-    const jitterX = (random() - 0.5) * 0.055;
+    const t = (index + 1) * gap;
+    const jitterX = (random() - 0.5) * 2 * jitterXAmp;
+    const terrainY = sampleTerrain(t).y;
+    const jitterY = (random() - 0.5) * 0.1;
     return {
       id: `day-${dayNumber}-platform-${index}`,
       taskIndex: index,
-      x: clamp01(routeX + jitterX),
-      y: clamp01(y),
+      x: clampX(t + jitterX),
+      y: clampY(terrainY + jitterY),
     };
   });
 }
 
 export function startPoint(): Point {
-  return { x: 0.18, y: 0.05 };
+  return { x: 0.04, y: 0.06 };
 }
 
-export function goalPoint(taskCount: number): Point {
-  return { x: taskCount <= 1 ? 0.82 : 0.93, y: 0.05 };
+export function goalPoint(_taskCount: number): Point {
+  return { x: 0.97, y: 0.1 };
 }
 
-function sampleRoute(t: number): Point {
-  const scaled = t * (ROUTE.length - 1);
-  const index = Math.min(ROUTE.length - 2, Math.floor(scaled));
+function sampleTerrain(t: number): Point {
+  const scaled = t * (TERRAIN.length - 1);
+  const index = Math.min(TERRAIN.length - 2, Math.floor(scaled));
   const local = scaled - index;
-  const from = ROUTE[index];
-  const to = ROUTE[index + 1];
+  const from = TERRAIN[index];
+  const to = TERRAIN[index + 1];
   return {
     x: from.x + (to.x - from.x) * local,
     y: from.y + (to.y - from.y) * local,
   };
 }
 
-function clamp01(n: number): number {
+function clampX(n: number): number {
   return Math.max(0.03, Math.min(0.97, n));
+}
+
+// Upper bound well under 1.0 so the tallest platform still leaves clearance
+// under the topbar/HUD.
+function clampY(n: number): number {
+  return Math.max(0.05, Math.min(0.52, n));
 }

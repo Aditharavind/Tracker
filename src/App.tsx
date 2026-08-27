@@ -10,6 +10,8 @@ import Rivals from "./components/Rivals";
 import { Avatar3D, Sprite, type AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
+import CharacterSelect from "./components/CharacterSelect";
+import { CHARACTER_SPRITE, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
 import SnoozePanda from "./components/SnoozePanda";
@@ -18,6 +20,7 @@ import { playAlarmSiren, playDiscoBeat, primeAudio } from "./discoSound";
 const LAST_USER = LAST_USER_KEY;
 const THEME_KEY = "75hard.theme";
 const AVATAR_KEY = "75hard.avatar";
+const CHARACTER_KEY = "75hard.character";
 const SNOOZE_KEY = "75hard.snooze";
 // Set on sign-out. Without it the same-IP suggestion in the bootstrap effect
 // below signs you straight back in on the next load, which makes signing out
@@ -195,6 +198,24 @@ function IconTrophy() {
   );
 }
 
+function IconCoin() {
+  // Same panda-face coin art as forest/Coin.tsx, for the topbar tally.
+  return (
+    <svg width="18" height="18" viewBox="0 0 17 17" aria-hidden="true">
+      <circle cx="8.5" cy="8.5" r="8.1" fill="#3a2708" opacity="0.55" />
+      <circle cx="8.5" cy="8.5" r="7.6" fill="#f0c04a" stroke="#8a5a17" strokeWidth="1" />
+      <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="#c98f2e" strokeWidth="0.6" />
+      <ellipse cx="5.6" cy="6.2" rx="1.3" ry="1.3" fill="#8a5a17" />
+      <ellipse cx="11.4" cy="6.2" rx="1.3" ry="1.3" fill="#8a5a17" />
+      <ellipse cx="8.5" cy="8.4" rx="3.6" ry="3.2" fill="#fff3c9" />
+      <ellipse cx="6.7" cy="8.1" rx="1" ry="1.3" fill="#8a5a17" />
+      <ellipse cx="10.3" cy="8.1" rx="1" ry="1.3" fill="#8a5a17" />
+      <ellipse cx="8.5" cy="9.6" rx="0.6" ry="0.4" fill="#8a5a17" />
+      <circle cx="6" cy="5.4" r="1" fill="#fff8e2" opacity="0.7" />
+    </svg>
+  );
+}
+
 function IconGear() {
   return (
     <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
@@ -214,6 +235,25 @@ const storedAvatars = (): Record<number, AvatarId> => {
     const raw = localStorage.getItem(AVATAR_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+// Which forest character (panda/koala/red panda) each user has picked. Purely
+// cosmetic and client-side, same shape and storage pattern as storedAvatars
+// above -- an absent entry is what drives the mandatory character-select gate
+// in App() (see `myCharacter`), not a fallback to a default character.
+const storedCharacters = (): Record<number, CharacterId> => {
+  try {
+    const raw = localStorage.getItem(CHARACTER_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Record<number, CharacterId> = {};
+    for (const [id, v] of Object.entries(parsed)) {
+      if (isCharacterId(v)) out[Number(id)] = v;
+    }
+    return out;
   } catch {
     return {};
   }
@@ -380,6 +420,8 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeId>(storedTheme);
   const [avatars, setAvatars] = useState<Record<number, AvatarId>>(storedAvatars);
   const [pendingAvatar, setPendingAvatar] = useState<AvatarId>("guy");
+  const [characters, setCharacters] = useState<Record<number, CharacterId>>(storedCharacters);
+  const [characterPanelOpen, setCharacterPanelOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [disco, setDisco] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -401,6 +443,10 @@ export default function App() {
 
   const me = board.find((p) => p.user_id === meId) ?? null;
   const myAvatar: AvatarId = (meId != null && avatars[meId]) || "guy";
+  // Deliberately no `|| DEFAULT_CHARACTER` fallback -- undefined here is what
+  // drives the mandatory character-select gate below (skill §0). Once set,
+  // it never resets.
+  const myCharacter: CharacterId | undefined = meId != null ? characters[meId] : undefined;
 
   // The toggle path runs across awaits and re-taps, so it must read the values
   // as they are when it runs, not as they were when the tap was handled.
@@ -426,6 +472,15 @@ export default function App() {
       localStorage.setItem(AVATAR_KEY, JSON.stringify(next));
       return next;
     });
+  };
+
+  const setCharacterFor = (userId: number, c: CharacterId) => {
+    setCharacters((prev) => {
+      const next = { ...prev, [userId]: c };
+      localStorage.setItem(CHARACTER_KEY, JSON.stringify(next));
+      return next;
+    });
+    setCharacterPanelOpen(false);
   };
 
   const flash = (msg: string) => {
@@ -824,9 +879,21 @@ export default function App() {
 
   if (!me || !detail) return <Skeleton />;
 
+  // Mandatory first-run gate (skill §0): blocks the game shell entirely
+  // until a character is chosen and persisted for this user. Fires once per
+  // user id, then never again -- selecting from the HUD later (see
+  // characterPanelOpen below) reuses the same component in "switch" mode
+  // instead of this blocking one.
+  if (!myCharacter) {
+    return <CharacterSelect mode="gate" onSelect={(c) => setCharacterFor(meId!, c)} />;
+  }
+
   const isToday = day === todayISO();
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
   const overallProgressPct = Math.round((bankedDays / 75) * 100);
+  // Derived, never stored -- a pure readout of already-persisted task
+  // completion (CLAUDE.md §8: coin count is never the source of truth).
+  const coinsEarned = me.calendar.reduce((sum, c) => sum + c.done, 0);
 
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
     setOpenPanel((cur) => (cur === p ? null : p));
@@ -867,6 +934,14 @@ export default function App() {
       )}
       {shareUrl && <ShareDialog name={me.name} url={shareUrl} kind="share" onClose={() => setShareUrl(null)} />}
       {inviteUrl && <ShareDialog name={me.name} url={inviteUrl} kind="invite" onClose={() => setInviteUrl(null)} />}
+      {characterPanelOpen && (
+        <CharacterSelect
+          mode="switch"
+          current={myCharacter}
+          onSelect={(c) => setCharacterFor(meId!, c)}
+          onClose={() => setCharacterPanelOpen(false)}
+        />
+      )}
 
       <div className={`game-shell-inner${disco ? " disco-tint" : ""}`}>
         <header className="game-topbar">
@@ -878,7 +953,20 @@ export default function App() {
           >
             <IconMenu />
           </button>
+          <button
+            type="button"
+            className="topbar-character"
+            onClick={() => setCharacterPanelOpen(true)}
+            aria-label={`Character: ${myCharacter}. Change character.`}
+          >
+            <img src={CHARACTER_SPRITE[myCharacter]} alt="" aria-hidden="true" className="topbar-character-sprite" />
+            <span className="topbar-character-name pixel-font">{myCharacter.toUpperCase()}</span>
+          </button>
           <div className="game-title pixel-font">75 DAY HARD CHALLENGE</div>
+          <div className="topbar-coins" aria-label={`${coinsEarned} coins earned`}>
+            <IconCoin />
+            <span className="topbar-coins-count pixel-font">×{String(coinsEarned).padStart(2, "0")}</span>
+          </div>
           <div
             className={`topbar-lives${livesOpen ? " open" : ""}`}
             onMouseLeave={() => setLivesOpen(false)}
@@ -895,7 +983,13 @@ export default function App() {
         </header>
 
         <div className="stage-area">
-          <ForestScene detail={detail} dayNumber={me.day_number} seed={`${meId}:${day}`} resets={me.resets} />
+          <ForestScene
+            detail={detail}
+            dayNumber={me.day_number}
+            seed={`${meId}:${day}`}
+            resets={me.resets}
+            character={myCharacter}
+          />
 
           <div className="day-card-float">
             <Checklist

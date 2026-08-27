@@ -7,7 +7,7 @@ dev-dist/
 *.local
 *.tsbuildinfo
 .DS_Store
-
+.env.example
 # A separate clone of github.com/Aditharavind/Tracker kept here for reference
 # while porting. It has its own .git, so committing it would create a nested
 # repo (git would store it as an unusable gitlink, not the files).

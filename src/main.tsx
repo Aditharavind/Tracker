@@ -4,6 +4,7 @@ import App from "./App";
 import SharedView from "./components/SharedView";
 import JoinLobby from "./components/JoinLobby";
 import { registerSW } from "virtual:pwa-register";
+import "@fontsource/press-start-2p";
 import "./styles.css";
 
 // autoUpdate: a new deploy is picked up on the next launch.

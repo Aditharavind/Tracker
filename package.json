@@ -15,6 +15,7 @@
     "test:game": "vitest run"
   },
   "dependencies": {
+    "@fontsource/press-start-2p": "^5.3.0",
     "@google/model-viewer": "^4.3.1",
     "@supabase/postgrest-js": "^2.109.0",
     "express": "^4.21.2",

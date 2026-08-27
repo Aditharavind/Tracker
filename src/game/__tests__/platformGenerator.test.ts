@@ -36,12 +36,21 @@ describe("generatePlatforms", () => {
     }
   });
 
-  it("rises monotonically while allowing side-to-side platform variation", () => {
+  it("progresses left to right, task by task, like a side-scrolling level", () => {
     const platforms = generatePlatforms(40, 8, "user-1");
     for (let i = 1; i < platforms.length; i++) {
-      expect(platforms[i].y).toBeGreaterThan(platforms[i - 1].y);
+      expect(platforms[i].x).toBeGreaterThan(platforms[i - 1].x);
     }
-    expect(platforms.some((p, i) => i > 0 && p.x < platforms[i - 1].x)).toBe(true);
+  });
+
+  it("varies height instead of climbing in a straight diagonal", () => {
+    const platforms = generatePlatforms(40, 8, "user-1");
+    // Not a staircase: height must NOT be monotonic across the level.
+    const everDecreases = platforms.some((p, i) => i > 0 && p.y < platforms[i - 1].y);
+    expect(everDecreases).toBe(true);
+    // But it should still read as varied terrain, not a flat line.
+    const ys = platforms.map((p) => p.y);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(0.1);
   });
 });
 
