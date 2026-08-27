@@ -1046,6 +1046,8 @@ export default function App() {
             onMouseLeave={() => setLivesOpen(false)}
           >
             <LivesHUD
+              completed={detail.tasks.filter((t) => t.done).length}
+              total={detail.tasks.length}
               resets={me.resets}
               expanded={livesOpen}
               onToggle={() => setLivesOpen((v) => !v)}

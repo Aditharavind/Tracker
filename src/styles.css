@@ -54,7 +54,9 @@
 /* Light panels sit on a light page, so they need a shadow rather than a
    border to read as raised. */
 [data-theme="light"] .card {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 14px rgba(0, 0, 0, 0.03);
 }
 
 [data-theme="light"] .box {
@@ -968,23 +970,39 @@ h3 {
   background: var(--line-soft);
   border: 1.5px solid transparent;
   position: relative;
-  transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+  transition:
+    background 0.25s,
+    border-color 0.25s,
+    box-shadow 0.25s;
 }
 
 .cell.done {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) calc(var(--fill, 1) * 100%), var(--line-soft));
-  box-shadow: 0 0 calc(var(--glow, 0) * 9px) color-mix(in srgb, var(--accent) calc(var(--glow, 0) * 65%), transparent);
+  background: color-mix(
+    in srgb,
+    var(--accent) calc(var(--fill, 1) * 100%),
+    var(--line-soft)
+  );
+  box-shadow: 0 0 calc(var(--glow, 0) * 9px)
+    color-mix(in srgb, var(--accent) calc(var(--glow, 0) * 65%), transparent);
 }
 
 .cell.partial,
 .cell.missed {
   border-color: color-mix(in srgb, var(--bad) 60%, var(--line-soft));
-  background: color-mix(in srgb, var(--bad) calc(var(--fill, 0) * 55%), var(--line-soft));
+  background: color-mix(
+    in srgb,
+    var(--bad) calc(var(--fill, 0) * 55%),
+    var(--line-soft)
+  );
 }
 
 .cell.today {
-  background: color-mix(in srgb, var(--accent) calc(var(--fill, 0) * 60%), var(--raised));
+  background: color-mix(
+    in srgb,
+    var(--accent) calc(var(--fill, 0) * 60%),
+    var(--raised)
+  );
   border-color: var(--accent);
   border-style: dashed;
 }
@@ -1143,7 +1161,12 @@ h3 {
   position: absolute;
   inset: 0;
   z-index: -2;
-  background-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.55) 100%),
+  background-image:
+    radial-gradient(
+      ellipse at center,
+      rgba(0, 0, 0, 0) 45%,
+      rgba(0, 0, 0, 0.55) 100%
+    ),
     url("/assets/forest-background.webp");
   background-repeat: no-repeat;
   background-position: center bottom;
@@ -1158,18 +1181,29 @@ h3 {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(ellipse 70% 55% at 50% 42%, rgba(4, 8, 5, 0.55), transparent 72%);
+  background: radial-gradient(
+    ellipse 70% 55% at 50% 42%,
+    rgba(4, 8, 5, 0.55),
+    transparent 72%
+  );
 }
 
 .onboard-firefly {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background-image: radial-gradient(circle, var(--forest-gold) 0, transparent 1.6px),
+  background-image:
+    radial-gradient(circle, var(--forest-gold) 0, transparent 1.6px),
     radial-gradient(circle, var(--forest-gold) 0, transparent 1.4px),
     radial-gradient(circle, var(--forest-gold) 0, transparent 1.8px);
-  background-size: 340px 380px, 260px 300px, 420px 460px;
-  background-position: 8% 18%, 78% 62%, 45% 85%;
+  background-size:
+    340px 380px,
+    260px 300px,
+    420px 460px;
+  background-position:
+    8% 18%,
+    78% 62%,
+    45% 85%;
   opacity: 0.5;
   animation: firefly-drift 7.5s ease-in-out infinite alternate;
 }
@@ -1429,7 +1463,9 @@ h3 {
     #b06dff,
     #ff5f6d
   );
-  animation: disco-spin 3.5s linear infinite, disco-fade 4.2s ease-out forwards;
+  animation:
+    disco-spin 3.5s linear infinite,
+    disco-fade 4.2s ease-out forwards;
 }
 
 @keyframes disco-spin {
@@ -1459,7 +1495,9 @@ h3 {
   z-index: 201;
   pointer-events: none;
   filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.5));
-  animation: disco-drop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1), disco-spin-ball 1.1s linear infinite 0.5s;
+  animation:
+    disco-drop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1),
+    disco-spin-ball 1.1s linear infinite 0.5s;
 }
 
 @keyframes disco-drop {
@@ -1773,8 +1811,10 @@ h3 {
 .progress-block {
   margin: 12px 0 14px;
   padding: 10px 0 12px;
-  border-top: 1px solid color-mix(in srgb, var(--forest-cream, #f3e6c8) 22%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--forest-cream, #f3e6c8) 18%, transparent);
+  border-top: 1px solid
+    color-mix(in srgb, var(--forest-cream, #f3e6c8) 22%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--forest-cream, #f3e6c8) 18%, transparent);
 }
 
 .progress-label-top {
@@ -1836,7 +1876,9 @@ h3 {
   position: relative;
   display: inline-block;
   color: var(--bad);
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .heart::before {
@@ -2051,9 +2093,17 @@ h3 {
   position: absolute;
   inset: 0;
   z-index: 4;
-  background-image: radial-gradient(circle, var(--forest-gold) 0, transparent 1.6px);
-  background-size: 46px 54px, 60px 70px;
-  background-position: 10px 40px, 30px 120px;
+  background-image: radial-gradient(
+    circle,
+    var(--forest-gold) 0,
+    transparent 1.6px
+  );
+  background-size:
+    46px 54px,
+    60px 70px;
+  background-position:
+    10px 40px,
+    30px 120px;
   opacity: 0.55;
   animation: firefly-drift 7s ease-in-out infinite alternate;
 }
@@ -2078,15 +2128,32 @@ h3 {
   z-index: 5;
   background-color: #17190d;
   background-image:
-    linear-gradient(to bottom, rgba(156, 218, 59, 0.72) 0 9px, rgba(49, 87, 31, 0.9) 9px 17px, transparent 17px),
-    linear-gradient(90deg, rgba(255, 224, 99, 0.11) 0 2px, transparent 2px 16px),
+    linear-gradient(
+      to bottom,
+      rgba(156, 218, 59, 0.72) 0 9px,
+      rgba(49, 87, 31, 0.9) 9px 17px,
+      transparent 17px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 224, 99, 0.11) 0 2px,
+      transparent 2px 16px
+    ),
     linear-gradient(rgba(0, 0, 0, 0.34) 0 2px, transparent 2px 14px),
     radial-gradient(circle at 10% 40%, #625020 0 3px, transparent 3px),
     radial-gradient(circle at 40% 74%, #796228 0 3px, transparent 3px),
     radial-gradient(circle at 80% 46%, #423316 0 3px, transparent 3px);
-  background-size: 100% 100%, 16px 100%, 100% 14px, 46px 32px, 54px 38px, 50px 34px;
+  background-size:
+    100% 100%,
+    16px 100%,
+    100% 14px,
+    46px 32px,
+    54px 38px,
+    50px 34px;
   border-top: 2px solid rgba(217, 205, 107, 0.55);
-  box-shadow: inset 0 8px 12px rgba(197, 255, 66, 0.12), 0 -8px 20px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    inset 0 8px 12px rgba(197, 255, 66, 0.12),
+    0 -8px 20px rgba(0, 0, 0, 0.28);
 }
 
 .forest-path {
@@ -2126,71 +2193,120 @@ h3 {
   vector-effect: non-scaling-stroke;
 }
 
+/* START sign + guardian plant are pixel-art cropped straight from the
+   reference environment (public/assets/{start-sign,zombie-plant}.webp), so
+   they match it exactly instead of being approximated in CSS. */
 .start-sign {
   position: absolute;
-  /* Was translate(-50%, 92%) -- that shoved almost the whole board down past
-     the path's 72px bottom inset and behind the foreground grass, so the
-     sign was effectively invisible. Sit it just above the ground line. */
-  transform: translate(-50%, 14%);
+  transform: translate(-50%, 6%);
   z-index: 9;
-  text-align: center;
 }
 
-.start-sign-post {
-  width: 5px;
-  height: 34px;
-  margin: 0 auto;
-  background: linear-gradient(90deg, #4a3313, #6b4a1e 45%, #3a2810);
-  border-radius: 1px;
-  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.3);
+.start-area {
+  position: absolute;
+  left: 6%;
+  bottom: 0;
+  width: clamp(132px, 15vw, 206px);
+  height: clamp(112px, 15vw, 168px);
+  z-index: 9;
+  pointer-events: none;
 }
 
-/* A real wooden plank rather than a UI label -- horizontal grain streaks,
-   a routed border groove, and peg "nails" at the corners. */
-.start-sign-board {
-  position: relative;
-  margin-top: -3px;
-  padding: 6px 13px 7px;
-  font-family: "Titan One", var(--sans);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: #f6e6b8;
-  background: linear-gradient(180deg, #8a5f28 0%, #7a5220 22%, #6b4a1e 50%, #5c3f19 78%, #4c3315 100%),
-    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 6px);
-  background-blend-mode: normal, overlay;
-  border: 1.5px solid #3a2810;
-  border-radius: 3px;
-  box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25), inset 0 -2px 2px rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.35);
-  text-shadow: 0 1px 0 rgba(255, 224, 160, 0.2), 0 -1px 1px rgba(0, 0, 0, 0.65);
-  white-space: nowrap;
+.start-area .start-sign {
+  left: 0;
+  bottom: 0;
+  transform: translate(0, 6%);
 }
 
-.start-sign-board::before,
-.start-sign-board::after {
+.start-sign-sprite {
+  display: block;
+  width: clamp(76px, 9vw, 116px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+}
+
+.zombie-plant {
+  position: absolute;
+  left: calc(clamp(76px, 9vw, 116px) - 2px) !important;
+  transform: translate(0, 4%);
+  z-index: 10;
+}
+
+.start-area .zombie-plant {
+  bottom: 0;
+}
+
+.plant-sprite {
+  display: block;
+  width: clamp(58px, 7vw, 92px);
+  height: auto;
+  image-rendering: pixelated;
+  transform-origin: 50% 100%;
+  animation: plant-bob 2.6s ease-in-out infinite;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+}
+
+@keyframes plant-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg) scaleY(1);
+  }
+  45% {
+    transform: translateY(-2px) rotate(2deg) scaleY(1.03);
+  }
+}
+
+/* Pixel speech bubble taunting the player, on a loop: pops in, holds, pops
+   out, waits, repeats. */
+.plant-bubble {
+  position: absolute;
+  left: 60%;
+  bottom: 84%;
+  width: max-content;
+  max-width: 118px;
+  padding: 5px 7px;
+  background: #f4f0e2;
+  color: #2a1a0c;
+  border: 2px solid #2a1a0c;
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
+  transform-origin: 0% 100%;
+  animation: plant-taunt 6s ease-in-out infinite;
+}
+
+.plant-bubble::after {
   content: "";
   position: absolute;
-  top: 2px;
-  width: 2px;
-  height: 2px;
-  border-radius: 50%;
-  background: #241804;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
+  left: 10px;
+  bottom: -8px;
+  border: 5px solid transparent;
+  border-top-color: #2a1a0c;
 }
 
-.start-sign-board::before {
-  left: 3px;
+.plant-bubble-text {
+  font-size: 7px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  display: block;
 }
 
-.start-sign-board::after {
-  right: 3px;
-}
-
-/* The start sign used to just float over the background artwork -- give it
-   the same grainy stone/earth base every platform stands on (identical
-   texture recipe to .platform-stone) so it reads as planted on solid,
-   gamified ground rather than pasted on top of the scenery. */
-.start-ground {
-  display: none;
+@keyframes plant-taunt {
+  0%,
+  8% {
+    opacity: 0;
+    transform: scale(0.4) translateY(6px);
+  }
+  14%,
+  46% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  54%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5) translateY(4px);
+  }
 }
 
 .platform {
@@ -2198,16 +2314,26 @@ h3 {
   transform: translate(-50%, 50%);
   width: calc(clamp(62px, 7vw, 96px) * var(--step-scale, 1));
   z-index: 6;
-  filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 8px rgba(240, 192, 74, 0.25));
+  filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.35))
+    drop-shadow(0 0 8px rgba(240, 192, 74, 0.25));
 }
 
 .platform-moss {
   height: calc(12px * var(--step-scale, 1));
   border-radius: 3px;
-  background: linear-gradient(to bottom, #a8d84f 0 28%, var(--forest-moss) 28% 68%, #31571f 68%);
+  background: linear-gradient(
+    to bottom,
+    #a8d84f 0 28%,
+    var(--forest-moss) 28% 68%,
+    #31571f 68%
+  );
   border: 1.5px solid #d7cc77;
-  box-shadow: inset 0 -3px 0 0 rgba(0, 0, 0, 0.3), 0 -2px 8px rgba(202, 255, 71, 0.22);
-  transition: background 0.3s ease, border-color 0.3s ease;
+  box-shadow:
+    inset 0 -3px 0 0 rgba(0, 0, 0, 0.3),
+    0 -2px 8px rgba(202, 255, 71, 0.22);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .platform.cleared .platform-moss {
@@ -2221,12 +2347,21 @@ h3 {
   border-radius: 0 0 4px 4px;
   background-color: #27220f;
   background-image:
-    linear-gradient(90deg, rgba(255, 224, 99, 0.12) 0 2px, transparent 2px 16px),
+    linear-gradient(
+      90deg,
+      rgba(255, 224, 99, 0.12) 0 2px,
+      transparent 2px 16px
+    ),
     linear-gradient(rgba(0, 0, 0, 0.4) 0 2px, transparent 2px 14px),
     radial-gradient(circle at 18% 42%, #6a5424 0 3px, transparent 3px),
     radial-gradient(circle at 58% 72%, #7a642c 0 3px, transparent 3px),
     radial-gradient(circle at 83% 34%, #4c3b1a 0 3px, transparent 3px);
-  background-size: 16px 100%, 100% 14px, 34px 26px, 40px 28px, 38px 24px;
+  background-size:
+    16px 100%,
+    100% 14px,
+    34px 26px,
+    40px 28px,
+    38px 24px;
   border: 1px solid rgba(0, 0, 0, 0.55);
   border-top: none;
   opacity: 0.96;
@@ -2236,8 +2371,13 @@ h3 {
   position: absolute;
   z-index: 8;
   transform: translate(-50%, 50%);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  filter: drop-shadow(0 0 5px var(--forest-gold)) drop-shadow(0 0 10px color-mix(in srgb, var(--forest-gold) 70%, transparent))
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  filter: drop-shadow(0 0 5px var(--forest-gold))
+    drop-shadow(
+      0 0 10px color-mix(in srgb, var(--forest-gold) 70%, transparent)
+    )
     drop-shadow(0 2px 1px rgba(0, 0, 0, 0.5));
 }
 
@@ -2255,12 +2395,16 @@ h3 {
   0% {
     transform: translate(-50%, 50%) scale(1);
     opacity: 1;
-    filter: drop-shadow(0 0 5px var(--forest-gold)) drop-shadow(0 0 10px color-mix(in srgb, var(--forest-gold) 70%, transparent));
+    filter: drop-shadow(0 0 5px var(--forest-gold))
+      drop-shadow(
+        0 0 10px color-mix(in srgb, var(--forest-gold) 70%, transparent)
+      );
   }
   30% {
     transform: translate(-50%, 50%) scale(1.35);
     opacity: 1;
-    filter: drop-shadow(0 0 10px var(--forest-gold)) drop-shadow(0 0 18px var(--forest-gold));
+    filter: drop-shadow(0 0 10px var(--forest-gold))
+      drop-shadow(0 0 18px var(--forest-gold));
   }
   100% {
     transform: translate(-50%, 120%) scale(0.15);
@@ -2303,7 +2447,9 @@ h3 {
   background: var(--bad);
   clip-path: polygon(0 0, 100% 25%, 0 50%);
   opacity: 0.55;
-  transition: opacity 0.3s ease, background 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    background 0.3s ease;
   animation: flag-wave 2.6s ease-in-out infinite;
   transform-origin: 0% 50%;
 }
@@ -2313,12 +2459,17 @@ h3 {
 .goal-flag.reached .goal-cloth {
   opacity: 1;
   background-color: var(--forest-gold);
-  background-image: repeating-linear-gradient(
+  background-image:
+    repeating-linear-gradient(
       45deg,
       rgba(20, 14, 4, 0.85) 0 3px,
       transparent 3px 6px
     ),
-    repeating-linear-gradient(-45deg, rgba(20, 14, 4, 0.85) 0 3px, transparent 3px 6px);
+    repeating-linear-gradient(
+      -45deg,
+      rgba(20, 14, 4, 0.85) 0 3px,
+      transparent 3px 6px
+    );
 }
 
 @keyframes flag-wave {
@@ -2346,16 +2497,35 @@ h3 {
   line-height: 1.15;
   letter-spacing: 0.06em;
   color: #f6e6b8;
-  background: linear-gradient(180deg, #8a5f28 0%, #7a5220 22%, #6b4a1e 50%, #5c3f19 78%, #4c3315 100%),
-    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 6px);
+  background:
+    linear-gradient(
+      180deg,
+      #8a5f28 0%,
+      #7a5220 22%,
+      #6b4a1e 50%,
+      #5c3f19 78%,
+      #4c3315 100%
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.14) 0 2px,
+      transparent 2px 6px
+    );
   background-blend-mode: normal, overlay;
   border: 1.5px solid #3a2810;
   border-radius: 3px;
-  box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25), inset 0 -2px 2px rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.35);
-  text-shadow: 0 1px 0 rgba(255, 224, 160, 0.2), 0 -1px 1px rgba(0, 0, 0, 0.65);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.25),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.4),
+    0 3px 0 rgba(0, 0, 0, 0.35);
+  text-shadow:
+    0 1px 0 rgba(255, 224, 160, 0.2),
+    0 -1px 1px rgba(0, 0, 0, 0.65);
   white-space: nowrap;
   opacity: 0.94;
-  transition: opacity 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .goal-board-day {
@@ -2369,7 +2539,10 @@ h3 {
 
 .goal-flag.reached .goal-board {
   opacity: 1;
-  box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25), inset 0 -2px 2px rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.35),
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.25),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.4),
+    0 3px 0 rgba(0, 0, 0, 0.35),
     0 0 12px rgba(240, 192, 74, 0.55);
 }
 
@@ -2379,7 +2552,7 @@ h3 {
      centering the sprite on the platform's anchor point (which left it
      hanging mostly below the platform it was supposed to be standing on). */
   transform: translate(-50%, -16px);
-  z-index: 7;
+  z-index: 12;
   /* Never draggable/selectable -- the model-viewer canvas has its own
      camera-controls disabled already, but the wrapping element could still
      pick up a text-selection drag or a native element-drag ghost. */
@@ -2393,17 +2566,70 @@ h3 {
      vertical hop arc on top (@keyframes panda-jump) makes it read as a jump
      over the gap rather than a glide. The run-in-place bob plays before any
      of this, on the current platform. */
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.34, 0.9, 0.5, 1);
+  transition:
+    left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    bottom 0.3s cubic-bezier(0.34, 0.9, 0.5, 1),
+    transform 0.9s cubic-bezier(0.3, 0, 0.3, 1);
   transition-delay: 0s;
-  will-change: left, bottom;
+  will-change: left, bottom, transform;
+}
+
+/* Mount: parked back by the START sign, then runs forward to rest. */
+.panda-anchor[data-runin] {
+  transform: translate(calc(-50% - 52px), -16px);
+  transition: none;
 }
 
 .panda {
+  position: relative;
   transform-origin: 50% 100%;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+/* Faked running legs: two little dark feet under the sprite that pump
+   alternately while .panda-running is active (a flat sprite can't frame-
+   animate its own legs). Hidden otherwise. */
+.panda::before,
+.panda::after {
+  content: "";
+  position: absolute;
+  bottom: 1px;
+  width: 22%;
+  height: 9%;
+  border-radius: 40% 40% 45% 45%;
+  background: #1c1c1c;
+  opacity: 0;
+}
+
+.panda::before {
+  left: 24%;
+}
+
+.panda::after {
+  right: 24%;
+}
+
+.panda-running::before {
+  opacity: 1;
+  animation: panda-foot 0.3s ease-in-out infinite;
+}
+
+.panda-running::after {
+  opacity: 1;
+  animation: panda-foot 0.3s ease-in-out infinite reverse;
+}
+
+@keyframes panda-foot {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0) scaleX(1);
+  }
+  50% {
+    transform: translateX(3px) translateY(-4px) scaleX(0.7);
+  }
 }
 
 .panda-model {
@@ -2521,7 +2747,9 @@ h3 {
 
 @media (prefers-reduced-motion: reduce) {
   .panda-anchor {
-    transition: left 0.15s linear, bottom 0.15s linear;
+    transition:
+      left 0.15s linear,
+      bottom 0.15s linear;
     transition-delay: 0s;
   }
   /* Follow-cam still tracks the character (so it never ends up behind the
@@ -2580,11 +2808,23 @@ h3 {
   font-size: clamp(38px, 10vw, 56px);
   letter-spacing: 0.02em;
   line-height: 1;
-  background: linear-gradient(to bottom, #fff6d6 0%, #f6d670 30%, #e0a934 55%, #a86a18 80%, #8a5410 100%);
+  background: linear-gradient(
+    to bottom,
+    #fff6d6 0%,
+    #f6d670 30%,
+    #e0a934 55%,
+    #a86a18 80%,
+    #8a5410 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 1px 0 #6b4410, 0 2px 0 #5c3a0d, 0 3px 0 #4a2f0a, 0 4px 1px #3a2408, 0 6px 10px rgba(0, 0, 0, 0.6);
+  text-shadow:
+    0 1px 0 #6b4410,
+    0 2px 0 #5c3a0d,
+    0 3px 0 #4a2f0a,
+    0 4px 1px #3a2408,
+    0 6px 10px rgba(0, 0, 0, 0.6);
 }
 
 /* ---------------------------------------------------------------- panda leg-swing */
@@ -2789,7 +3029,9 @@ h3 {
   background: #0b1712;
   border: 2px solid rgba(210, 177, 103, 0.5);
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
 /* The default browser scrollbar is a grey slab against the forest -- it was
@@ -2873,10 +3115,13 @@ h3 {
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--panel) 82%, transparent);
-  border: 1.5px solid color-mix(in srgb, var(--forest-cream, #f3e6c8) 35%, transparent);
+  border: 1.5px solid
+    color-mix(in srgb, var(--forest-cream, #f3e6c8) 35%, transparent);
   color: var(--forest-gold, #f0c04a);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
 }
 
 .rail-btn:hover {
@@ -2909,7 +3154,10 @@ h3 {
   opacity: 0;
   visibility: hidden;
   transform: translateY(-4px);
-  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
   pointer-events: none;
 }
 
@@ -2954,7 +3202,9 @@ h3 {
   color: var(--forest-cream, #f3e6c8);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38);
   padding: 9px 11px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.6);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.85),
+    0 0 10px rgba(0, 0, 0, 0.6);
 }
 
 .failure-banner-float .failure-title {
@@ -3181,7 +3431,12 @@ h3 {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(ellipse at 50% 20%, #16301d 0%, #0a1710 55%, #050b07 100%);
+  background: radial-gradient(
+    ellipse at 50% 20%,
+    #16301d 0%,
+    #0a1710 55%,
+    #050b07 100%
+  );
   animation: character-select-in 0.18s ease-out;
 }
 
@@ -3200,7 +3455,9 @@ h3 {
   border-radius: 18px;
   border: 2px solid rgba(210, 177, 103, 0.4);
   background: linear-gradient(to bottom, #0f1f13 0%, #0a170d 100%);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   text-align: center;
 }
 
@@ -3248,7 +3505,10 @@ h3 {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
 .character-card:hover {
@@ -3258,8 +3518,13 @@ h3 {
 
 .character-card.on {
   border-color: var(--forest-gold, #f0c04a);
-  background: color-mix(in srgb, var(--forest-gold, #f0c04a) 12%, rgba(0, 0, 0, 0.22));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest-gold, #f0c04a) 35%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--forest-gold, #f0c04a) 12%,
+    rgba(0, 0, 0, 0.22)
+  );
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--forest-gold, #f0c04a) 35%, transparent);
 }
 
 .character-card-sprite {
@@ -3302,7 +3567,9 @@ h3 {
   color: #1a1206;
   background: linear-gradient(to bottom, #ffe293 0%, #f0c04a 55%, #c98f2e 100%);
   border: 1.5px solid #8a5a17;
-  box-shadow: 0 4px 0 #6b4410, 0 8px 16px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 4px 0 #6b4410,
+    0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .character-select-start:hover {
@@ -3312,7 +3579,9 @@ h3 {
 .character-select-start:active,
 .character-select-start.confirming {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 #6b4410, 0 4px 10px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 1px 0 #6b4410,
+    0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
 .character-select-start:disabled {
@@ -3401,7 +3670,12 @@ h3 {
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 246, 214, 0.85), rgba(255, 246, 214, 0.12) 62%, transparent 74%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 246, 214, 0.85),
+    rgba(255, 246, 214, 0.12) 62%,
+    transparent 74%
+  );
 }
 
 .forest-mountains,
@@ -3456,36 +3730,41 @@ h3 {
 
 .cloud {
   position: absolute;
-  width: calc(34px * var(--cloud-scale, 1));
-  height: calc(12px * var(--cloud-scale, 1));
-  background: #cfdde8;
-  border-radius: 999px;
+  width: calc(42px * var(--cloud-scale, 1));
+  height: calc(14px * var(--cloud-scale, 1));
+  background: #d9e0d0;
+  border-radius: 2px;
   image-rendering: pixelated;
-  box-shadow: 0 4px 0 -1px rgba(0, 0, 0, 0.14);
+  box-shadow:
+    0 4px 0 -1px rgba(0, 0, 0, 0.14),
+    8px -8px 0 -1px #d9e0d0,
+    20px -13px 0 -2px #d9e0d0,
+    32px -7px 0 -1px #d9e0d0,
+    40px 2px 0 -1px #b9c8b5;
   animation: cloud-drift var(--cloud-dur, 44s) linear infinite;
   animation-delay: var(--cloud-delay, 0s);
 }
 
-/* Two stacked puffs give the flat bar an actual cloud silhouette. */
+/* Hard-edged stepped puffs echo the chunky cloud pixels in the environment reference. */
 .cloud::before,
 .cloud::after {
   content: "";
   position: absolute;
-  bottom: 0;
-  background: #cfdde8;
-  border-radius: 50%;
+  bottom: 1px;
+  background: #eef0dd;
+  border-radius: 1px;
 }
 
 .cloud::before {
-  left: 14%;
-  width: 52%;
-  height: 220%;
+  left: 12%;
+  width: 30%;
+  height: 130%;
 }
 
 .cloud::after {
-  right: 10%;
-  width: 40%;
-  height: 165%;
+  right: 12%;
+  width: 26%;
+  height: 105%;
 }
 
 @keyframes cloud-drift {
@@ -3516,9 +3795,18 @@ h3 {
 .scn-brick {
   width: 17px;
   height: 17px;
-  background: linear-gradient(180deg, #b5642f 0 45%, #9a4f22 45% 100%),
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 8px),
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 8px);
+  background:
+    linear-gradient(180deg, #b5642f 0 45%, #9a4f22 45% 100%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.28) 0 1px,
+      transparent 1px 8px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.28) 0 1px,
+      transparent 1px 8px
+    );
   border: 1.5px solid #3a1e10;
   box-shadow: inset 1px 1px 0 rgba(255, 220, 170, 0.35);
 }
@@ -3530,11 +3818,15 @@ h3 {
   transform: translate(-50%, 50%);
   display: grid;
   place-items: center;
-  font: 700 13px/1 "Titan One", var(--sans);
+  font:
+    700 13px/1 "Titan One",
+    var(--sans);
   color: #6b3d10;
   background: linear-gradient(180deg, #f4c94e 0 46%, #e0a92e 46% 100%);
   border: 1.5px solid #6b3d10;
-  box-shadow: inset 1px 1px 0 rgba(255, 245, 205, 0.6), 0 4px 0 rgba(0, 0, 0, 0.32);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 245, 205, 0.6),
+    0 4px 0 rgba(0, 0, 0, 0.32);
   animation: scn-qbob 2.4s ease-in-out infinite;
 }
 
@@ -3570,7 +3862,12 @@ h3 {
   width: 38px;
   height: var(--pipe-h, 40px);
   margin-top: -2px;
-  background: linear-gradient(90deg, #2f8f3c 0 18%, #57c766 18% 34%, #2f8f3c 34% 100%);
+  background: linear-gradient(
+    90deg,
+    #2f8f3c 0 18%,
+    #57c766 18% 34%,
+    #2f8f3c 34% 100%
+  );
   border: 2px solid #16451d;
 }
 
@@ -3599,7 +3896,11 @@ h3 {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: radial-gradient(ellipse at center, rgba(10, 20, 14, 0.82), rgba(4, 8, 6, 0.94));
+  background: radial-gradient(
+    ellipse at center,
+    rgba(10, 20, 14, 0.82),
+    rgba(4, 8, 6, 0.94)
+  );
   animation: daycomplete-in 0.28s ease-out;
 }
 
@@ -3645,7 +3946,9 @@ h3 {
   background: #0b1712;
   border: 3px solid var(--forest-gold, #f0c04a);
   border-radius: 16px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.5);
   color: var(--forest-cream, #f3e6c8);
 }
 
@@ -3677,22 +3980,40 @@ h3 {
   transform: translateX(-50%);
 }
 
-.daycomplete-model {
+/* CharacterModel: sprite base layer + optional model-viewer overlay. The
+   consumer class (.daycomplete-model etc) just sets the box size. */
+.charmodel {
+  position: relative;
   display: block;
-  width: 110px;
-  height: 110px;
-  image-rendering: pixelated;
+}
+
+.charmodel-sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  object-position: center bottom;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.45));
+}
+
+.charmodel-viewer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
   --poster-color: transparent;
 }
 
+.daycomplete-model {
+  width: 112px;
+  height: 112px;
+}
+
 .worldunlock-model {
-  display: block;
   width: 100px;
   height: 100px;
-  image-rendering: pixelated;
-  object-fit: contain;
-  --poster-color: transparent;
 }
 
 .daycomplete-podium {
@@ -3703,7 +4024,12 @@ h3 {
   width: 118px;
   height: 24px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 35%, #f4c94e, #b07d1f 70%, #7c5514 100%);
+  background: radial-gradient(
+    ellipse at 50% 35%,
+    #f4c94e,
+    #b07d1f 70%,
+    #7c5514 100%
+  );
   box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
 }
 
@@ -3815,8 +4141,6 @@ h3 {
   transform: translateX(-50%);
   width: 118px;
   height: 118px;
-  image-rendering: pixelated;
-  --poster-color: transparent;
   z-index: 2;
 }
 
@@ -3929,7 +4253,11 @@ h3 {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: radial-gradient(ellipse at center, rgba(12, 22, 34, 0.9), rgba(4, 8, 12, 0.97));
+  background: radial-gradient(
+    ellipse at center,
+    rgba(12, 22, 34, 0.9),
+    rgba(4, 8, 12, 0.97)
+  );
   animation: daycomplete-in 0.3s ease-out;
 }
 
@@ -3969,7 +4297,9 @@ h3 {
   background: #0b1220;
   border: 3px solid #6fb3d6;
   border-radius: 16px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.65), 0 0 40px rgba(111, 179, 214, 0.25),
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.65),
+    0 0 40px rgba(111, 179, 214, 0.25),
     inset 0 0 0 1px rgba(0, 0, 0, 0.5);
   color: var(--forest-cream, #f3e6c8);
 }

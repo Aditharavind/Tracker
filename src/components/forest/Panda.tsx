@@ -1,8 +1,20 @@
 import { useEffect, useRef } from "react";
 import { useModelViewer } from "../../modelViewer";
-import { CHARACTER_SPRITE, DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
+import {
+  CHARACTER_MODEL,
+  CHARACTER_SPRITE,
+  DEFAULT_CHARACTER,
+  type CharacterId,
+} from "../../game/characters";
 
-export type PandaAnim = "idle" | "running" | "jumping" | "landing" | "celebrating" | "falling" | "dancing";
+export type PandaAnim =
+  | "idle"
+  | "running"
+  | "jumping"
+  | "landing"
+  | "celebrating"
+  | "falling"
+  | "dancing";
 
 /**
  * Draw the forest panda with the 3D model instead of the flat sprite.
@@ -18,16 +30,28 @@ export type PandaAnim = "idle" | "running" | "jumping" | "landing" | "celebratin
  * drawer's character preview still uses the 3D models regardless, which is
  * fine: that is behind a tap, so it never touches first load.
  */
-const USE_3D_PANDA = false;
+const USE_3D_PANDA = true;
 
 // Truly at rest -- landing/falling are brief transitional beats (a squash on
 // touchdown, a stumble on reset), not places the panda should sit and idle-
 // loop, so only "idle" itself freezes the model.
 const RESTING: PandaAnim[] = ["idle"];
 
-function Panda3D({ anim }: { anim: PandaAnim }) {
-  const active = anim === "running" || anim === "jumping" || anim === "celebrating" || anim === "dancing";
-  const ref = useRef<HTMLElement & { pause?: () => void; play?: () => void }>(null);
+function Panda3D({
+  anim,
+  character,
+}: {
+  anim: PandaAnim;
+  character: CharacterId;
+}) {
+  const active =
+    anim === "running" ||
+    anim === "jumping" ||
+    anim === "celebrating" ||
+    anim === "dancing";
+  const ref = useRef<HTMLElement & { pause?: () => void; play?: () => void }>(
+    null,
+  );
   // Without this the tag is an unregistered custom element and the panda is
   // simply absent -- no error, just an empty box on the platform.
   const ready = useModelViewer();
@@ -50,7 +74,7 @@ function Panda3D({ anim }: { anim: PandaAnim }) {
   return (
     <model-viewer
       ref={ref}
-      src="/avatars/panda.glb"
+      src={CHARACTER_MODEL[character]}
       alt="Reference panda character"
       animation-name={active ? "Hop" : "Idle"}
       autoplay
@@ -90,8 +114,16 @@ export default function Panda({
   character?: CharacterId;
 }) {
   return (
-    <div className={`panda panda-${anim}`} role="img" aria-label="Your character">
-      {USE_3D_PANDA ? <Panda3D anim={anim} /> : <PandaFlat character={character} />}
+    <div
+      className={`panda panda-${anim}`}
+      role="img"
+      aria-label="Your character"
+    >
+      {USE_3D_PANDA ? (
+        <Panda3D anim={anim} character={character} />
+      ) : (
+        <PandaFlat character={character} />
+      )}
     </div>
   );
 }
