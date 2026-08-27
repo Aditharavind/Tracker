@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useModelViewer } from "../../modelViewer";
+import { CHARACTER_SPRITE, DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 
 export type PandaAnim = "idle" | "running" | "jumping" | "landing" | "celebrating" | "falling";
 
@@ -44,7 +45,7 @@ function Panda3D({ anim }: { anim: PandaAnim }) {
     else el.play?.();
   }, [anim, ready]);
 
-  if (!ready) return <PandaFlat />;
+  if (!ready) return <PandaFlat character={DEFAULT_CHARACTER} />;
 
   return (
     <model-viewer
@@ -63,24 +64,29 @@ function Panda3D({ anim }: { anim: PandaAnim }) {
 }
 
 /**
- * This is the same panda as panda.glb, not a redraw of it -- the model was
- * rendered through model-viewer at the component's own camera-orbit, trimmed
- * to its bounding box and saved at 3x the largest size the CSS ever draws it
- * (72px, so 216px covers a DPR-3 phone). The GLB turned out to be flat
- * pixel-art on a billboard rather than a genuinely 3D model, which is why a
- * still is indistinguishable from it at this size -- for 10 KB instead of the
- * 1.75 MB that model-viewer plus the .glb cost to show it.
+ * Flat pixel-art sprite for whichever character is selected -- panda, koala
+ * or red panda. All three are cropped from the same reference sheet onto a
+ * matching canvas (see .claude/skills/platformer-interface/assets), so they
+ * share scale/proportions and can drop into the same `.panda-model` box and
+ * the same CSS-transform animation classes below without any per-character
+ * tuning.
  *
- * Regenerate with scripts/capture-panda.mjs if the model ever changes.
+ * Regenerate from the reference sheet if the source art ever changes.
  */
-const PandaFlat = () => (
-  <img className="panda-model panda-flat" src="/assets/panda-sprite.webp" alt="" aria-hidden="true" />
+const PandaFlat = ({ character }: { character: CharacterId }) => (
+  <img className="panda-model panda-flat" src={CHARACTER_SPRITE[character]} alt="" aria-hidden="true" />
 );
 
-export default function Panda({ anim }: { anim: PandaAnim }) {
+export default function Panda({
+  anim,
+  character = DEFAULT_CHARACTER,
+}: {
+  anim: PandaAnim;
+  character?: CharacterId;
+}) {
   return (
-    <div className={`panda panda-${anim}`} role="img" aria-label="Your panda">
-      {USE_3D_PANDA ? <Panda3D anim={anim} /> : <PandaFlat />}
+    <div className={`panda panda-${anim}`} role="img" aria-label="Your character">
+      {USE_3D_PANDA ? <Panda3D anim={anim} /> : <PandaFlat character={character} />}
     </div>
   );
 }
