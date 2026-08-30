@@ -27,22 +27,24 @@ export const PANDA_W = 7;
 export const PANDA_H = 11;
 
 export const HAZARD_W = 6;
-export const HAZARD_H = 9;
+// Deliberately short: the modest hop only clears ~13 units, so a tall hazard
+// would be nearly unjumpable. A normal jump sails well over this.
+export const HAZARD_H = 5;
 export const COIN_R = 3;
 
 // Below this world-y there is nothing to land on -- the panda has fallen.
-export const KILL_Y = -12;
+export const KILL_Y = -14;
 
-const GRAVITY = 235; // units / s^2
-const JUMP_V = 118; // peak ~29.6 above the launch ledge
+const GRAVITY = 160; // units / s^2
+const JUMP_V = 66; // modest hop -- peak ~13.6 above the launch ledge
 const BASE_SPEED = 27;
-const MAX_SPEED = 60;
-const SPEED_RAMP = 0.016;
+const MAX_SPEED = 52;
+const SPEED_RAMP = 0.012;
 const MAX_DT = 0.05;
 
 // Height band the ledges wander within (kept clear of the HUD up top).
-const Y_MIN = 6;
-const Y_MAX = 34;
+const Y_MIN = 5;
+const Y_MAX = 26;
 
 // Recoloured zombie plants -- the view hue-rotates the sprite by this many deg.
 export const PLANT_HUES = [0, 65, 135, 205, 285];
@@ -73,46 +75,83 @@ export type RunnerState = {
 export const jumpAirtime = () => (2 * JUMP_V) / GRAVITY;
 export const jumpPeak = () => (JUMP_V * JUMP_V) / (2 * GRAVITY);
 
-/** Horizontal reach of a single jump at a given speed. */
+/** Horizontal reach of a single flat jump at a given speed. */
 export const jumpReach = (speed: number) => speed * jumpAirtime();
+
+/**
+ * Seconds for a jump launched at the current height to descend onto a ledge
+ * `dy` above (negative = below) the launch point. Used by AI / hint logic.
+ */
+export function descentTime(dy: number): number {
+  const disc = JUMP_V * JUMP_V - 2 * GRAVITY * dy;
+  return disc > 0 ? (JUMP_V + Math.sqrt(disc)) / GRAVITY : jumpAirtime();
+}
 
 const clampY = (y: number) => Math.max(Y_MIN, Math.min(Y_MAX, y));
 
+/** y of a jump launched from y=0, `t` seconds in. */
+const arcY = (t: number) => JUMP_V * t - 0.5 * GRAVITY * t * t;
+
 function addLedge(state: RunnerState) {
   const s = state.speed;
-  // Gap always well inside a jump's reach, with headroom for reaction time.
-  const gap = jumpReach(s) * (0.4 + state.rng() * 0.28);
-  const w = (0.45 + state.rng() * 2.0) * (PANDA_W + HAZARD_W);
-  // Next height steps up or down from the last, but stays in band and within
-  // one jump's climb so it's always makeable.
-  const delta = (state.rng() - 0.45) * 2 * (jumpPeak() * 0.6);
+
+  // Pick the next height: steps DOWN can be steep (easy), steps UP stay well
+  // inside what the modest hop can actually climb.
+  const r = state.rng() * 2 - 1;
+  const delta = r >= 0 ? r * (jumpPeak() * 0.5) : r * (jumpPeak() * 1.4);
   const y = clampY(state.lastY + delta);
-  const x = state.edgeX + gap;
+  const dy = y - state.lastY;
+
+  // Time for the jump (launched at the previous ledge's edge) to come back
+  // down onto THIS ledge's height -- the descending crossing.
+  const tLand = descentTime(dy);
+
+  // Gap deliberately shorter than the jump's full reach so an edge hop -- even
+  // a slightly early one -- lands safely on this ledge, and every coin strung
+  // along the arc is on the panda's real path. Still a real gap: stand still
+  // and you fall.
+  const gap = Math.max(PANDA_W * 1.35, s * tLand * (0.62 + state.rng() * 0.16));
+  const launchX = state.edgeX;
+  const x = launchX + gap;
+
+  // A hazard mid-ledge means the panda has to hop it and land back on the SAME
+  // ledge -- so the ledge must be long enough to hold: landing room + the
+  // hazard + a full hop's worth of runway after it before the drop.
+  const flatReach = s * jumpAirtime();
+  const landRoom = PANDA_W + 4;
+  const runwayAfter = flatReach * 1.05 + PANDA_W;
+  const wantHazard = state.rng() < 0.5;
+  const minW = (0.55 + state.rng() * 2.1) * (PANDA_W + HAZARD_W);
+  const w = wantHazard ? Math.max(minW, landRoom + HAZARD_W + runwayAfter) : minW;
 
   state.platforms.push({ id: state.ids++, x, y, w });
   state.edgeX = x + w;
   state.lastY = y;
 
-  // Hazard on wider ledges only (must be room to stand before it too).
-  if (w > PANDA_W + HAZARD_W + 5 && state.rng() < 0.5) {
-    state.hazards.push({
+  // Coins strung along the ACTUAL jump arc from the launch edge to this ledge,
+  // so a normal hop sweeps up every one of them.
+  const coins = 2 + Math.floor(state.rng() * 3);
+  for (let i = 0; i < coins; i++) {
+    const t = ((i + 1) / (coins + 1)) * tLand;
+    state.coins.push({
       id: state.ids++,
-      x: x + PANDA_W + 3 + state.rng() * (w - PANDA_W - HAZARD_W - 6),
-      y,
-      kind: state.rng() < 0.5 ? "plant" : "mine",
-      hue: PLANT_HUES[Math.floor(state.rng() * PLANT_HUES.length)],
+      x: launchX + s * t,
+      y: state.lastY - dy + arcY(t) + PANDA_H * 0.4,
+      taken: false,
     });
   }
 
-  // Coins arc over the gap leading to this ledge.
-  const coins = 1 + Math.floor(state.rng() * 3);
-  for (let i = 0; i < coins; i++) {
-    const f = (i + 1) / (coins + 1);
-    state.coins.push({
+  // Place the hazard in the ledge's front half so a hop off it always has
+  // `runwayAfter` of solid ledge to land back on -- never a hop into the void.
+  if (wantHazard) {
+    const minHx = x + landRoom;
+    const maxHx = x + w - runwayAfter - HAZARD_W;
+    state.hazards.push({
       id: state.ids++,
-      x: x - gap * (1 - f),
-      y: y + 5 + Math.sin(f * Math.PI) * 9,
-      taken: false,
+      x: minHx + state.rng() * Math.max(0, maxHx - minHx),
+      y,
+      kind: state.rng() < 0.5 ? "plant" : "mine",
+      hue: PLANT_HUES[Math.floor(state.rng() * PLANT_HUES.length)],
     });
   }
 }
@@ -129,12 +168,13 @@ export function createRunner(seed: string): RunnerState {
     y: startY,
     vy: 0,
     grounded: true,
-    platforms: [{ id: 0, x: -8, y: startY, w: 52 }],
+    // Long opening sprint before the first gap -- room to get a feel for it.
+    platforms: [{ id: 0, x: -10, y: startY, w: 78 }],
     hazards: [],
     coins: [],
     coinsTaken: 0,
     over: false,
-    edgeX: 44, // -8 + 52
+    edgeX: 68, // -10 + 78
     lastY: startY,
   };
   for (let i = 0; i < 5; i++) addLedge(state);
@@ -182,6 +222,9 @@ export function step(state: RunnerState, dtMs: number, jump: boolean): RunnerSta
   state.y += state.vy * dt;
 
   // Land on a ledge top only while descending onto it (one-way platforms).
+  // Generous catch depth (CATCH) so a hop that arrives a little high still
+  // settles onto a wide ledge instead of skating over it.
+  const CATCH = 9;
   state.grounded = false;
   if (state.vy <= 0) {
     let land: number | null = null;
@@ -189,8 +232,9 @@ export function step(state: RunnerState, dtMs: number, jump: boolean): RunnerSta
       if (
         p.x < PANDA_X + PANDA_W &&
         p.x + p.w > PANDA_X &&
-        prevY >= p.y - 0.5 &&
-        state.y <= p.y + 0.5
+        prevY >= p.y - 1 &&
+        state.y <= p.y + 1 &&
+        state.y > p.y - CATCH
       ) {
         if (land == null || p.y > land) land = p.y;
       }

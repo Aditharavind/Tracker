@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createRunner,
+  HAZARD_W,
   jumpPeak,
   jumpReach,
   KILL_Y,
@@ -20,17 +21,18 @@ function run(state: RunnerState, ms: number, onFrame?: (s: RunnerState) => boole
   return state;
 }
 
-/** Auto-player: hop as the current ledge's right edge approaches. */
+/** Auto-player: hop the instant the current ledge's right edge arrives (every
+    gap is sized to be cleared from the edge), and hop hazards on the way. */
 const play = (s: RunnerState) => {
   if (!s.grounded) return false;
   const feetR = PANDA_X + PANDA_W;
+  const hz = s.hazards.find((h) => h.x > PANDA_X - 2 && h.x < feetR + s.speed * 0.26);
+  if (hz) return true;
   const cur = s.platforms.find(
-    (p) => p.x <= PANDA_X + 1 && p.x + p.w >= feetR - 1 && Math.abs(p.y - s.y) < 1.5
+    (p) => p.x <= PANDA_X + 2 && p.x + p.w >= feetR - 2 && Math.abs(p.y - s.y) < 2
   );
-  if (!cur) return true;
-  const edgeAhead = cur.x + cur.w - feetR;
-  const hazardNear = s.hazards.some((h) => h.x > PANDA_X && h.x < feetR + s.speed * 0.3);
-  return edgeAhead < s.speed * 0.34 || hazardNear;
+  if (!cur) return false;
+  return cur.x + cur.w - feetR < s.speed * 0.1; // ~2 frames from the edge
 };
 
 describe("runnerEngine (floating platformer)", () => {
@@ -65,20 +67,46 @@ describe("runnerEngine (floating platformer)", () => {
     }
   });
 
-  it("every gap between ledges is within a single jump's reach", () => {
+  it("coins sit on the real jump arc -- hopping the gaps sweeps up most of them", () => {
+    const seen = new Set<number>();
+    const track = (s: RunnerState) => {
+      for (const c of s.coins) seen.add(c.id);
+      return play(s);
+    };
+    const s = run(createRunner("arc"), 10000, track);
+    expect(s.over).toBe(false);
+    expect(s.coinsTaken / seen.size).toBeGreaterThan(0.6);
+  });
+
+  it("every gap between ledges stays within jumping distance", () => {
     const s = createRunner("reach");
     for (let i = 0; i < 4000 && !s.over; i++) {
       step(s, 16, play(s));
       const sorted = [...s.platforms].sort((p, q) => p.x - q.x);
       for (let k = 1; k < sorted.length; k++) {
         const gap = sorted[k].x - (sorted[k - 1].x + sorted[k - 1].w);
-        if (gap > 0) expect(gap).toBeLessThan(jumpReach(s.speed));
+        // downhill hops carry further than the flat reach, so allow headroom
+        if (gap > 0) expect(gap).toBeLessThan(jumpReach(s.speed) * 1.7);
       }
     }
   });
 
-  it("a jump clears a comfortable height", () => {
-    expect(jumpPeak()).toBeGreaterThan(20);
+  it("a hazard always leaves a full hop of runway after it -- never a hop into the void", () => {
+    const s = createRunner("hz");
+    for (let i = 0; i < 3500 && !s.over; i++) {
+      step(s, 16, play(s));
+      for (const h of s.hazards) {
+        const ledge = s.platforms.find((p) => p.x <= h.x + 1 && p.x + p.w >= h.x + HAZARD_W - 1);
+        if (!ledge) continue;
+        const runwayAfter = ledge.x + ledge.w - (h.x + HAZARD_W);
+        expect(runwayAfter).toBeGreaterThan(PANDA_W * 2);
+      }
+    }
+  });
+
+  it("the hop is modest, not a moon jump", () => {
+    expect(jumpPeak()).toBeGreaterThan(9);
+    expect(jumpPeak()).toBeLessThan(20);
     expect(LANE).toBeGreaterThan(0);
   });
 });
