@@ -10,7 +10,8 @@ export default function Coin({
   left: number;
   bottom: number;
   visible: boolean;
-  // A bonus coin -- e.g. the x5 stashed near the end of the level.
+  // A bonus coin -- the "+5" stashed near the end of the level. Collecting it
+  // (i.e. clearing the whole day) adds 5 to the coin total, not 1.
   multiplier?: number;
 }) {
   return (
@@ -19,7 +20,7 @@ export default function Coin({
       style={{ left: `${left}%`, bottom: `${bottom}%` }}
       aria-hidden="true"
     >
-      {multiplier ? <span className="coin-mult pixel-font">×{multiplier}</span> : null}
+      {multiplier ? <span className="coin-mult pixel-font">+{multiplier}</span> : null}
       <svg width="26" height="26" viewBox="0 0 17 17">
         <circle cx="8.5" cy="8.5" r="8.1" fill="#3a2708" opacity="0.55" />
         <circle cx="8.5" cy="8.5" r="7.6" fill="#f0c04a" stroke="#8a5a17" strokeWidth="1" />

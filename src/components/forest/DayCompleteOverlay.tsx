@@ -18,6 +18,7 @@ export default function DayCompleteOverlay({
   streak,
   character,
   onClose,
+  onPlayRunner,
 }: {
   dayNumber: number;
   tasksCompleted: number;
@@ -26,6 +27,7 @@ export default function DayCompleteOverlay({
   streak: number;
   character: CharacterId;
   onClose: () => void;
+  onPlayRunner?: () => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
 
@@ -95,9 +97,23 @@ export default function DayCompleteOverlay({
           </div>
         </dl>
 
-        <button type="button" className="daycomplete-continue pixel-font" onClick={onClose} autoFocus>
-          CONTINUE →
-        </button>
+        <div className="daycomplete-actions">
+          <button type="button" className="daycomplete-continue pixel-font" onClick={onClose} autoFocus>
+            CONTINUE →
+          </button>
+          {onPlayRunner && (
+            <button
+              type="button"
+              className="daycomplete-play pixel-font"
+              onClick={onPlayRunner}
+            >
+              ▶ FOREST DASH
+            </button>
+          )}
+        </div>
+        {onPlayRunner && (
+          <p className="daycomplete-play-note">Optional bonus minigame — doesn&apos;t affect your challenge.</p>
+        )}
       </div>
     </div>
   );

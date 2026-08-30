@@ -27,6 +27,7 @@ export default function Checklist({
   onAdd,
   onRemove,
   hideAddRow,
+  locked,
 }: {
   detail: DayDetail;
   day: string;
@@ -36,6 +37,8 @@ export default function Checklist({
   onAdd: (title: string) => void;
   onRemove: (t: TaskItem) => void;
   hideAddRow?: boolean;
+  /** A past day: view-only, no ticking or editing (the run resumes tomorrow). */
+  locked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const today = todayISO();
@@ -105,25 +108,32 @@ export default function Checklist({
         </span>
       </div>
 
-      <p className="tasks-label">TODAY'S TASKS</p>
+      {locked && (
+        <p className="day-locked-note">
+          🔒 Locked — view only. Your run resumes on the next day.
+        </p>
+      )}
+
+      <p className="tasks-label">{locked ? "THAT DAY'S TASKS" : "TODAY'S TASKS"}</p>
       <div className="tasks">
         {detail.tasks.map((t) => (
-          <div key={t.id} className={`task${t.done ? " done" : ""}`}>
+          <div key={t.id} className={`task${t.done ? " done" : ""}${locked ? " task-locked" : ""}`}>
             <button
               className="box"
-              onClick={() => onToggle(t)}
+              onClick={() => !locked && onToggle(t)}
+              disabled={locked}
               aria-label={t.done ? `uncheck ${t.title}` : `check ${t.title}`}
               aria-pressed={t.done}
             >
               <Check />
             </button>
             <span className="emoji">{t.emoji}</span>
-            <button className="title" onClick={() => onToggle(t)}>
+            <button className="title" onClick={() => !locked && onToggle(t)} disabled={locked}>
               {t.title}
             </button>
             {!t.is_core && <span className="tag">bonus</span>}
             {t.locked && <span className="tag locked">locked</span>}
-            {!t.locked && (
+            {!locked && !t.locked && (
               <button className="kill" onClick={() => onRemove(t)} aria-label={`delete ${t.title}`}>
                 &times;
               </button>
@@ -132,7 +142,7 @@ export default function Checklist({
         ))}
       </div>
 
-      {!hideAddRow && (
+      {!hideAddRow && !locked && (
         <div className="addrow">
           <input
             placeholder="add a bonus habit..."

@@ -22,6 +22,10 @@ export function createMemoryStore() {
   return {
     kind: "memory",
 
+    async health() {
+      return { ok: true, users: "ok", restarted_at: "ok", timezone: "ok", rows: users.length };
+    },
+
     async createGroup() {
       const group = { id: (seq.group += 1), name: "My board", invite_token: newShareToken() };
       groups.push(group);
@@ -80,7 +84,16 @@ export function createMemoryStore() {
       );
     },
 
-    async createUser({ name, color, start_date, pin_hash, wake_time, group_id, share_token }) {
+    async createUser({
+      name,
+      color,
+      start_date,
+      pin_hash,
+      wake_time,
+      timezone,
+      group_id,
+      share_token,
+    }) {
       const user = {
         id: (seq.user += 1),
         name,
@@ -89,6 +102,7 @@ export function createMemoryStore() {
         restarted_at: null,
         pin_hash: pin_hash ?? null,
         wake_time: wake_time ?? null,
+        timezone: timezone ?? null,
         group_id: group_id ?? null,
         share_token: share_token ?? null,
         created_at: new Date().toISOString(),
@@ -199,6 +213,20 @@ export function createMemoryStore() {
         (c) => c.user_id === Number(user_id) && c.task_id === Number(task_id) && c.day === day
       );
       if (i >= 0) completions.splice(i, 1);
+    },
+
+    /**
+     * Wipe every completion a user has on or after `fromDay` (ISO dates sort
+     * lexically, so a string compare is the right one). The "start over from
+     * today" button leans on this so the fresh run really begins with an
+     * untouched day 1 -- moving `restarted_at` alone left today's ticks in
+     * place, which read as "the reset did nothing".
+     */
+    async clearCompletionsFrom(userId, fromDay) {
+      for (let i = completions.length - 1; i >= 0; i -= 1) {
+        const c = completions[i];
+        if (c.user_id === Number(userId) && c.day >= fromDay) completions.splice(i, 1);
+      }
     },
 
     async getNote(userId, day) {
