@@ -42,8 +42,10 @@ const unwrap = ({ data, error }) => {
 let hasNameLower = null;
 
 /** PostgREST reports an unknown column as 42703, or names it in the message. */
-const isMissingColumn = (error) =>
-  error?.code === "42703" || /column .*name_lower.* does not exist/i.test(error?.message ?? "");
+const isMissingColumn = (error, name) =>
+  error?.code === "42703" ||
+  new RegExp(`column .*${name ?? "\\w+"}.* does not exist`, "i").test(error?.message ?? "") ||
+  (name != null && new RegExp(`'${name}' column`, "i").test(error?.message ?? ""));
 
 export function createSupabaseStore({ url, key }) {
   const db = new PostgrestClient(`${url.replace(/\/$/, "")}/rest/v1`, {
@@ -52,6 +54,25 @@ export function createSupabaseStore({ url, key }) {
 
   return {
     kind: "supabase",
+
+    /**
+     * Cheap reachability + schema probe for GET /api/health. Each `head:true`
+     * count is a single round trip that returns no rows; an unknown column
+     * comes back as an error string instead of throwing, so one un-run
+     * migration doesn't hide the state of the others.
+     */
+    async health() {
+      const probe = async (col) => {
+        const { error } = await db.from("users").select(col, { count: "exact", head: true });
+        return error ? error.message : "ok";
+      };
+      const [rows, restarted_at, timezone] = await Promise.all([
+        probe("id"),
+        probe("restarted_at"),
+        probe("timezone"),
+      ]);
+      return { ok: rows === "ok", users: rows, restarted_at, timezone };
+    },
 
     async createGroup() {
       return unwrap(
@@ -145,7 +166,16 @@ export function createSupabaseStore({ url, key }) {
 
     async createUser(row) {
       // the seed_core_tasks trigger fills in the seven rules for us
-      return unwrap(await db.from("users").insert(row).select().single());
+      const { data, error } = await db.from("users").insert(row).select().single();
+      if (!error) return data;
+      // A database still on migration-05 has no `timezone` column. Drop it and
+      // retry rather than block signup on an un-run migration -- the user just
+      // falls back to sending their local day until it's added.
+      if (isMissingColumn(error, "timezone") && "timezone" in row) {
+        const { timezone: _omit, ...rest } = row;
+        return unwrap(await db.from("users").insert(rest).select().single());
+      }
+      throw Object.assign(new Error(error.message), { supabase: error });
     },
 
     async updateUser(id, patch) {
@@ -230,6 +260,15 @@ export function createSupabaseStore({ url, key }) {
           .eq("task_id", task_id)
           .eq("day", day)
           .select()
+      );
+    },
+
+    // Drop every completion on or after `fromDay` -- the "start over from
+    // today" button uses this so the new run's day 1 is genuinely blank
+    // rather than inheriting whatever was already ticked today.
+    async clearCompletionsFrom(userId, fromDay) {
+      unwrap(
+        await db.from("completions").delete().eq("user_id", userId).gte("day", fromDay).select()
       );
     },
 

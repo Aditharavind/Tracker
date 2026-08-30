@@ -138,10 +138,13 @@ test("mutations go through without a PIN, and a wrong one is not rejected either
   assert.equal(wrong.status, 200, "a wrong PIN is ignored rather than refused");
 
   assert.equal(
-    (await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "x" })).status,
+    (await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "x", today: TODAY })).status,
     200
   );
-  assert.equal((await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "" })).status, 200);
+  assert.equal(
+    (await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "", today: TODAY })).status,
+    200
+  );
 });
 
 test("signing in is still gated -- that is what stops someone taking your board", async () => {
@@ -228,7 +231,7 @@ test("bonus tasks add and archive; notes round-trip", async () => {
     204
   );
 
-  await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "owe a run", pin: PIN });
+  await call("PUT", `/users/${adith.id}/note`, { day: TODAY, text: "owe a run", pin: PIN, today: TODAY });
   assert.equal((await call("GET", `/users/${adith.id}/day/${TODAY}`)).body.note, "owe a run");
 });
 
@@ -289,12 +292,69 @@ test("a new PIN still has to be well-formed, and it is what login then accepts",
   assert.equal((await call("POST", "/login", { name: "Rahul", pin: "9999" })).status, 200);
 });
 
-test("restart returns to day 1 but keeps XP and trophies", async () => {
+test("restart returns to day 1, clears today, and keeps earned trophies", async () => {
+  // tick something today so there's a completion for the reset to clear
+  const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
+  await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: tasks[0].id, day: TODAY, done: true, pin: PIN, today: TODAY,
+  });
+
   const before = (await call("GET", `/users/${adith.id}/progress?today=${TODAY}`)).body;
   const { body } = await call("POST", `/users/${adith.id}/restart`, { pin: PIN, today: TODAY });
   assert.equal(body.day_number, 1);
   assert.equal(body.run_start, TODAY);
-  assert.equal(body.xp, before.xp, "XP survives a reset");
+  assert.equal(body.best_streak, before.best_streak, "earned trophies survive a reset");
+  assert.deepEqual(body.badges, before.badges, "badges survive a reset");
+
+  // the fresh run's day 1 opens blank -- nothing ticked carries over
+  const { body: day } = await call("GET", `/users/${adith.id}/day/${TODAY}`);
+  assert.equal(day.tasks.some((t) => t.done), false, "today starts clean after a reset");
+});
+
+test("past days are locked -- you can only update today", async () => {
+  const { body: tasks } = await call("GET", `/users/${adith.id}/tasks`);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  const past = await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: tasks[0].id, day: yesterday, done: true, today: TODAY,
+  });
+  assert.equal(past.status, 409, "yesterday is sealed");
+
+  const now = await call("POST", `/users/${adith.id}/toggle`, {
+    task_id: tasks[0].id, day: TODAY, done: true, today: TODAY,
+  });
+  assert.equal(now.status, 200, "today is still editable");
+
+  const pastNote = await call("PUT", `/users/${adith.id}/note`, {
+    day: yesterday, text: "late", today: TODAY,
+  });
+  assert.equal(pastNote.status, 409, "past notes are locked too");
+});
+
+test("a stored timezone decides the user's day, not the caller's clock", async () => {
+  // Two brand-new users, same instant, opposite sides of the date line.
+  const east = (
+    await call("POST", "/users", { name: "Kiri", pin: "1212", timezone: "Pacific/Kiritimati" })
+  ).body;
+  const west = (
+    await call("POST", "/users", { name: "Midway", pin: "1212", timezone: "Pacific/Midway" })
+  ).body;
+  assert.equal(east.timezone, "Pacific/Kiritimati");
+
+  // No ?today -- the server must fall back to each user's own zone.
+  const eastDay = (await call("GET", `/users/${east.id}/progress`)).body.run_start;
+  const westDay = (await call("GET", `/users/${west.id}/progress`)).body.run_start;
+  assert.notEqual(eastDay, westDay, "a ~24h zone spread lands them on different days");
+
+  const bad = await call("POST", "/users", { name: "Nowhere", pin: "1212", timezone: "Mars/Olympus" });
+  assert.equal(bad.body.timezone, null, "an unknown zone is dropped, not stored");
+});
+
+test("health check reports the store and its schema", async () => {
+  const { status, body } = await call("GET", "/health");
+  assert.equal(status, 200);
+  assert.equal(body.store, "memory");
+  assert.equal(body.ok, true);
 });
 
 test("missing things 404 rather than 500", async () => {

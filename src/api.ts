@@ -30,6 +30,19 @@ export const todayISO = () => {
   return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10);
 };
 
+/**
+ * The device's IANA timezone (e.g. "Asia/Kolkata"). No permission prompt --
+ * this is the zone the OS is already set to. Sent at signup and re-synced
+ * whenever it changes, so the server can decide each user's day boundary.
+ */
+export const deviceTimezone = (): string | null => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+};
+
 export const api = {
   users: (asUserId?: number) => req<User[]>(`/users${asUserId != null ? `?as=${asUserId}` : ""}`),
 
@@ -45,7 +58,10 @@ export const api = {
    * or the name alone would hand over someone else's board.
    */
   login: (name: string, pin: string) =>
-    req<User>("/login", { method: "POST", body: JSON.stringify({ name, pin }) }),
+    req<User>("/login", {
+      method: "POST",
+      body: JSON.stringify({ name, pin, timezone: deviceTimezone() }),
+    }),
 
   createUser: (
     name: string,
@@ -65,6 +81,7 @@ export const api = {
         reps_target: repsTarget ?? 20,
         invited_by: invitedBy ?? null,
         start_date: todayISO(),
+        timezone: deviceTimezone(),
       }),
     }),
 
@@ -78,7 +95,7 @@ export const api = {
   joinInvite: (token: string, name: string, color: string, pin: string) =>
     req<User>(`/invite/${token}/join`, {
       method: "POST",
-      body: JSON.stringify({ name, color, pin, start_date: todayISO() }),
+      body: JSON.stringify({ name, color, pin, start_date: todayISO(), timezone: deviceTimezone() }),
     }),
 
   day: (userId: number, day: string) => req<DayDetail>(`/users/${userId}/day/${day}`),
@@ -92,7 +109,7 @@ export const api = {
   saveNote: (userId: number, day: string, text: string, pin?: string) =>
     req<{ ok: boolean }>(`/users/${userId}/note`, {
       method: "PUT",
-      body: JSON.stringify({ day, text, pin }),
+      body: JSON.stringify({ day, text, pin, today: todayISO() }),
     }),
 
   addTask: (userId: number, title: string, emoji: string, isCore: boolean, pin?: string) =>
@@ -121,6 +138,14 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ wake_time: wakeTime, reps_target: repsTarget, pin }),
     }),
+
+  setTimezone: (userId: number, timezone: string | null, pin?: string) =>
+    req<User>(`/users/${userId}/timezone`, {
+      method: "PUT",
+      body: JSON.stringify({ timezone, pin }),
+    }),
+
+  health: () => req<{ store: string; ok: boolean; checks: Record<string, unknown> }>("/health"),
 };
 
 export const shiftISO = (iso: string, days: number) => {

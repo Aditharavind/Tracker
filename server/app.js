@@ -3,6 +3,7 @@ import express from "express";
 import { compute, dayDetail } from "./engine.js";
 import { hashSecret, newShareToken, verifySecret } from "./security.js";
 import { getStore } from "./store/index.js";
+import { isValidZone, zoneToday } from "./time.js";
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
@@ -12,6 +13,14 @@ const PIN = /^\d{4,6}$/;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const dayFrom = (value) => (ISO_DAY.test(value ?? "") ? value : todayISO());
+
+/**
+ * The day *this user* is currently living in. Their stored IANA zone is the
+ * source of truth; the client-sent `today` is only a fallback for accounts
+ * created before the timezone column existed (or a browser that sent nothing).
+ */
+const userToday = (user, clientToday) =>
+  zoneToday(user?.timezone) ?? dayFrom(clientToday);
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -137,6 +146,7 @@ function userOut(u, revealToken = false, group = null) {
     color: u.color,
     start_date: u.start_date,
     wake_time: u.wake_time ?? null,
+    timezone: u.timezone ?? null,
     has_pin: Boolean(u.pin_hash),
   };
   // share_token is read-only progress; invite_token lets someone join the
@@ -207,12 +217,16 @@ async function boardFor(store, users, today) {
   };
   const tasksBy = bucket(tasks);
   const doneBy = bucket(completions);
-  const day = today || todayISO();
+  const fallbackDay = today || todayISO();
 
+  // Each member is judged on *their own* clock. Before per-user timezones this
+  // used one `day` for the whole board -- the viewer's -- so a night-owl in a
+  // later zone could show a broken streak on someone else's phone hours before
+  // their own day was actually over.
   return users.map((user) =>
     compute(
       { user, tasks: tasksBy.get(Number(user.id)) ?? [], completions: doneBy.get(Number(user.id)) ?? [] },
-      day
+      zoneToday(user.timezone) ?? fallbackDay
     )
   );
 }
@@ -262,6 +276,27 @@ async function syncWakeTask(store, user, wakeTime, repsTarget) {
 
 export function createRouter() {
   const r = express.Router();
+
+  /**
+   * Is this instance actually talking to its database, and which migrations
+   * have landed? On the deployed site "progress isn't saving" almost always
+   * means the function fell back to the in-memory store (missing env vars) or
+   * a migration was never run -- both are visible here in one request.
+   *   GET /api/health -> { store, ok, checks: { users, restarted_at, timezone } }
+   */
+  r.get(
+    "/health",
+    wrap(async (_req, res) => {
+      const store = getStore();
+      let checks;
+      try {
+        checks = await store.health();
+      } catch (err) {
+        checks = { ok: false, error: err.message };
+      }
+      res.json({ store: store.kind ?? "unknown", ok: Boolean(checks.ok), checks });
+    })
+  );
 
   /**
    * Scoped to the caller's own board. A browser with no local user yet sends
@@ -342,6 +377,7 @@ export function createRouter() {
       const wakeTime = req.body?.wake_time ?? null;
       const repsTarget = Number(req.body?.reps_target ?? 20);
       const startDate = req.body?.start_date;
+      const timezone = isValidZone(req.body?.timezone) ? req.body.timezone : null;
 
       if (!name) throw new HttpError(400, "name is required");
       if (name.length > 40) throw new HttpError(400, "name is too long");
@@ -361,6 +397,7 @@ export function createRouter() {
         start_date: startDate || todayISO(),
         pin_hash: hashSecret(pin),
         wake_time: wakeTime,
+        timezone,
         group_id: group.id,
         share_token: newShareToken(),
       });
@@ -381,6 +418,7 @@ export function createRouter() {
       const repsTarget = Number(req.body?.reps_target ?? 20);
       const invitedBy = req.body?.invited_by ?? null;
       const startDate = req.body?.start_date;
+      const timezone = isValidZone(req.body?.timezone) ? req.body.timezone : null;
 
       if (!name) throw new HttpError(400, "name is required");
       if (name.length > 40) throw new HttpError(400, "name is too long");
@@ -410,6 +448,7 @@ export function createRouter() {
         start_date: startDate || todayISO(),
         pin_hash: hashSecret(pin),
         wake_time: wakeTime,
+        timezone,
         group_id: groupId,
         share_token: newShareToken(),
       });
@@ -438,7 +477,17 @@ export function createRouter() {
       if (matches.length !== 1) {
         throw new HttpError(403, "no account matches that name and PIN");
       }
-      res.json(userOut(matches[0], true, await store.getGroup(matches[0].group_id)));
+      // Signing in from a new device is a good moment to catch the zone up.
+      let me = matches[0];
+      const tz = req.body?.timezone;
+      if (isValidZone(tz) && tz !== me.timezone) {
+        try {
+          me = (await store.updateUser(me.id, { timezone: tz })) ?? { ...me, timezone: tz };
+        } catch {
+          /* column not migrated yet -- ignore, client keeps sending its day */
+        }
+      }
+      res.json(userOut(me, true, await store.getGroup(me.group_id)));
     })
   );
 
@@ -475,7 +524,7 @@ export function createRouter() {
       // of recomputing a full history per viewer. Half a minute is short enough
       // that a tick still shows up while someone is watching.
       res.set("Cache-Control", "public, max-age=30, s-maxage=30");
-      res.json(await progressFor(store, user, dayFrom(req.query.today)));
+      res.json(await progressFor(store, user, userToday(user, req.query.today)));
     })
   );
 
@@ -484,7 +533,7 @@ export function createRouter() {
     wrap(async (req, res) => {
       const store = getStore();
       const user = await loadUser(store, req.params.id);
-      res.json(await progressFor(store, user, dayFrom(req.query.today)));
+      res.json(await progressFor(store, user, userToday(user, req.query.today)));
     })
   );
 
@@ -512,13 +561,28 @@ export function createRouter() {
       if (!task || Number(task.user_id) !== Number(user.id)) {
         throw new HttpError(404, "task not found");
       }
-      // Judge the day against the *client's* clock, not the server's UTC one.
-      const today = dayFrom(req.body?.today);
+      // Judge the day against this user's own timezone, not the server's UTC
+      // clock and not the caller's browser.
+      const today = userToday(user, req.body?.today);
       if (day > today) throw new HttpError(400, "can't tick off a day that hasn't happened");
+      // Once a day is over it is sealed: you resume on the next day, never
+      // backfill an old one. (Reading a past day stays open -- see GET day.)
+      if (day < today) {
+        throw new HttpError(409, "that day is locked -- you can only update today");
+      }
 
       const row = { user_id: user.id, task_id: task.id, day };
       if (done) await store.addCompletion(row);
       else await store.removeCompletion(row);
+
+      // persist -> verify (CLAUDE.md Stage 5 / section 12): read the row back
+      // and confirm it landed the way we asked, so a silently-failed write
+      // surfaces as an error instead of an optimistic tick the client trusts.
+      const after = await store.listCompletionsForDay(user.id, day);
+      const stored = after.some((c) => Number(c.task_id) === Number(task.id));
+      if (stored !== Boolean(done)) {
+        throw new HttpError(500, "write did not persist -- please try again");
+      }
 
       res.json({
         day: await dayFor(store, user, day),
@@ -535,6 +599,10 @@ export function createRouter() {
       if (!ISO_DAY.test(day ?? "")) throw new HttpError(400, "bad day");
       const user = await loadUser(store, req.params.id);
       requirePin(user, req.body?.pin);
+      const today = userToday(user, req.body?.today);
+      if (day !== today) {
+        throw new HttpError(409, "that day is locked -- notes can only be changed today");
+      }
       await store.upsertNote(user.id, day, String(text ?? "").slice(0, 4000));
       res.json({ ok: true });
     })
@@ -600,13 +668,23 @@ export function createRouter() {
     "/users/:id/restart",
     wrap(async (req, res) => {
       const store = getStore();
-      const today = dayFrom(req.body?.today);
       const user = await loadUser(store, req.params.id);
       requirePin(user, req.body?.pin);
+      const today = userToday(user, req.body?.today);
+      // Clear anything ticked today (and, defensively, later) so the new run
+      // opens on a blank day 1. Earlier history stays put -- it's no longer
+      // part of the run, but lifetime stats and earned trophies still read it.
+      await store.clearCompletionsFrom(user.id, today);
       const updated = (await store.updateUser(user.id, { restarted_at: today })) ?? {
         ...user,
         restarted_at: today,
       };
+      // persist -> verify: confirm the marker moved and today really is clear
+      // before the client redraws on the strength of it.
+      const afterReset = await store.listCompletionsForDay(user.id, today);
+      if (afterReset.length > 0 || (updated.restarted_at ?? null) !== today) {
+        throw new HttpError(500, "reset did not persist -- please try again");
+      }
       res.json(await progressFor(store, updated, today));
     })
   );
@@ -643,6 +721,31 @@ export function createRouter() {
       res.json(
         userOut(updated ?? { ...user, wake_time: wakeTime }, true, await store.getGroup(user.group_id))
       );
+    })
+  );
+
+  // The client auto-detects the device's IANA zone and pushes it here whenever
+  // it differs from what's stored -- first run after the migration, or the user
+  // travelling. Every day-boundary decision for this user is then made from it.
+  r.put(
+    "/users/:id/timezone",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const tz = req.body?.timezone ?? null;
+      if (tz !== null && !isValidZone(tz)) throw new HttpError(400, "unknown timezone");
+      const user = await loadUser(store, req.params.id);
+      requirePin(user, req.body?.pin);
+      let updated;
+      try {
+        updated = await store.updateUser(user.id, { timezone: tz });
+      } catch (err) {
+        // A database still on migration-05 has no timezone column. Don't fail
+        // the request over it -- the client falls back to sending its local
+        // day, exactly as before, until the migration is run.
+        if (!/timezone/.test(err?.message ?? "")) throw err;
+        updated = { ...user, timezone: user.timezone ?? null };
+      }
+      res.json(userOut(updated ?? { ...user, timezone: tz }, true, await store.getGroup(user.group_id)));
     })
   );
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, shiftISO, todayISO } from "./api";
+import { api, deviceTimezone, shiftISO, todayISO } from "./api";
 import type { DayDetail, Progress, TaskItem, User } from "./types";
 import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
@@ -11,6 +11,7 @@ import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
+import PandaRunner from "./components/forest/PandaRunner";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
@@ -232,6 +233,35 @@ function IconGear() {
   );
 }
 
+function IconPencil() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M2 10.2 9.1 3.1l1.8 1.8L3.8 12H2v-1.8Z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="0.8"
+        strokeLinejoin="round"
+      />
+      <path d="M9.1 3.1 10.4 1.8a1 1 0 0 1 1.4 0l.4.4a1 1 0 0 1 0 1.4L10.9 4.9Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconRestart() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path
+        d="M11.5 7a4.5 4.5 0 1 1-1.7-3.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path d="M11.6 1.4V4H9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const storedAvatars = (): Record<number, AvatarId> => {
   try {
     const raw = localStorage.getItem(AVATAR_KEY);
@@ -436,6 +466,13 @@ export default function App() {
   const [livesOpen, setLivesOpen] = useState(false);
   const [dayCompleteOpen, setDayCompleteOpen] = useState(false);
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
+  const [runnerOpen, setRunnerOpen] = useState(false);
+  const [dashBest, setDashBest] = useState({ dist: 0, coins: 0 });
+  // Set whenever a write (tick / note / restart) is rejected, so the UI can
+  // stop pretending the optimistic change was committed. Cleared by the next
+  // clean write or a successful refetch.
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const tzSynced = useRef(false);
   const [, forceTick] = useState(0);
   const todayRef = useRef(todayISO());
   const minuteRef = useRef("");
@@ -467,17 +504,27 @@ export default function App() {
   useEffect(() => {
     if (!detail || meId == null || day !== todayISO()) return;
     const allDone = detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
-    if (!allDone) {
-      if (dayCompleteDismissed.current === day) dayCompleteDismissed.current = null;
-      return;
+    // The overlay itself is now opened by ForestScene once the panda has run
+    // the victory lane to the exit (onDayCleared below). This effect only
+    // re-arms it: uncheck a task and the "stage clear" screen can fire again.
+    if (!allDone && dayCompleteDismissed.current === day) {
+      dayCompleteDismissed.current = null;
     }
+  }, [detail, day, meId]);
+
+  // Fired by ForestScene when the panda finishes the end-of-day run (jump down
+  // -> victory lane -> exit). Celebratory only; day advancement stays date-driven.
+  const handleDayCleared = useCallback(() => {
+    if (meId == null || day !== todayISO()) return;
     if (dayCompleteDismissed.current === day) return;
     setDayCompleteOpen(true);
-  }, [detail, day, meId]);
+  }, [meId, day]);
 
   const closeDayComplete = () => {
     setDayCompleteOpen(false);
     dayCompleteDismissed.current = day;
+    // Day's done -- surface the standings so you see where the day landed you.
+    setOpenPanel("leaderboard");
   };
 
   // New-world unlock (skill STAGE 4): the run reaching a chapter's first day
@@ -583,8 +630,11 @@ export default function App() {
   useEffect(() => {
     const storedId = Number(localStorage.getItem(LAST_USER)) || undefined;
     if (storedId) {
-      loadUsers(storedId);
-      loadBoard(storedId);
+      Promise.all([loadUsers(storedId), loadBoard(storedId)])
+        .then(() => setSaveError(null))
+        .catch((e) =>
+          setSaveError(e instanceof Error ? e.message : "Couldn't reach the server -- showing the last saved view")
+        );
       return;
     }
     (async () => {
@@ -611,12 +661,41 @@ export default function App() {
     if (meId == null) return;
     localStorage.setItem(LAST_USER, String(meId));
     localStorage.removeItem(SIGNED_OUT_KEY);
-    api.day(meId, day).then((d) => {
-      setDetail(d);
-      setNote(d.note);
-      setNoteState("idle");
-    });
+    api
+      .day(meId, day)
+      .then((d) => {
+        setDetail(d);
+        setNote(d.note);
+        setNoteState("idle");
+        setSaveError(null);
+      })
+      .catch((e) => setSaveError(e instanceof Error ? e.message : "Could not load this day"));
   }, [meId, day]);
+
+  // Keep the server's idea of this user's timezone in step with the device.
+  // Runs once per session when they differ -- a fresh account created before
+  // the timezone column, or the user having travelled. The server derives every
+  // day boundary from this, so it must not drift.
+  useEffect(() => {
+    if (meId == null || tzSynced.current) return;
+    const myUser = users?.find((u) => u.id === meId);
+    if (!myUser) return;
+    const tz = deviceTimezone();
+    if (!tz || tz === myUser.timezone) {
+      tzSynced.current = true;
+      return;
+    }
+    tzSynced.current = true;
+    api
+      .setTimezone(meId, tz)
+      .then(() => {
+        loadUsers(meId);
+        loadBoard(meId);
+      })
+      .catch(() => {
+        /* best effort -- the client still sends its local day as a fallback */
+      });
+  }, [meId, users, loadUsers, loadBoard]);
 
   // The alarm condition (current time vs. wake_time) isn't itself reactive
   // state, so it needs a poll to notice the moment it's crossed. Polling every
@@ -719,6 +798,12 @@ export default function App() {
   const toggle = (t: TaskItem) => {
     if (meId == null || !detail) return;
 
+    // Past days are sealed -- you resume on the next day, never backfill.
+    if (day !== todayISO()) {
+      flash("That day is locked. Come back tomorrow for the next one.");
+      return;
+    }
+
     // What the box is showing, right now, this instant. `t.done` is from the
     // render that built the handler, and even latestDetail only catches up on
     // the next render -- so two taps inside one frame would both read the same
@@ -791,6 +876,7 @@ export default function App() {
           };
         });
         setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
+        setSaveError(null);
 
         const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
         const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
@@ -812,7 +898,9 @@ export default function App() {
               : cur
           );
         }
-        flash(e instanceof Error ? e.message : "Could not update task");
+        const msg = e instanceof Error ? e.message : "Could not update task";
+        flash(msg);
+        setSaveError(msg);
       })
       .finally(() => {
         pendingToggles.current.delete(t.id);
@@ -861,13 +949,20 @@ export default function App() {
 
   const editNote = (text: string) => {
     setNote(text);
+    if (day !== todayISO()) return; // past-day notes are locked server-side too
     setNoteState("saving");
     window.clearTimeout(noteTimer.current);
     noteTimer.current = window.setTimeout(() => {
       if (meId == null) return;
       runWithPin(meId, async (pin) => {
-        await api.saveNote(meId, day, text, pin);
-        setNoteState("saved");
+        try {
+          await api.saveNote(meId, day, text, pin);
+          setNoteState("saved");
+          setSaveError(null);
+        } catch (e) {
+          setNoteState("idle");
+          setSaveError(e instanceof Error ? e.message : "Could not save your note");
+        }
       });
     }, 600);
   };
@@ -877,17 +972,24 @@ export default function App() {
     if (!confirm("Wipe the current run and start again from day 1 today?")) return;
     const id = meId;
     runWithPin(id, async (pin) => {
-      await api.restart(id, pin);
-      // Reload BOTH the board and today's tasks -- restart clears completions
-      // server-side, so the checklist / forest must refetch or they keep
-      // showing the old run's ticks.
-      const [, fresh] = await Promise.all([loadBoard(id), api.day(id, todayISO())]);
-      setDay(todayISO());
-      setDetail(fresh);
-      setNote(fresh.note);
-      setNoteState("idle");
-      setOpenPanel(null);
-      flash("Back to day 1. Go.");
+      try {
+        await api.restart(id, pin);
+        // Reload BOTH the board and today's tasks -- restart clears completions
+        // server-side, so the checklist / forest must refetch or they keep
+        // showing the old run's ticks.
+        const [, fresh] = await Promise.all([loadBoard(id), api.day(id, todayISO())]);
+        setDay(todayISO());
+        setDetail(fresh);
+        setNote(fresh.note);
+        setNoteState("idle");
+        setOpenPanel(null);
+        setSaveError(null);
+        flash("Back to day 1. Go.");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Reset failed -- try again";
+        flash(msg);
+        setSaveError(msg);
+      }
     });
   };
 
@@ -943,14 +1045,38 @@ export default function App() {
   }
 
   const isToday = day === todayISO();
+  // Forest Dash unlocks once today is fully cleared. Bonus only -- see PandaRunner.
+  const dashUnlocked =
+    isToday && detail != null && detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
   const overallProgressPct = Math.round((bankedDays / 75) * 100);
   // Derived, never stored -- a pure readout of already-persisted task
   // completion (CLAUDE.md §8: coin count is never the source of truth).
-  const coinsEarned = me.calendar.reduce((sum, c) => sum + c.done, 0);
+  // One coin per completed task, plus the "+5" bonus coin (shown on the
+  // second-to-last platform) which lands only on a fully-cleared day -- so a
+  // perfect day is worth its tasks + 4 extra on top of the per-task coin.
+  const coinsEarned = me.calendar.reduce(
+    (sum, c) => sum + c.done + (c.total > 0 && c.done === c.total ? 4 : 0),
+    0
+  );
 
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
     setOpenPanel((cur) => (cur === p ? null : p));
+
+  // Forest Dash best -- local only, refreshed whenever the minigame closes or
+  // the Stats panel opens.
+  useEffect(() => {
+    if (runnerOpen || openPanel === "stats") {
+      try {
+        setDashBest({
+          dist: Number(localStorage.getItem(`75hard.dash.best:${meId ?? "guest"}`)) || 0,
+          coins: Number(localStorage.getItem(`75hard.dash.coins:${meId ?? "guest"}`)) || 0,
+        });
+      } catch {
+        /* private mode */
+      }
+    }
+  }, [runnerOpen, openPanel, meId]);
 
   return (
     <div className="game-shell" style={{ ["--u" as string]: me.color }}>
@@ -995,10 +1121,22 @@ export default function App() {
           streak={me.streak}
           character={myCharacter}
           onClose={closeDayComplete}
+          onPlayRunner={() => {
+            setDayCompleteOpen(false);
+            dayCompleteDismissed.current = day;
+            setRunnerOpen(true);
+          }}
         />
       )}
       {worldUnlock && (
         <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
+      )}
+      {runnerOpen && myCharacter && (
+        <PandaRunner
+          character={myCharacter}
+          userId={meId}
+          onClose={() => setRunnerOpen(false)}
+        />
       )}
 
       <div className="game-shell-inner">
@@ -1040,6 +1178,16 @@ export default function App() {
               <FailureBanner resets={me.resets} />
             </div>
           </div>
+          {dashUnlocked && (
+            <button
+              type="button"
+              className="dash-launch pixel-font"
+              onClick={() => setRunnerOpen(true)}
+              title="Forest Dash — bonus minigame, no effect on your challenge"
+            >
+              ▶ FOREST DASH
+            </button>
+          )}
         </header>
 
         <div className="stage-area">
@@ -1049,16 +1197,27 @@ export default function App() {
             seed={`${meId}:${day}`}
             resets={me.resets}
             character={myCharacter}
+            onDayCleared={day === todayISO() ? handleDayCleared : undefined}
           />
 
           <div className="day-card-float">
             <button
               type="button"
-              className="daycard-reset pixel-font"
+              className="daycard-reset daycard-iconbtn pixel-font"
               onClick={restart}
-              title="Wipe this run and start again from day 1"
+              title="Reset run — wipe this run and start again from day 1"
+              aria-label="Reset run"
             >
-              RESET RUN
+              <IconRestart />
+            </button>
+            <button
+              type="button"
+              className="daycard-edit daycard-iconbtn pixel-font"
+              onClick={() => togglePanel("habits")}
+              title="Edit your tasks"
+              aria-label="Edit tasks"
+            >
+              <IconPencil />
             </button>
             <Checklist
               detail={detail}
@@ -1072,6 +1231,7 @@ export default function App() {
               onAdd={addTask}
               onRemove={removeTask}
               hideAddRow
+              locked={day !== todayISO()}
             />
           </div>
 
@@ -1151,6 +1311,28 @@ export default function App() {
                   <div className="l">Restarts</div>
                 </div>
               </div>
+
+              <div className="card panel-section dash-stat-card">
+                <div className="card-head">
+                  <h2>Forest Dash</h2>
+                </div>
+                <p className="muted" style={{ margin: "0 0 10px" }}>
+                  Best {dashBest.dist}m · {dashBest.coins} coins. Bonus minigame — never affects your
+                  challenge.
+                </p>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={!dashUnlocked}
+                  onClick={() => {
+                    setOpenPanel(null);
+                    setRunnerOpen(true);
+                  }}
+                >
+                  {dashUnlocked ? "Play Forest Dash" : "Clear today's tasks to unlock"}
+                </button>
+              </div>
+
               <div className="panel-section" style={{ display: "flex", justifyContent: "center" }}>
                 <LevelRing p={me} />
               </div>
@@ -1384,6 +1566,26 @@ export default function App() {
       </div>
 
       {toast && <div className="toast">{toast}</div>}
+
+      {saveError && (
+        <div className="save-error-banner" role="alert">
+          <span>⚠ Not saved — {saveError}</span>
+          <button
+            type="button"
+            onClick={() => {
+              if (meId == null) return;
+              Promise.all([loadBoard(meId), api.day(meId, day)])
+                .then(([, d]) => {
+                  setDetail(d);
+                  setSaveError(null);
+                })
+                .catch(() => flash("Still can't reach the server"));
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
     </div>
   );
 }

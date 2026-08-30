@@ -8,6 +8,7 @@ import Platform from "./Platform";
 import Coin from "./Coin";
 import GoalFlag from "./GoalFlag";
 import StartSign from "./StartSign";
+import VictorySign from "./VictorySign";
 import ZombiePlant from "./ZombiePlant";
 import Clouds from "./Clouds";
 import Scenery from "./Scenery";
@@ -51,12 +52,20 @@ export default function ForestScene({
   seed,
   resets,
   character = DEFAULT_CHARACTER,
+  onDayCleared,
 }: {
   detail: DayDetail;
   dayNumber: number;
   seed: string;
   resets: number;
   character?: CharacterId;
+  /**
+   * Called once the panda finishes the end-of-day run -- final hop, drop into
+   * the victory lane, dash to the exit. App uses it to open the "stage clear"
+   * board only after the run is actually over, not the instant the last box
+   * is ticked.
+   */
+  onDayCleared?: () => void;
 }) {
   const tasks = detail.tasks;
   const total = tasks.length;
@@ -81,6 +90,10 @@ export default function ForestScene({
   const platforms = remapPlatformRun(rawPlatforms, runLo, runHi);
   const goal = { ...goalPoint(total), x: runHi + 0.13 };
   const reachedGoal = total > 0 && doneCount === total;
+  // Ground-level "victory lane": from under the last platform out to an exit
+  // past the goal board. The panda drops here after the final hop and runs it.
+  const lastPlatform = platforms[platforms.length - 1] ?? start;
+  const exitPoint: Point = { x: goal.x + 0.16, y: 0 };
   const pathPoints = [start, ...platforms, goal];
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
@@ -90,6 +103,14 @@ export default function ForestScene({
   // "parked" snaps it to the sign; "running" lets the position transition
   // carry it forward while .panda-running plays; null = arrived, idle.
   const [runInPhase, setRunInPhase] = useState<"parked" | "running" | null>("parked");
+  // End-of-day run: "none" (still climbing) -> "drop" (fell off the last
+  // platform onto the lane) -> "run" (dashing to the exit) -> "done" (arrived,
+  // celebrating). Cosmetic only; the day is already complete in state before
+  // any of this plays.
+  const [victoryPhase, setVictoryPhase] = useState<"none" | "drop" | "run" | "done">(
+    reachedGoal ? "done" : "none"
+  );
+  const clearedFired = useRef(false);
   // The panda's *visual* position on the staircase -- deliberately decoupled
   // from pandaIndex (the real, state-derived position). pandaIndex can jump
   // by more than one step in a single update (several tasks completed at
@@ -111,7 +132,9 @@ export default function ForestScene({
   // reads as sign -> first platform.
   const SIGN_POINT: Point = { x: -0.06, y: 0 };
   const atStartRest = safeVisualIndex === 0;
-  const displayPoint = runInPhase === "parked" && atStartRest ? SIGN_POINT : pandaPoint;
+  let displayPoint = runInPhase === "parked" && atStartRest ? SIGN_POINT : pandaPoint;
+  if (victoryPhase === "drop") displayPoint = { x: lastPlatform.x, y: 0 };
+  else if (victoryPhase === "run" || victoryPhase === "done") displayPoint = exitPoint;
 
   // Follow-cam (skill §6): slide the whole level sideways so the active
   // character stays in clear space near mid-screen, instead of tucked under
@@ -123,8 +146,12 @@ export default function ForestScene({
   // Lower bound = don't scroll past the goal (keep it around mid-screen);
   // the level is now wider than one viewport, so this has to track the goal
   // rather than being a fixed number.
-  const minCam = Math.min(46, 50 - pct(goal).left);
-  let camX = Math.max(minCam, Math.min(46, 50 - pct(pandaPoint).left));
+  // During the victory run the panda travels past the goal to the exit, so the
+  // camera has to be allowed to follow that far left.
+  const camAnchor = victoryPhase === "none" ? pct(goal).left : pct(exitPoint).left;
+  const minCam = Math.min(46, 50 - camAnchor);
+  const camTrack = victoryPhase === "none" ? pandaPoint : displayPoint;
+  let camX = Math.max(minCam, Math.min(46, 50 - pct(camTrack).left));
   // Early in the level the character sits near the far-left edge, right where
   // the Day card overlays. Push the pan further so the START sign + character
   // always clear the card's right edge (skill §21 "let task cards cover the
@@ -143,6 +170,35 @@ export default function ForestScene({
     timers.current = [];
   };
 
+  const fireCleared = () => {
+    if (clearedFired.current) return;
+    clearedFired.current = true;
+    onDayCleared?.();
+  };
+
+  // Final hop has landed on the last platform. Drop to the lane, dash to the
+  // exit, then tell App the day is cleared (which opens the victory board).
+  const startVictory = () => {
+    if (reducedMotion) {
+      setVictoryPhase("done");
+      setAnim("celebrating");
+      queue(fireCleared, 300);
+      return;
+    }
+    setVictoryPhase("drop");
+    setAnim("falling");
+    queue(() => setAnim("landing"), 420);
+    queue(() => {
+      setVictoryPhase("run");
+      setAnim("running");
+    }, 560);
+    queue(() => {
+      setVictoryPhase("done");
+      setAnim("celebrating");
+      fireCleared();
+    }, 560 + 1550);
+  };
+
   // Initial run-in: idle -> short run -> idle, per CLAUDE.md section 9.
   //
   // No "already ran" guard here on purpose. React 18 StrictMode
@@ -155,6 +211,16 @@ export default function ForestScene({
   // playing "running" forever. Letting the effect simply re-run on the
   // second, real mount is what actually leaves it in the correct end state.
   useEffect(() => {
+    // Reloaded onto an already-finished day: no run-in, no hops -- the panda is
+    // already at the exit. Nudge App to (re)show the victory board.
+    if (reachedGoal && prevDone.current === doneCount) {
+      setRunInPhase(null);
+      setVisualIndex(total);
+      setVictoryPhase("done");
+      setAnim("celebrating");
+      queue(fireCleared, 650);
+      return clearQueue;
+    }
     if (reducedMotion) {
       setRunInPhase(null);
       return;
@@ -186,7 +252,9 @@ export default function ForestScene({
     if (!increased) {
       // A task got unchecked, a restart, or a fresh day -- the target is
       // already correct and behind (or equal to) where the panda visually
-      // is; snap rather than animate a climb-down.
+      // is; snap rather than animate a climb-down. Any victory run is off.
+      setVictoryPhase("none");
+      clearedFired.current = false;
       setVisualIndex(pandaIndex);
       setAnim("idle");
       return;
@@ -194,8 +262,12 @@ export default function ForestScene({
 
     if (reducedMotion) {
       setVisualIndex(pandaIndex);
-      setAnim("landing");
-      queue(() => setAnim(doneCount === total ? "celebrating" : "idle"), 220);
+      if (doneCount === total) {
+        startVictory();
+      } else {
+        setAnim("landing");
+        queue(() => setAnim("idle"), 220);
+      }
       return;
     }
 
@@ -214,8 +286,10 @@ export default function ForestScene({
         const arrived = from + 1;
         if (arrived < target) {
           hop(arrived);
+        } else if (doneCount === total) {
+          startVictory();
         } else {
-          setAnim(doneCount === total ? "celebrating" : "idle");
+          setAnim("idle");
         }
       }, HOP_MS);
     };
@@ -234,6 +308,8 @@ export default function ForestScene({
     }
     prevResets.current = resets;
     clearQueue();
+    setVictoryPhase("none");
+    clearedFired.current = false;
     if (reducedMotion) {
       setAnim("idle");
       return;
@@ -254,6 +330,10 @@ export default function ForestScene({
       className="forest-scene"
       data-stage={stage.id}
       data-reduced-motion={reducedMotion || undefined}
+      // Once the panda reaches the exit board the world stops scrolling -- the
+      // pan settles at the end of the level and holds (skill: "freeze once it
+      // reaches the end of the race").
+      data-frozen={victoryPhase === "done" || undefined}
       // The level's width has to earn room per platform, or extra tasks just
       // pack more platforms into the same horizontal strip until they overlap
       // into one blob -- which reads as "the level didn't grow" even though
@@ -316,6 +396,20 @@ export default function ForestScene({
           );
         })}
 
+        {/* Victory lane: a mossy ground strip from under the last platform out
+            past the goal to the exit. Only rendered once the day is cleared --
+            it's the runway for the end-of-day dash. */}
+        {reachedGoal && (
+          <div
+            className={`victory-lane victory-lane-${victoryPhase}`}
+            aria-hidden="true"
+            style={{
+              left: `${pct({ x: lastPlatform.x, y: 0 }).left}%`,
+              width: `${pct(exitPoint).left - pct({ x: lastPlatform.x, y: 0 }).left + 6}%`,
+            }}
+          />
+        )}
+
         <GoalFlag
           left={pct(goal).left}
           bottom={pct(goal).bottom}
@@ -326,10 +420,28 @@ export default function ForestScene({
         <div
           className="panda-anchor"
           data-runin={runInPhase && atStartRest ? runInPhase : undefined}
+          data-victory={victoryPhase === "none" ? undefined : victoryPhase}
           style={{ left: `${pct(displayPoint).left}%`, bottom: `${pct(displayPoint).bottom}%` }}
         >
           <Panda anim={anim} character={character} />
         </div>
+
+        {/* Exit set piece at the very end of the lane. The reference forest art
+            is the backdrop board; the VICTORY signpost (same sprite as START)
+            stands in front. The character runs BEHIND this (lower z-index on
+            the anchor above vs. this block) and fades out. */}
+        {reachedGoal && (
+          <div
+            className={`victory-exit victory-exit-${victoryPhase}`}
+            aria-hidden="true"
+            style={{ left: `${pct(exitPoint).left}%`, bottom: `${pct(exitPoint).bottom}%` }}
+          >
+            <div className="victory-exit-board">
+              <img src="/assets/forest-background.webp" alt="" />
+            </div>
+            <VictorySign left={0} bottom={0} />
+          </div>
+        )}
       </div>
 
       <div className="forest-fg" aria-hidden="true" />

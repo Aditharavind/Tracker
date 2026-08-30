@@ -36,6 +36,9 @@ create table if not exists public.users (
   group_id    bigint      references public.groups(id) on delete cascade,
   pin_hash    text,        -- pbkdf2, see server/security.js
   wake_time   time,
+  -- IANA zone (e.g. 'Asia/Kolkata'), auto-detected from the user's device.
+  -- Every day-boundary decision for this user is derived from it server-side.
+  timezone    text,
   share_token text,        -- public read-only progress link
   -- Where this user was last seen, for the /session/suggest convenience only.
   -- Grants nothing: every write still needs the PIN.

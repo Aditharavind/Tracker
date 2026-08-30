@@ -2676,6 +2676,238 @@ h3 {
   }
 }
 
+/* ---------- end-of-day victory run ---------- */
+
+/* The panda's horizontal travel is normally a 0.3s gap-hop. The victory dash
+   is a long ground run to the exit, so it gets a slow even ease (like the
+   mount run-in) and the drop off the last platform gets a fall curve. */
+.panda-anchor[data-victory="drop"] {
+  transition:
+    left 0.45s ease-in,
+    bottom 0.5s cubic-bezier(0.5, 0, 0.9, 0.4),
+    transform 0.6s ease;
+}
+
+.panda-anchor[data-victory="run"],
+.panda-anchor[data-victory="done"] {
+  transition:
+    left 1.55s cubic-bezier(0.3, 0.05, 0.4, 1),
+    bottom 0.4s ease,
+    transform 0.6s ease,
+    opacity 0.45s ease 0.9s;
+}
+
+/* Runs behind the exit board (lower z-index) and vanishes once arrived. */
+.panda-anchor[data-victory="done"] {
+  opacity: 0;
+}
+
+.victory-lane {
+  position: absolute;
+  bottom: 0;
+  height: 12px;
+  z-index: 5;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, #3f6b3a 0%, #2c4d2b 45%, #22331f 100%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 5px, transparent 5px 11px);
+  box-shadow:
+    inset 0 2px 0 rgba(150, 210, 130, 0.35),
+    0 3px 6px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.victory-lane-drop,
+.victory-lane-run,
+.victory-lane-done {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Exit set piece -- sits ABOVE the panda anchor (z 12) so the character runs
+   in behind it. The reference forest art is the board; the VICTORY signpost
+   (same sprite as START) stands in front of it. */
+.victory-exit {
+  position: absolute;
+  transform: translate(-50%, 0);
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  animation: victory-exit-in 0.5s ease 0.2s forwards;
+}
+
+.victory-exit-board {
+  width: clamp(120px, 17vw, 220px);
+  aspect-ratio: 3 / 2;
+  padding: 5px;
+  background: linear-gradient(180deg, #7a5220, #4c3315);
+  border: 3px solid #3a2810;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 224, 160, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+.victory-exit-board img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 3px;
+  image-rendering: pixelated;
+}
+
+.victory-sign {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 18%);
+}
+
+.victory-sign-sprite {
+  display: block;
+  width: clamp(78px, 9.5vw, 120px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.5));
+}
+
+/* Wooden plaque planted over the sign's face -- opaque, so the sprite's
+   painted-in "START" is fully covered and only "VICTORY" reads. */
+.victory-sign-plaque {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  transform: translateX(-50%) rotate(-1.5deg);
+  padding: 4px 8px;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: #f6e6b8;
+  background: linear-gradient(180deg, #8a5f28, #5c3f19);
+  border: 1.5px solid #3a2810;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.25),
+    0 2px 0 rgba(0, 0, 0, 0.35);
+  text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+@keyframes victory-exit-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Freeze-frame: once the panda is behind the board, hold the pan and quiet the
+   ambient drift so the moment settles instead of scrolling on. */
+.forest-scene[data-frozen] .forest-path {
+  transition: transform 1.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.forest-scene[data-frozen] .forest-fireflies,
+.forest-scene[data-frozen] .cloud {
+  animation-play-state: paused;
+}
+
+/* ---------- "Forest Dash" launcher: top-right, just under the lives HUD ---------- */
+.dash-launch {
+  position: absolute;
+  top: 100%;
+  right: 10px;
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: #10240f;
+  background: linear-gradient(180deg, #7cc36a, #4e9c3c);
+  border: 2px solid #2f5a1f;
+  border-radius: 6px;
+  box-shadow: 0 3px 0 #2f5a1f;
+  cursor: pointer;
+  animation: dash-launch-pop 0.4s ease;
+  z-index: 20;
+}
+
+.dash-launch:hover {
+  background: linear-gradient(180deg, #8ed07c, #5aad46);
+}
+
+.dash-launch:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #2f5a1f;
+}
+
+@keyframes dash-launch-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+}
+
+.dash-stat-card .btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ---------- past-day lock ---------- */
+.day-locked-note {
+  margin: 6px 0 2px;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #f0d89a;
+  background: rgba(210, 177, 103, 0.12);
+  border: 1px solid rgba(210, 177, 103, 0.3);
+  border-radius: 6px;
+}
+
+.task-locked {
+  opacity: 0.55;
+}
+
+.task-locked .box,
+.task-locked .title {
+  cursor: default;
+}
+
+/* ---------- "not saved" banner ---------- */
+.save-error-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(92vw, 460px);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ffe9e9;
+  background: linear-gradient(180deg, #b5352f, #8f221d);
+  border: 1px solid #5c1414;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.save-error-banner button {
+  flex: none;
+  padding: 3px 9px;
+  font: inherit;
+  font-weight: 700;
+  color: #8f221d;
+  background: #ffe9e9;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
 .panda-model {
   display: block;
   width: clamp(58px, 7.6vw, 92px);
@@ -3131,6 +3363,53 @@ h3 {
 .daycard-reset:active {
   transform: translateY(2px);
   box-shadow: 0 1px 0 #5c1414;
+}
+
+/* Icon-only variants of the reset / edit controls -- a reset arrow and a
+   pencil, square buttons instead of text labels. */
+.daycard-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: #ffdede;
+}
+
+.daycard-edit.daycard-iconbtn {
+  width: 22px;
+  height: 22px;
+  margin-top: 6px;
+  color: #21140a;
+}
+
+/* "Edit" sits just left of "Reset run" -- same pinned/sticky row, deliberately
+   smaller and quieter (it's the low-stakes twin of the destructive button). */
+.daycard-edit {
+  position: sticky;
+  top: 6px;
+  z-index: 3;
+  float: right;
+  margin: 4px 2px 2px 6px;
+  padding: 3px 7px;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: #21140a;
+  background: linear-gradient(180deg, #e7c473, #caa155);
+  border: 2px solid #7c5a1f;
+  border-radius: 6px;
+  box-shadow: 0 3px 0 #7c5a1f;
+  cursor: pointer;
+}
+
+.daycard-edit:hover {
+  background: linear-gradient(180deg, #f0d089, #d8ad60);
+}
+
+.daycard-edit:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #7c5a1f;
 }
 
 /* The default browser scrollbar is a grey slab against the forest -- it was
@@ -4266,6 +4545,276 @@ h3 {
 .daycomplete-continue:active {
   transform: translateY(2px);
   box-shadow: 0 2px 0 #6b3d10;
+}
+
+.daycomplete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.daycomplete-play {
+  padding: 11px 20px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #10240f;
+  background: linear-gradient(180deg, #8ed07c, #5aad46);
+  border: 2px solid #2f5a1f;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #2f5a1f;
+  cursor: pointer;
+}
+
+.daycomplete-play:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #2f5a1f;
+}
+
+.daycomplete-play-note {
+  margin: 10px 0 0;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* ============================================================ forest dash */
+
+.panda-runner {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  background: #071009;
+}
+
+.runner-hud {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #f3e6c8;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(210, 177, 103, 0.3);
+}
+
+.runner-hud-best {
+  opacity: 0.7;
+}
+
+.runner-hud .runner-exit {
+  margin-left: auto;
+  padding: 5px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #f3e6c8;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.runner-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+/* The forest environment fills the stage, exactly as in the tracker. The base
+   .forest-scene rule hard-codes height:340px for the card layout -- override it
+   here or the minigame only fills the top ~340px and the rest is dead space. */
+.runner-stage .forest-scene[data-dash] {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/* No bottom nav in the minigame, so the play area runs edge to edge. */
+.runner-stage .forest-path {
+  inset: 0;
+}
+
+/* --- ledges: floating only, no ground. Same moss-on-stone as the tracker
+   platforms, arbitrary widths so the run reads as stairs. --- */
+.runner-platform {
+  position: absolute;
+  height: clamp(11px, 1.7vw, 18px);
+  z-index: 6;
+  will-change: left;
+}
+
+.runner-platform-moss {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 44%;
+  background: linear-gradient(180deg, #6cbb54, #3c7d34);
+  border-radius: 4px 4px 0 0;
+  box-shadow: inset 0 2px 0 rgba(170, 230, 140, 0.55);
+}
+
+.runner-platform-stone {
+  position: absolute;
+  inset: 40% 0 0 0;
+  background:
+    linear-gradient(180deg, #6b5a45, #3a3025),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.12) 0 6px, transparent 6px 13px);
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.45);
+}
+
+.runner-hazard {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 9;
+  will-change: left;
+}
+
+.runner-hazard .zombie-plant {
+  position: static;
+  left: 0 !important;
+  transform: none;
+}
+
+.runner-hazard .plant-sprite {
+  width: clamp(34px, 4.6vw, 54px);
+}
+
+.runner-mine-body {
+  display: block;
+  position: relative;
+  width: clamp(15px, 2.2vw, 24px);
+  height: clamp(10px, 1.5vw, 16px);
+  border-radius: 50% 50% 45% 45%;
+  background: radial-gradient(120% 140% at 40% 30%, #6b7076, #2a2d31 70%);
+  border: 2px solid #14161a;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 2px 2px rgba(255, 255, 255, 0.2);
+}
+
+.runner-mine-body::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 4px;
+  height: 6px;
+  transform: translateX(-50%);
+  background: #c0392b;
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 6px rgba(230, 80, 60, 0.8);
+}
+
+.runner-coin {
+  position: absolute;
+  transform: translate(-50%, 50%);
+  z-index: 8;
+  will-change: left;
+}
+
+.runner-coin-dot {
+  display: block;
+  width: clamp(12px, 1.7vw, 18px);
+  height: clamp(12px, 1.7vw, 18px);
+  border-radius: 50%;
+  background: radial-gradient(120% 120% at 35% 30%, #ffe9a8, #f0c04a 55%, #b9852a);
+  border: 1.5px solid #8a5a17;
+  box-shadow: 0 0 8px rgba(240, 192, 74, 0.55);
+}
+
+/* Panda: lifted clear of the ledge top so it reads as standing ON the ledge
+   with a little air under the sprite, not sunk into it. Snappy vertical follow
+   -- the engine already smooths the motion, a CSS transition just adds lag. */
+.runner-panda {
+  position: absolute;
+  transform: translate(-50%, -22px);
+  z-index: 12;
+  will-change: bottom;
+  transition: none;
+}
+
+.runner-panda[data-air="1"] .panda {
+  transform: rotate(-8deg);
+}
+
+.runner-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(88vw, 380px);
+  padding: 20px;
+  text-align: center;
+  color: #f3e6c8;
+  background: rgba(9, 20, 12, 0.94);
+  border: 2px solid rgba(210, 177, 103, 0.5);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.runner-card p {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.runner-card-title {
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  color: var(--forest-gold, #f0c04a);
+}
+
+.runner-card-note {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.runner-card kbd {
+  padding: 1px 6px;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+
+.runner-card-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.runner-btn {
+  margin-top: 10px;
+  padding: 10px 18px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #10240f;
+  background: linear-gradient(180deg, #8ed07c, #5aad46);
+  border: 2px solid #2f5a1f;
+  border-radius: 9px;
+  box-shadow: 0 3px 0 #2f5a1f;
+  cursor: pointer;
+}
+
+.runner-btn.ghost {
+  color: #f3e6c8;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: none;
+}
+
+.runner-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #2f5a1f;
 }
 
 /* ============================================================ turntable */

@@ -4,6 +4,9 @@ export type User = {
   color: string;
   start_date: string;
   wake_time: string | null;
+  // IANA zone (e.g. "Asia/Kolkata"); null for accounts created before the
+  // timezone column, until the client next syncs the device zone.
+  timezone: string | null;
   has_pin: boolean;
   // Only present on your own record (see GET /api/users?as=).
   share_token?: string;
