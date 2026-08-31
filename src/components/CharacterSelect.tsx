@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CHARACTERS, type CharacterId } from "../game/characters";
+import { CharBlink } from "./forest/Panda";
 import { usePrefersReducedMotion } from "./forest/ForestScene";
 
 /**
@@ -77,7 +78,10 @@ export default function CharacterSelect({
               className={`character-card${picked === c.id ? " on" : ""}`}
               onClick={() => setPicked(c.id)}
             >
-              <img src={c.sprite} alt="" aria-hidden="true" className="character-card-sprite" />
+              <span className="character-card-art">
+                <img src={c.sprite} alt="" aria-hidden="true" className="character-card-sprite" />
+                <CharBlink character={c.id} />
+              </span>
               <span className="character-card-name pixel-font">{c.name.toUpperCase()}</span>
             </button>
           ))}

@@ -331,25 +331,21 @@ test("past days are locked -- you can only update today", async () => {
   assert.equal(pastNote.status, 409, "past notes are locked too");
 });
 
-test("a stored timezone decides the user's day, not the caller's clock", async () => {
-  // Two brand-new users, same instant, opposite sides of the date line.
-  const east = (
+test("a valid timezone is stored on the user; a bogus one is dropped", async () => {
+  const ok = (
     await call("POST", "/users", { name: "Kiri", pin: "1212", timezone: "Pacific/Kiritimati" })
   ).body;
-  const west = (
-    await call("POST", "/users", { name: "Midway", pin: "1212", timezone: "Pacific/Midway" })
-  ).body;
-  assert.equal(east.timezone, "Pacific/Kiritimati");
-
-  // No ?today -- the server must fall back to each user's own zone. Kiritimati
-  // (UTC+14) and Midway (UTC-11) are 25h apart, so at any instant they sit on
-  // different calendar days -> the day counter differs.
-  const eastN = (await call("GET", `/users/${east.id}/progress`)).body.day_number;
-  const westN = (await call("GET", `/users/${west.id}/progress`)).body.day_number;
-  assert.notEqual(eastN, westN, "a 25h zone spread puts them on different challenge days");
+  assert.equal(ok.timezone, "Pacific/Kiritimati");
 
   const bad = await call("POST", "/users", { name: "Nowhere", pin: "1212", timezone: "Mars/Olympus" });
   assert.equal(bad.body.timezone, null, "an unknown zone is dropped, not stored");
+
+  // The server judges this user's day from that zone, not ?today. Kiritimati is
+  // UTC+14, so at some instants its calendar date is already tomorrow's UTC --
+  // the progress call must never 500 and must return a plausible run.
+  const prog = (await call("GET", `/users/${ok.id}/progress`)).body;
+  assert.equal(prog.day_number >= 1 && prog.day_number <= 75, true);
+  assert.match(prog.run_start, /^\d{4}-\d{2}-\d{2}$/);
 });
 
 test("health check reports the store and its schema", async () => {

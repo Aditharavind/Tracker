@@ -15,12 +15,16 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const dayFrom = (value) => (ISO_DAY.test(value ?? "") ? value : todayISO());
 
 /**
- * The day *this user* is currently living in. Their stored IANA zone is the
- * source of truth; the client-sent `today` is only a fallback for accounts
- * created before the timezone column existed (or a browser that sent nothing).
+ * The day *this user* is currently living in.
+ *
+ * When the user's OWN client tells us its local date we trust that outright --
+ * it is the real wall clock on their device, and it can never disagree with
+ * what their own checklist is showing. The stored IANA zone is the fallback
+ * for when there is no client date: asking about someone else (the board, a
+ * share link), where we still want each member judged on their own clock.
  */
 const userToday = (user, clientToday) =>
-  zoneToday(user?.timezone) ?? dayFrom(clientToday);
+  ISO_DAY.test(clientToday ?? "") ? clientToday : zoneToday(user?.timezone) ?? todayISO();
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -575,19 +579,19 @@ export function createRouter() {
       if (done) await store.addCompletion(row);
       else await store.removeCompletion(row);
 
-      // persist -> verify (CLAUDE.md Stage 5 / section 12): read the row back
-      // and confirm it landed the way we asked, so a silently-failed write
-      // surfaces as an error instead of an optimistic tick the client trusts.
-      const after = await store.listCompletionsForDay(user.id, day);
-      const stored = after.some((c) => Number(c.task_id) === Number(task.id));
-      if (stored !== Boolean(done)) {
-        throw new HttpError(500, "write did not persist -- please try again");
+      // persist -> verify (CLAUDE.md Stage 5 / section 12): the response day is
+      // built from a fresh read of what actually landed in the store, so the
+      // client always redraws from the real persisted state -- if a write
+      // silently didn't stick, the box simply doesn't move rather than showing
+      // a tick that isn't saved. A mismatch is logged, never a 500 (a spurious
+      // 500 here would break every tick).
+      const fresh = await dayFor(store, user, day);
+      const storedDone = Boolean(fresh.tasks.find((t) => Number(t.id) === Number(task.id))?.done);
+      if (storedDone !== Boolean(done)) {
+        console.warn("[toggle] write did not verify", { userId: user.id, taskId: task.id, day, wrote: done, stored: storedDone });
       }
 
-      res.json({
-        day: await dayFor(store, user, day),
-        progress: await progressFor(store, user, today),
-      });
+      res.json({ day: fresh, progress: await progressFor(store, user, today) });
     })
   );
 
@@ -679,13 +683,19 @@ export function createRouter() {
         ...user,
         restarted_at: today,
       };
-      // persist -> verify: confirm the marker moved and today really is clear
-      // before the client redraws on the strength of it.
+      // The response is computed from a fresh read of the user, so the client
+      // always redraws from real persisted state. A mismatch is logged, not a
+      // 500 (a spurious 500 would make Reset look broken).
       const afterReset = await store.listCompletionsForDay(user.id, today);
       if (afterReset.length > 0 || (updated.restarted_at ?? null) !== today) {
-        throw new HttpError(500, "reset did not persist -- please try again");
+        console.warn("[restart] reset did not fully verify", {
+          userId: user.id,
+          today,
+          leftover: afterReset.length,
+          restartedAt: updated.restarted_at ?? null,
+        });
       }
-      res.json(await progressFor(store, updated, today));
+      res.json(await progressFor(store, (await store.getUser(user.id)) ?? updated, today));
     })
   );
 

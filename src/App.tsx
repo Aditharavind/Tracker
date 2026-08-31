@@ -7,6 +7,7 @@ import Checklist from "./components/Checklist";
 import Calendar75 from "./components/Calendar75";
 import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
+import DashLeaderboard from "./components/DashLeaderboard";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
@@ -21,6 +22,7 @@ import FailureBanner from "./components/forest/FailureBanner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
+import { isMuted, primeJump, toggleMuted } from "./sound";
 
 const LAST_USER = LAST_USER_KEY;
 const THEME_KEY = "75hard.theme";
@@ -215,6 +217,24 @@ function IconCoin() {
       <ellipse cx="10.3" cy="8.1" rx="1" ry="1.3" fill="#8a5a17" />
       <ellipse cx="8.5" cy="9.6" rx="0.6" ry="0.4" fill="#8a5a17" />
       <circle cx="6" cy="5.4" r="1" fill="#fff8e2" opacity="0.7" />
+    </svg>
+  );
+}
+
+function IconSoundOn() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
+      <path d="M3 6h2.5L9 3v11L5.5 11H3Z" fill="currentColor" />
+      <path d="M11.4 5.6a4 4 0 0 1 0 5.8M13.2 3.6a6.6 6.6 0 0 1 0 9.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconSoundOff() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
+      <path d="M3 6h2.5L9 3v11L5.5 11H3Z" fill="currentColor" />
+      <path d="M11.5 6.5 15 10M15 6.5 11.5 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -467,6 +487,7 @@ export default function App() {
   const [dayCompleteOpen, setDayCompleteOpen] = useState(false);
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [runnerOpen, setRunnerOpen] = useState(false);
+  const [muted, setMuted] = useState(isMuted);
   const [dashBoard, setDashBoard] = useState<
     { name: string; color: string; coins: number; distance: number }[]
   >([]);
@@ -475,6 +496,11 @@ export default function App() {
   // clean write or a successful refetch.
   const [saveError, setSaveError] = useState<string | null>(null);
   const tzSynced = useRef(false);
+  // True while the user is looking at "today" (not a deliberately-opened past
+  // day). When true, a midnight / app-resume rollover moves `day` forward so a
+  // PWA left open across midnight doesn't get stuck showing (and writing to)
+  // yesterday.
+  const followToday = useRef(true);
   const [, forceTick] = useState(0);
   const todayRef = useRef(todayISO());
   const minuteRef = useRef("");
@@ -715,10 +741,14 @@ export default function App() {
     const check = () => {
       const nowDay = todayISO();
       if (nowDay !== todayRef.current) {
-        const prevDay = todayRef.current;
         todayRef.current = nowDay;
-        setDay((d) => (d === prevDay ? nowDay : d));
+        // Follow the rollover unless the user has deliberately opened a past day.
+        setDay((d) => (followToday.current ? nowDay : d));
         if (meId != null) loadBoard(meId);
+      } else if (followToday.current) {
+        // Defensive: even without a detected date change, if we're meant to be
+        // on today and `day` has drifted (stale mount / restored tab), snap it.
+        setDay((d) => (d === nowDay ? d : nowDay));
       }
       const nowMin = new Date().toTimeString().slice(0, 5);
       if (nowMin !== minuteRef.current) {
@@ -728,11 +758,14 @@ export default function App() {
     };
     const id = window.setInterval(check, 1000);
     // Backgrounded tabs get their timers throttled hard (and a sleeping phone
-    // stops them outright), so re-check the instant we're visible again.
+    // stops them outright), so re-check the instant we're visible / focused.
     document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    check();
     return () => {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
     };
   }, [meId, loadBoard]);
 
@@ -769,7 +802,10 @@ export default function App() {
   // timer plays nothing unless the context was already unlocked. Grab the first
   // tap of the session to warm it up.
   useEffect(() => {
-    const on = () => primeAudio();
+    const on = () => {
+      primeAudio();
+      primeJump();
+    };
     window.addEventListener("pointerdown", on, { once: true });
     window.addEventListener("keydown", on, { once: true });
     return () => {
@@ -980,6 +1016,7 @@ export default function App() {
         // server-side, so the checklist / forest must refetch or they keep
         // showing the old run's ticks.
         const [, fresh] = await Promise.all([loadBoard(id), api.day(id, todayISO())]);
+        followToday.current = true;
         setDay(todayISO());
         setDetail(fresh);
         setNote(fresh.note);
@@ -1047,9 +1084,6 @@ export default function App() {
   }
 
   const isToday = day === todayISO();
-  // Forest Dash unlocks once today is fully cleared. Bonus only -- see PandaRunner.
-  const dashUnlocked =
-    isToday && detail != null && detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
   const overallProgressPct = Math.round((bankedDays / 75) * 100);
   // Derived, never stored -- a pure readout of already-persisted task
@@ -1186,14 +1220,27 @@ export default function App() {
               <FailureBanner resets={me.resets} />
             </div>
           </div>
-          {dashUnlocked && (
+          <button
+            type="button"
+            className="mute-toggle"
+            aria-pressed={muted}
+            aria-label={muted ? "Unmute sound" : "Mute sound"}
+            title={muted ? "Sound off — tap to unmute" : "Sound on — tap to mute"}
+            onClick={() => {
+              toggleMuted();
+              setMuted((m) => !m);
+            }}
+          >
+            {muted ? <IconSoundOff /> : <IconSoundOn />}
+          </button>
+          {openPanel === null && !characterPanelOpen && !runnerOpen && (
             <button
               type="button"
               className="dash-launch pixel-font"
               onClick={() => setRunnerOpen(true)}
-              title="Forest Dash — bonus minigame, no effect on your challenge"
+              title="Forest Dash minigame — bonus, no effect on your challenge"
             >
-              ▶ FOREST DASH
+              ▶ MINIGAME
             </button>
           )}
         </header>
@@ -1233,7 +1280,10 @@ export default function App() {
               dayNumber={me.day_number}
               onShift={(delta) => {
                 const next = shiftISO(day, delta);
-                if (next <= todayISO()) setDay(next);
+                if (next <= todayISO()) {
+                  followToday.current = next === todayISO();
+                  setDay(next);
+                }
               }}
               onToggle={toggle}
               onAdd={addTask}
@@ -1288,18 +1338,7 @@ export default function App() {
                   <div className="card-head">
                     <h2>Forest Dash — global</h2>
                   </div>
-                  <ol className="dash-board-list">
-                    {dashBoard.map((p, i) => (
-                      <li key={`${p.name}-${i}`} className={p.name === me.name ? "me" : undefined}>
-                        <span className="rank">{i + 1}</span>
-                        <i className="dot" style={{ background: p.color }} />
-                        <span className="nm">{p.name}</span>
-                        <span className="sc">
-                          {p.coins}🪙 · {p.distance}m
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
+                  <DashLeaderboard rows={dashBoard} meName={me.name} />
                 </div>
               )}
             </div>
@@ -1350,6 +1389,7 @@ export default function App() {
                 <Calendar75
                   cells={me.calendar}
                   onPick={(iso) => {
+                    followToday.current = iso === todayISO();
                     setDay(iso);
                     setOpenPanel(null);
                   }}

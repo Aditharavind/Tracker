@@ -31,6 +31,29 @@ export const CHARACTER_MODEL: Record<CharacterId, string> = {
   redpanda: "/assets/characters/redpanda.glb",
 };
 
+// Fur/face tone immediately around each character's eyes -- used to paint the
+// blink "eyelids" so the same lightweight blink effect reads on all three.
+export const CHARACTER_FUR: Record<CharacterId, string> = {
+  panda: "#f4f0e6",
+  koala: "#9d999a",
+  redpanda: "#f0e3c8",
+};
+
+/**
+ * Where each character's eyes sit, as percentages of the sprite's own box
+ * (measured off the sprite art against a grid). `lx`/`rx` are eye centres,
+ * `y` the eye-centre height, `w`/`h` the lid size. The blink overlay and the
+ * canvas minigame both position the eyelids from this.
+ */
+export const CHARACTER_EYES: Record<
+  CharacterId,
+  { lx: number; rx: number; y: number; w: number; h: number }
+> = {
+  panda: { lx: 40, rx: 57, y: 42, w: 15, h: 17 },
+  koala: { lx: 41, rx: 55, y: 45, w: 11, h: 13 },
+  redpanda: { lx: 40, rx: 58, y: 41, w: 14, h: 16 },
+};
+
 export type CharacterAnim = "Idle" | "Run" | "Hop" | "Dance";
 
 export const DEFAULT_CHARACTER: CharacterId = "panda";
