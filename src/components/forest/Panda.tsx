@@ -1,11 +1,40 @@
-import { useEffect, useRef } from "react";
+import { type CSSProperties, useEffect, useRef } from "react";
 import { useModelViewer } from "../../modelViewer";
 import {
+  CHARACTER_EYES,
+  CHARACTER_FUR,
   CHARACTER_MODEL,
   CHARACTER_SPRITE,
   DEFAULT_CHARACTER,
   type CharacterId,
 } from "../../game/characters";
+
+/**
+ * The eye-blink overlay -- a fur-toned lid over each eye that drops shut for
+ * ~130ms on a loop (with a dark crease so a closed eye reads), then snaps
+ * open. Positioned per character from CHARACTER_EYES. The one "alive" tell
+ * shared everywhere the character is drawn (the canvas minigame has a matching
+ * version). Purely decorative.
+ */
+export function CharBlink({ character }: { character: CharacterId }) {
+  const e = CHARACTER_EYES[character];
+  const lid = (cx: number): CSSProperties => ({
+    left: `${cx - e.w / 2}%`,
+    top: `${e.y - e.h / 2}%`,
+    width: `${e.w}%`,
+    height: `${e.h}%`,
+  });
+  return (
+    <span
+      className="char-blink"
+      aria-hidden="true"
+      style={{ ["--fur" as string]: CHARACTER_FUR[character] }}
+    >
+      <i style={lid(e.lx)} />
+      <i style={lid(e.rx)} />
+    </span>
+  );
+}
 
 export type PandaAnim =
   | "idle"
@@ -122,6 +151,7 @@ export default function Panda({
       ) : (
         <PandaFlat character={character} />
       )}
+      <CharBlink character={character} />
     </div>
   );
 }

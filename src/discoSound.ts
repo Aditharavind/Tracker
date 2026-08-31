@@ -3,6 +3,8 @@
 // called from inside a user-gesture handler (click/tap) or the browser's
 // autoplay policy will silently block them.
 
+import { isMuted } from "./sound";
+
 let ctx: AudioContext | null = null;
 
 const GESTURES = ["pointerdown", "keydown", "touchstart"] as const;
@@ -97,6 +99,7 @@ const SWEEP = 0.4; // seconds per half-cycle of the siren
 const QUEUE = 90; // seconds of sweeps kept scheduled ahead
 
 export function playAlarmSiren(): () => void {
+  if (isMuted()) return () => {}; // sound is off -- the visual overlay still alarms
   let c: AudioContext;
   try {
     c = getCtx();

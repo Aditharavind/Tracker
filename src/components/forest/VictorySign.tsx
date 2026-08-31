@@ -1,9 +1,8 @@
 /**
- * The end-of-run marker. Deliberately the *same* carved signpost art as the
- * START sign (public/assets/start-sign.webp) -- the two ends of the run read
- * as one set piece -- but a wooden "VICTORY" plaque is planted over the sign's
- * face so the baked-in "START" no longer shows. Same pixel font as the rest of
- * the game HUD.
+ * The end-of-run marker: the same carved signpost sprite as the START sign
+ * (public/assets/start-sign.webp), with an opaque wooden "VICTORY" plaque
+ * bolted over its face so the painted-in "START" is hidden. Stands in front of
+ * the bush at the very end of the run, in the game's own pixel font.
  */
 export default function VictorySign({ left, bottom }: { left: number; bottom: number }) {
   return (

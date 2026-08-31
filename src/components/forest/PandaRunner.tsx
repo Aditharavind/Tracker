@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
-import { CHARACTER_SPRITE, type CharacterId } from "../../game/characters";
+import {
+  CHARACTER_EYES,
+  CHARACTER_FUR,
+  CHARACTER_SPRITE,
+  type CharacterId,
+} from "../../game/characters";
+import { playJump } from "../../sound";
+import DashLeaderboard from "../DashLeaderboard";
 import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "../../game/runnerEngine";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
@@ -213,14 +220,14 @@ export default function PandaRunner({
 
     // --- panda ---
     const pImg = imgs.current.panda;
-    // "alive" tell: a gentle idle bob while grounded, plus a quick blink-squash
-    // roughly every 2.6s so the character never looks frozen.
+    // "alive" tell: a gentle idle bob, and the same eye-blink as everywhere
+    // else -- two fur-toned lids flick shut for ~130ms every ~4.4s.
     const tSec = st.t / 1000;
     const bob = st.grounded ? Math.sin(tSec * 5.5) * (H * 0.004) : 0;
-    const bp = (tSec % 2.6) / 2.6;
-    const squash = st.grounded ? (bp < 0.05 ? 0.8 : bp < 0.1 ? 0.92 : 1) : 1;
-    const ph = charH * squash;
-    const pw = (charH * 0.92) / Math.sqrt(squash);
+    const blinkP = (tSec % 4.2) / 4.2;
+    const blinking = blinkP > 0.935 && blinkP < 0.96;
+    const ph = charH;
+    const pw = charH * 0.92;
     const px = (PANDA_X + PANDA_W / 2) * sx - pw / 2;
     // the sprite carries transparent padding below the feet -- drop it so the
     // character stands ON the ledge with only a hair of daylight under it.
@@ -239,13 +246,26 @@ export default function PandaRunner({
       ctx.fillStyle = "#f2f2f2";
       ctx.fillRect(px, py, pw, ph);
     }
+    if (blinking) {
+      // fur-toned lids over the eyes + a dark crease so it reads as "eyes shut"
+      const e = CHARACTER_EYES[character];
+      const ew = pw * (e.w / 100), eh = ph * (e.h / 100);
+      const ey = py + ph * (e.y / 100) - eh / 2;
+      for (const cx of [e.lx, e.rx]) {
+        const ex = px + pw * (cx / 100) - ew / 2;
+        ctx.fillStyle = CHARACTER_FUR[character];
+        ctx.fillRect(ex, ey, ew, eh);
+        ctx.fillStyle = "rgba(0,0,0,0.42)";
+        ctx.fillRect(ex + ew * 0.1, ey + eh * 0.82, ew * 0.8, eh * 0.16);
+      }
+    }
     ctx.restore();
     // shadow
     ctx.fillStyle = "rgba(0,0,0,0.28)";
     ctx.beginPath();
     ctx.ellipse((PANDA_X + PANDA_W / 2) * sx, yPx(st.y), pw * 0.45, H * 0.012, 0, 0, Math.PI * 2);
     ctx.fill();
-  }, []);
+  }, [character]);
 
   const frame = useCallback(
     (ts: number) => {
@@ -328,6 +348,8 @@ export default function PandaRunner({
       jumpRef.current = 1;
       return;
     }
+    // Sound on every press while playing, whether or not it results in a hop.
+    if (!stateRef.current.over) playJump();
     jumpRef.current = Math.min(2, jumpRef.current + 1);
   }, [phase, start]);
 
@@ -419,18 +441,7 @@ export default function PandaRunner({
             {board.length > 0 && (
               <div className="runner-board">
                 <p className="pixel-font runner-board-title">GLOBAL — MOST COINS</p>
-                <ol>
-                  {board.slice(0, 8).map((p, i) => (
-                    <li key={`${p.name}-${i}`}>
-                      <span className="runner-board-rank">{i + 1}</span>
-                      <i className="runner-board-dot" style={{ background: p.color }} />
-                      <span className="runner-board-name">{p.name}</span>
-                      <span className="runner-board-score">
-                        {p.coins}🪙 · {p.distance}m
-                      </span>
-                    </li>
-                  ))}
-                </ol>
+                <DashLeaderboard rows={board} />
               </div>
             )}
           </div>

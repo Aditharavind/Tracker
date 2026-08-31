@@ -13,6 +13,7 @@ import ZombiePlant from "./ZombiePlant";
 import Clouds from "./Clouds";
 import Scenery from "./Scenery";
 import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
+import { playJump } from "../../sound";
 
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
@@ -93,8 +94,11 @@ export default function ForestScene({
   // Ground-level "victory lane": from under the last platform out to an exit
   // past the goal board. The panda drops here after the final hop and runs it.
   const lastPlatform = platforms[platforms.length - 1] ?? start;
-  // The bush sits out past the goal at the very end of the run.
-  const exitPoint: Point = { x: goal.x + 0.24, y: 0 };
+  // The bush sits well past the goal flag -- a clear stretch of open ground
+  // between the last platform and it. After the last task the panda drops off
+  // the final platform and runs that ground to the bush at the right edge of
+  // the screen; then the stage-clear popup appears.
+  const exitPoint: Point = { x: goal.x + 0.34, y: 0 };
   const pathPoints = [start, ...platforms, goal];
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
@@ -158,12 +162,9 @@ export default function ForestScene({
     frozenCamX.current = null;
   } else {
     if (frozenCamX.current == null) {
-      // Hold the last platform near centre; the bush then sits out to the
-      // right, and the panda runs the gap between them into it. Floored so the
-      // bush never scrolls off the right edge.
-      const keepLastPlatformCentred = Math.min(46, 50 - pct(lastPlatform).left);
-      const keepExitOnScreen = Math.min(46, 50 - pct(exitPoint).left + 26);
-      frozenCamX.current = Math.max(keepExitOnScreen, keepLastPlatformCentred);
+      // Park the camera so the bush hugs the right edge of the viewport (~89%)
+      // and holds there while the panda runs the last stretch into it.
+      frozenCamX.current = Math.min(44, 89 - pct(exitPoint).left);
     }
     camX = frozenCamX.current;
   }
@@ -207,11 +208,12 @@ export default function ForestScene({
       setVictoryPhase("run");
       setAnim("running");
     }, 560);
+    // Longer run now -- the bush is a clear stretch of ground past the goal.
     queue(() => {
       setVictoryPhase("done");
       setAnim("celebrating");
       fireCleared();
-    }, 560 + 1550);
+    }, 560 + 2100);
   };
 
   // Initial run-in: idle -> short run -> idle, per CLAUDE.md section 9.
@@ -277,6 +279,7 @@ export default function ForestScene({
 
     if (reducedMotion) {
       setVisualIndex(pandaIndex);
+      playJump();
       if (doneCount === total) {
         startVictory();
       } else {
@@ -294,6 +297,7 @@ export default function ForestScene({
       setAnim("running");
       queue(() => {
         setAnim("jumping");
+        playJump();
         setVisualIndex(from + 1);
       }, HOP_MS * 0.42);
       queue(() => setAnim("landing"), HOP_MS * 0.8);
