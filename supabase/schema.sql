@@ -39,6 +39,9 @@ create table if not exists public.users (
   -- IANA zone (e.g. 'Asia/Kolkata'), auto-detected from the user's device.
   -- Every day-boundary decision for this user is derived from it server-side.
   timezone    text,
+  -- Forest Dash minigame personal bests (global leaderboard). Not challenge state.
+  dash_best_coins int not null default 0,
+  dash_best_dist  int not null default 0,
   share_token text,        -- public read-only progress link
   -- Where this user was last seen, for the /session/suggest convenience only.
   -- Grants nothing: every write still needs the PIN.
@@ -185,3 +188,7 @@ alter table public.day_notes   enable row level security;
 -- Backs the /session/suggest lookup (most recent user from an address).
 create index if not exists users_last_ip_idx
   on public.users (last_ip, last_seen_at desc);
+
+-- Backs the global Forest Dash leaderboard.
+create index if not exists users_dash_coins_idx
+  on public.users (dash_best_coins desc);

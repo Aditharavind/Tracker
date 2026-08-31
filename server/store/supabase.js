@@ -66,12 +66,43 @@ export function createSupabaseStore({ url, key }) {
         const { error } = await db.from("users").select(col, { count: "exact", head: true });
         return error ? error.message : "ok";
       };
-      const [rows, restarted_at, timezone] = await Promise.all([
+      const [rows, restarted_at, timezone, dash] = await Promise.all([
         probe("id"),
         probe("restarted_at"),
         probe("timezone"),
+        probe("dash_best_coins"),
       ]);
-      return { ok: rows === "ok", users: rows, restarted_at, timezone };
+      return { ok: rows === "ok", users: rows, restarted_at, timezone, dash };
+    },
+
+    async submitDashScore(userId, coins, dist) {
+      const cur = unwrap(
+        await db.from("users").select("dash_best_coins, dash_best_dist").eq("id", userId).maybeSingle()
+      );
+      if (!cur) return null;
+      const patch = {
+        dash_best_coins: Math.max(cur.dash_best_coins ?? 0, Math.trunc(coins) || 0),
+        dash_best_dist: Math.max(cur.dash_best_dist ?? 0, Math.trunc(dist) || 0),
+      };
+      return unwrap(await db.from("users").update(patch).eq("id", userId).select().single());
+    },
+
+    async topDashScores(limit) {
+      const rows = unwrap(
+        await db
+          .from("users")
+          .select("name, color, dash_best_coins, dash_best_dist")
+          .gt("dash_best_coins", 0)
+          .order("dash_best_coins", { ascending: false })
+          .order("dash_best_dist", { ascending: false })
+          .limit(limit)
+      );
+      return rows.map((u) => ({
+        name: u.name,
+        color: u.color,
+        coins: u.dash_best_coins ?? 0,
+        distance: u.dash_best_dist ?? 0,
+      }));
     },
 
     async createGroup() {

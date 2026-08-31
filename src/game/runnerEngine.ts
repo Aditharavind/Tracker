@@ -63,6 +63,7 @@ export type RunnerState = {
   y: number; // panda feet, world-y
   vy: number;
   grounded: boolean;
+  jumpsUsed: number; // 0 on the ground, 1 after a hop, 2 after the double-hop
   platforms: Platform[];
   hazards: Hazard[];
   coins: Coin[];
@@ -130,13 +131,23 @@ function addLedge(state: RunnerState) {
 
   // Coins strung along the ACTUAL jump arc from the launch edge to this ledge,
   // so a normal hop sweeps up every one of them.
-  const coins = 2 + Math.floor(state.rng() * 3);
+  const coins = 4 + Math.floor(state.rng() * 4);
   for (let i = 0; i < coins; i++) {
-    const t = ((i + 1) / (coins + 1)) * tLand;
+    const t = ((i + 0.5) / coins) * tLand;
     state.coins.push({
       id: state.ids++,
       x: launchX + s * t,
       y: state.lastY - dy + arcY(t) + PANDA_H * 0.4,
+      taken: false,
+    });
+  }
+  // A few more scattered just above the new ledge -- easy pickings while running.
+  const strewn = Math.floor(state.rng() * 3);
+  for (let i = 0; i < strewn; i++) {
+    state.coins.push({
+      id: state.ids++,
+      x: x + PANDA_W + state.rng() * Math.max(1, w - PANDA_W * 2),
+      y: y + PANDA_H * (0.5 + state.rng() * 0.6),
       taken: false,
     });
   }
@@ -168,6 +179,7 @@ export function createRunner(seed: string): RunnerState {
     y: startY,
     vy: 0,
     grounded: true,
+    jumpsUsed: 0,
     // Long opening sprint before the first gap -- room to get a feel for it.
     platforms: [{ id: 0, x: -10, y: startY, w: 78 }],
     hazards: [],
@@ -194,7 +206,12 @@ const hitsCoin = (state: RunnerState, c: Coin) =>
   state.y + PANDA_H > c.y - COIN_R &&
   state.y < c.y + COIN_R;
 
-export function step(state: RunnerState, dtMs: number, jump: boolean): RunnerState {
+/**
+ * @param jumps number of jump-press edges this frame. One press = a normal hop.
+ *   A second press before landing = a double-hop (a partial re-boost); pressing
+ *   twice with no gap off the ground stacks into one big launch (~2x height).
+ */
+export function step(state: RunnerState, dtMs: number, jumps: number | boolean): RunnerState {
   if (state.over) return state;
 
   const dt = Math.min(MAX_DT, Math.max(0, dtMs / 1000));
@@ -212,9 +229,20 @@ export function step(state: RunnerState, dtMs: number, jump: boolean): RunnerSta
   state.coins = state.coins.filter((c) => c.x > -COIN_R * 2 && !c.taken);
   while (state.edgeX < LANE * 1.7) addLedge(state);
 
-  if (jump && state.grounded) {
-    state.vy = JUMP_V;
-    state.grounded = false;
+  let presses = jumps === true ? 1 : jumps === false ? 0 : Math.max(0, Math.trunc(jumps));
+  while (presses-- > 0) {
+    if (state.grounded) {
+      state.vy = JUMP_V;
+      state.grounded = false;
+      state.jumpsUsed = 1;
+    } else if (state.jumpsUsed < 2) {
+      // Second hop: a full reset when falling, a boost when still rising -- so a
+      // no-gap double tap off the ground stacks to roughly double the height.
+      state.vy = state.vy > 0 ? state.vy + JUMP_V * 0.5 : JUMP_V;
+      state.jumpsUsed = 2;
+    } else {
+      break;
+    }
   }
 
   state.vy -= GRAVITY * dt;
@@ -243,6 +271,7 @@ export function step(state: RunnerState, dtMs: number, jump: boolean): RunnerSta
       state.y = land;
       state.vy = 0;
       state.grounded = true;
+      state.jumpsUsed = 0;
     }
   }
 

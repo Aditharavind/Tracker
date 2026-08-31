@@ -467,7 +467,9 @@ export default function App() {
   const [dayCompleteOpen, setDayCompleteOpen] = useState(false);
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [runnerOpen, setRunnerOpen] = useState(false);
-  const [dashBest, setDashBest] = useState({ dist: 0, coins: 0 });
+  const [dashBoard, setDashBoard] = useState<
+    { name: string; color: string; coins: number; distance: number }[]
+  >([]);
   // Set whenever a write (tick / note / restart) is rejected, so the UI can
   // stop pretending the optimistic change was committed. Cleared by the next
   // clean write or a successful refetch.
@@ -1063,20 +1065,26 @@ export default function App() {
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
     setOpenPanel((cur) => (cur === p ? null : p));
 
-  // Forest Dash best -- local only, refreshed whenever the minigame closes or
-  // the Stats panel opens.
+  // Esc closes whatever drawer / picker is open (the minigame handles its own).
   useEffect(() => {
-    if (runnerOpen || openPanel === "stats") {
-      try {
-        setDashBest({
-          dist: Number(localStorage.getItem(`75hard.dash.best:${meId ?? "guest"}`)) || 0,
-          coins: Number(localStorage.getItem(`75hard.dash.coins:${meId ?? "guest"}`)) || 0,
-        });
-      } catch {
-        /* private mode */
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpenPanel(null);
+      setCharacterPanelOpen(false);
+      setShareUrl(null);
+      setInviteUrl(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Global Forest Dash leaderboard -- pulled when the board opens or the
+  // minigame closes (a fresh score may have landed).
+  useEffect(() => {
+    if (openPanel === "leaderboard" || !runnerOpen) {
+      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
     }
-  }, [runnerOpen, openPanel, meId]);
+  }, [openPanel, runnerOpen]);
 
   return (
     <div className="game-shell" style={{ ["--u" as string]: me.color }}>
@@ -1274,6 +1282,26 @@ export default function App() {
                 </button>
               </div>
               <Rivals board={board} meId={me.user_id} />
+
+              {dashBoard.length > 0 && (
+                <div className="card panel-section dash-board-card">
+                  <div className="card-head">
+                    <h2>Forest Dash — global</h2>
+                  </div>
+                  <ol className="dash-board-list">
+                    {dashBoard.map((p, i) => (
+                      <li key={`${p.name}-${i}`} className={p.name === me.name ? "me" : undefined}>
+                        <span className="rank">{i + 1}</span>
+                        <i className="dot" style={{ background: p.color }} />
+                        <span className="nm">{p.name}</span>
+                        <span className="sc">
+                          {p.coins}🪙 · {p.distance}m
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
           )}
 
@@ -1310,27 +1338,6 @@ export default function App() {
                   <div className="n num">{me.resets}</div>
                   <div className="l">Restarts</div>
                 </div>
-              </div>
-
-              <div className="card panel-section dash-stat-card">
-                <div className="card-head">
-                  <h2>Forest Dash</h2>
-                </div>
-                <p className="muted" style={{ margin: "0 0 10px" }}>
-                  Best {dashBest.dist}m · {dashBest.coins} coins. Bonus minigame — never affects your
-                  challenge.
-                </p>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={!dashUnlocked}
-                  onClick={() => {
-                    setOpenPanel(null);
-                    setRunnerOpen(true);
-                  }}
-                >
-                  {dashUnlocked ? "Play Forest Dash" : "Clear today's tasks to unlock"}
-                </button>
               </div>
 
               <div className="panel-section" style={{ display: "flex", justifyContent: "center" }}>
@@ -1420,13 +1427,16 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head panel-drawer-head-sticky">
                 <h2>Profile</h2>
-                <button
-                  className="panel-close panel-close-red pixel-font"
-                  aria-label="Close"
-                  onClick={() => setOpenPanel(null)}
-                >
-                  ✕
-                </button>
+                <div className="panel-close-stack">
+                  <button
+                    className="panel-close panel-close-red pixel-font"
+                    aria-label="Close profile"
+                    onClick={() => setOpenPanel(null)}
+                  >
+                    ✕
+                  </button>
+                  <span className="panel-close-hint pixel-font">press ESC to exit</span>
+                </div>
               </div>
 
               <div className="card panel-section">

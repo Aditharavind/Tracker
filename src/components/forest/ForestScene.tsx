@@ -93,7 +93,8 @@ export default function ForestScene({
   // Ground-level "victory lane": from under the last platform out to an exit
   // past the goal board. The panda drops here after the final hop and runs it.
   const lastPlatform = platforms[platforms.length - 1] ?? start;
-  const exitPoint: Point = { x: goal.x + 0.16, y: 0 };
+  // The bush sits out past the goal at the very end of the run.
+  const exitPoint: Point = { x: goal.x + 0.24, y: 0 };
   const pathPoints = [start, ...platforms, goal];
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
@@ -146,12 +147,26 @@ export default function ForestScene({
   // Lower bound = don't scroll past the goal (keep it around mid-screen);
   // the level is now wider than one viewport, so this has to track the goal
   // rather than being a fixed number.
-  // During the victory run the panda travels past the goal to the exit, so the
-  // camera has to be allowed to follow that far left.
-  const camAnchor = victoryPhase === "none" ? pct(goal).left : pct(exitPoint).left;
-  const minCam = Math.min(46, 50 - camAnchor);
-  const camTrack = victoryPhase === "none" ? pandaPoint : displayPoint;
-  let camX = Math.max(minCam, Math.min(46, 50 - pct(camTrack).left));
+  // The follow-cam holds the panda near mid-screen while it climbs. Once the
+  // day is cleared and the victory run begins the camera FREEZES -- so the
+  // character visibly runs across the screen to the bush at the far right edge
+  // and vanishes into it, rather than the world sliding to keep it centred.
+  const minCam = Math.min(46, 50 - pct(goal).left);
+  let camX = Math.max(minCam, Math.min(46, 50 - pct(pandaPoint).left));
+  const frozenCamX = useRef<number | null>(null);
+  if (victoryPhase === "none") {
+    frozenCamX.current = null;
+  } else {
+    if (frozenCamX.current == null) {
+      // Hold the last platform near centre; the bush then sits out to the
+      // right, and the panda runs the gap between them into it. Floored so the
+      // bush never scrolls off the right edge.
+      const keepLastPlatformCentred = Math.min(46, 50 - pct(lastPlatform).left);
+      const keepExitOnScreen = Math.min(46, 50 - pct(exitPoint).left + 26);
+      frozenCamX.current = Math.max(keepExitOnScreen, keepLastPlatformCentred);
+    }
+    camX = frozenCamX.current;
+  }
   // Early in the level the character sits near the far-left edge, right where
   // the Day card overlays. Push the pan further so the START sign + character
   // always clear the card's right edge (skill §21 "let task cards cover the
@@ -426,19 +441,16 @@ export default function ForestScene({
           <Panda anim={anim} character={character} />
         </div>
 
-        {/* Exit set piece at the very end of the lane. The reference forest art
-            is the backdrop board; the VICTORY signpost (same sprite as START)
-            stands in front. The character runs BEHIND this (lower z-index on
-            the anchor above vs. this block) and fades out. */}
+        {/* Exit set piece at the very end of the lane: a big bush the character
+            runs into and vanishes behind (this block sits ABOVE the panda
+            anchor's z-index), with the VICTORY signpost beside it. */}
         {reachedGoal && (
           <div
             className={`victory-exit victory-exit-${victoryPhase}`}
             aria-hidden="true"
             style={{ left: `${pct(exitPoint).left}%`, bottom: `${pct(exitPoint).bottom}%` }}
           >
-            <div className="victory-exit-board">
-              <img src="/assets/forest-background.webp" alt="" />
-            </div>
+            <img className="victory-bush" src="/assets/bush.webp" alt="" />
             <VictorySign left={0} bottom={0} />
           </div>
         )}

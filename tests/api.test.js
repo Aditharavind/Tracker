@@ -341,10 +341,12 @@ test("a stored timezone decides the user's day, not the caller's clock", async (
   ).body;
   assert.equal(east.timezone, "Pacific/Kiritimati");
 
-  // No ?today -- the server must fall back to each user's own zone.
-  const eastDay = (await call("GET", `/users/${east.id}/progress`)).body.run_start;
-  const westDay = (await call("GET", `/users/${west.id}/progress`)).body.run_start;
-  assert.notEqual(eastDay, westDay, "a ~24h zone spread lands them on different days");
+  // No ?today -- the server must fall back to each user's own zone. Kiritimati
+  // (UTC+14) and Midway (UTC-11) are 25h apart, so at any instant they sit on
+  // different calendar days -> the day counter differs.
+  const eastN = (await call("GET", `/users/${east.id}/progress`)).body.day_number;
+  const westN = (await call("GET", `/users/${west.id}/progress`)).body.day_number;
+  assert.notEqual(eastN, westN, "a 25h zone spread puts them on different challenge days");
 
   const bad = await call("POST", "/users", { name: "Nowhere", pin: "1212", timezone: "Mars/Olympus" });
   assert.equal(bad.body.timezone, null, "an unknown zone is dropped, not stored");
@@ -355,6 +357,24 @@ test("health check reports the store and its schema", async () => {
   assert.equal(status, 200);
   assert.equal(body.store, "memory");
   assert.equal(body.ok, true);
+});
+
+test("Forest Dash keeps a global best and ranks players by coins", async () => {
+  const empty = await call("GET", "/dash/leaderboard");
+  assert.equal(empty.status, 200);
+  assert.equal(Array.isArray(empty.body), true);
+
+  await call("POST", `/users/${adith.id}/dash`, { coins: 12, distance: 300 });
+  await call("POST", `/users/${rahul.id}/dash`, { coins: 40, distance: 120 });
+  // a worse run must not lower the stored best
+  const worse = await call("POST", `/users/${adith.id}/dash`, { coins: 3, distance: 50 });
+  assert.equal(worse.body.coins, 12, "best coins are kept, not overwritten by a worse run");
+
+  const { body: board } = await call("GET", "/dash/leaderboard");
+  const names = board.map((r) => r.name);
+  assert.equal(names[0], "Rahul", "most coins ranks first");
+  assert.equal(names.includes("Adith"), true);
+  assert.equal("id" in board[0], false, "no ids leak onto the public board");
 });
 
 test("missing things 404 rather than 500", async () => {

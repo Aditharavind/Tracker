@@ -109,4 +109,26 @@ describe("runnerEngine (floating platformer)", () => {
     expect(jumpPeak()).toBeLessThan(20);
     expect(LANE).toBeGreaterThan(0);
   });
+
+  it("a no-gap double press launches roughly twice as high as a single hop", () => {
+    const single = createRunner("s");
+    step(single, 16, 1);
+    let peakSingle = single.y;
+    for (let i = 0; i < 120 && !single.grounded; i++) {
+      step(single, 16, 0);
+      peakSingle = Math.max(peakSingle, single.y);
+    }
+
+    const dbl = createRunner("s");
+    step(dbl, 16, 2); // two presses, same frame
+    let peakDbl = dbl.y;
+    for (let i = 0; i < 200 && !dbl.grounded; i++) {
+      step(dbl, 16, 0);
+      peakDbl = Math.max(peakDbl, dbl.y);
+    }
+
+    const riseSingle = peakSingle - createRunner("s").y;
+    const riseDbl = peakDbl - createRunner("s").y;
+    expect(riseDbl).toBeGreaterThan(riseSingle * 1.7);
+  });
 });
