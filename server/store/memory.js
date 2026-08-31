@@ -23,7 +23,41 @@ export function createMemoryStore() {
     kind: "memory",
 
     async health() {
-      return { ok: true, users: "ok", restarted_at: "ok", timezone: "ok", rows: users.length };
+      return {
+        ok: true,
+        users: "ok",
+        restarted_at: "ok",
+        timezone: "ok",
+        dash: "ok",
+        rows: users.length,
+      };
+    },
+
+    /** Raise a user's Forest Dash bests; never lowers them. */
+    async submitDashScore(userId, coins, dist) {
+      const user = users.find((u) => u.id === Number(userId));
+      if (!user) return null;
+      user.dash_best_coins = Math.max(user.dash_best_coins ?? 0, Math.trunc(coins) || 0);
+      user.dash_best_dist = Math.max(user.dash_best_dist ?? 0, Math.trunc(dist) || 0);
+      return clone(user);
+    },
+
+    /** Global Forest Dash leaderboard -- top players by coins, then distance. */
+    async topDashScores(limit) {
+      return users
+        .filter((u) => (u.dash_best_coins ?? 0) > 0)
+        .sort(
+          (a, b) =>
+            (b.dash_best_coins ?? 0) - (a.dash_best_coins ?? 0) ||
+            (b.dash_best_dist ?? 0) - (a.dash_best_dist ?? 0)
+        )
+        .slice(0, limit)
+        .map((u) => ({
+          name: u.name,
+          color: u.color,
+          coins: u.dash_best_coins ?? 0,
+          distance: u.dash_best_dist ?? 0,
+        }));
     },
 
     async createGroup() {
@@ -103,6 +137,8 @@ export function createMemoryStore() {
         pin_hash: pin_hash ?? null,
         wake_time: wake_time ?? null,
         timezone: timezone ?? null,
+        dash_best_coins: 0,
+        dash_best_dist: 0,
         group_id: group_id ?? null,
         share_token: share_token ?? null,
         created_at: new Date().toISOString(),

@@ -1,10 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "../../api";
 import { CHARACTER_SPRITE, type CharacterId } from "../../game/characters";
 import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "../../game/runnerEngine";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
 const Y_BASE = 0.1;
 const Y_SCALE = 0.017;
+
+/** The golden panda-imprint coin from Coin.tsx, drawn on canvas. */
+function drawCoin(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#f0c04a";
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, r * 0.16);
+  ctx.strokeStyle = "#8a5a17";
+  ctx.stroke();
+  ctx.fillStyle = "#8a5a17";
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.36, cy - r * 0.18, r * 0.2, 0, Math.PI * 2);
+  ctx.arc(cx + r * 0.36, cy - r * 0.18, r * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fff3c9";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + r * 0.12, r * 0.46, r * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#8a5a17";
+  ctx.beginPath();
+  ctx.ellipse(cx - r * 0.18, cy + r * 0.02, r * 0.12, r * 0.16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + r * 0.18, cy + r * 0.02, r * 0.12, r * 0.16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + r * 0.34, r * 0.1, r * 0.07, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
 
 /**
  * Forest Dash -- optional endless platformer, unlocked once the day is cleared.
@@ -36,7 +67,7 @@ export default function PandaRunner({
   const stateRef = useRef<RunnerState>(createRunner(String(key)));
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
-  const jumpRef = useRef(false);
+  const jumpRef = useRef(0); // press edges queued since the last frame
   const runningRef = useRef(false);
   const imgs = useRef<{ bg?: HTMLImageElement; panda?: HTMLImageElement; plant?: HTMLImageElement; mine?: HTMLImageElement }>({});
   const bgShift = useRef(0);
@@ -44,6 +75,22 @@ export default function PandaRunner({
   const [phase, setPhase] = useState<"ready" | "running" | "over">("ready");
   const [result, setResult] = useState({ dist: 0, coins: 0 });
   const [best, setBest] = useState({ dist: 0, coins: 0 });
+  const [board, setBoard] = useState<{ name: string; color: string; coins: number; distance: number }[]>(
+    []
+  );
+
+  const loadBoard = useCallback(() => {
+    api
+      .dashLeaderboard()
+      .then(setBoard)
+      .catch(() => {
+        /* leaderboard is a nicety -- ignore if the server can't serve it */
+      });
+  }, []);
+
+  useEffect(() => {
+    loadBoard();
+  }, [loadBoard]);
 
   useEffect(() => {
     try {
@@ -116,32 +163,22 @@ export default function PandaRunner({
       const x = p.x * sx;
       const w = p.w * sx;
       const top = yPx(p.y);
-      const h = Math.max(10, H * 0.03);
-      ctx.fillStyle = "#6cbb54";
-      ctx.fillRect(x, top, w, h * 0.45);
+      const h = Math.max(16, H * 0.05);
       ctx.fillStyle = "#4a3b2c";
-      ctx.fillRect(x, top + h * 0.4, w, h * 0.6);
-      ctx.fillStyle = "rgba(0,0,0,0.28)";
-      ctx.fillRect(x, top + h, w, H * 0.012);
+      ctx.fillRect(x, top + h * 0.34, w, h * 0.66);
+      ctx.fillStyle = "#6cbb54";
+      ctx.fillRect(x, top, w, h * 0.4);
+      ctx.fillStyle = "rgba(120,190,110,0.5)";
+      ctx.fillRect(x, top, w, 3);
+      ctx.fillStyle = "rgba(0,0,0,0.32)";
+      ctx.fillRect(x, top + h, w, H * 0.016);
     }
 
-    // --- coins ---
+    // --- coins: the panda-imprint gold coin, matching Coin.tsx ---
+    const coinR = Math.max(6, H * 0.017);
     for (const c of st.coins) {
       if (c.taken) continue;
-      const cx = c.x * sx;
-      const cy = yPx(c.y);
-      const r = Math.max(5, H * 0.014);
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = "#f0c04a";
-      ctx.fill();
-      ctx.lineWidth = Math.max(1, r * 0.28);
-      ctx.strokeStyle = "#8a5a17";
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(cx - r * 0.3, cy - r * 0.3, r * 0.32, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff3c9";
-      ctx.fill();
+      drawCoin(ctx, c.x * sx, yPx(c.y), coinR);
     }
 
     // --- hazards: sized to about the character, sitting flush on the ledge ---
@@ -183,9 +220,11 @@ export default function PandaRunner({
     const bp = (tSec % 2.6) / 2.6;
     const squash = st.grounded ? (bp < 0.05 ? 0.8 : bp < 0.1 ? 0.92 : 1) : 1;
     const ph = charH * squash;
-    const pw = (charH * 0.9) / Math.sqrt(squash);
+    const pw = (charH * 0.92) / Math.sqrt(squash);
     const px = (PANDA_X + PANDA_W / 2) * sx - pw / 2;
-    const feet = yPx(st.y) + bob;
+    // the sprite carries transparent padding below the feet -- drop it so the
+    // character stands ON the ledge with only a hair of daylight under it.
+    const feet = yPx(st.y) + bob + ph * 0.08;
     const py = feet - ph;
     ctx.save();
     if (!st.grounded) {
@@ -217,22 +256,32 @@ export default function PandaRunner({
 
       if (runningRef.current && !st.over) {
         const jumped = jumpRef.current;
-        jumpRef.current = false;
+        jumpRef.current = 0;
         step(st, dt, jumped);
         bgShift.current += (st.speed * dt) / 1000;
         if (distRef.current) distRef.current.textContent = `${metres(st)}`;
         if (coinRef.current) coinRef.current.textContent = `${st.coinsTaken}`;
         if (st.over) {
           runningRef.current = false;
-          setResult({ dist: metres(st), coins: st.coinsTaken });
+          const d = metres(st);
+          const c = st.coinsTaken;
+          setResult({ dist: d, coins: c });
           setPhase("over");
-          commitBest(metres(st), st.coinsTaken);
+          commitBest(d, c);
+          if (userId != null && (c > 0 || d > 0)) {
+            api
+              .submitDash(userId, c, d)
+              .then(loadBoard)
+              .catch(() => {
+                /* offline / not migrated -- local best still stands */
+              });
+          }
         }
       }
       draw();
       rafRef.current = requestAnimationFrame(frame);
     },
-    [draw, commitBest]
+    [draw, commitBest, userId, loadBoard]
   );
 
   useEffect(() => {
@@ -276,10 +325,10 @@ export default function PandaRunner({
   const onJumpInput = useCallback(() => {
     if (phase === "ready" || phase === "over") {
       start();
-      jumpRef.current = true;
+      jumpRef.current = 1;
       return;
     }
-    jumpRef.current = true;
+    jumpRef.current = Math.min(2, jumpRef.current + 1);
   }, [phase, start]);
 
   useEffect(() => {
@@ -291,7 +340,7 @@ export default function PandaRunner({
       }
       if (e.key === "ArrowUp" || e.key === " " || e.key === "Spacebar" || e.key === "w") {
         e.preventDefault();
-        onJumpInput();
+        if (!e.repeat) onJumpInput();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -336,7 +385,8 @@ export default function PandaRunner({
             <p className="pixel-font runner-card-title">FOREST DASH</p>
             <p>
               Floating ledges, no ground. <kbd>↑</kbd> / <kbd>Space</kbd> / tap to hop every gap — and
-              the plants and mines on the ledges. Grab coins. Miss once and you start over.
+              the plants and mines on the ledges. <b>Double-tap</b> for a big jump. Grab coins. Miss
+              once and you start over.
             </p>
             <p className="runner-card-note">Optional bonus — nothing here affects your challenge.</p>
             <button type="button" className="pixel-font runner-btn" onClick={onJumpInput} autoFocus>
@@ -365,6 +415,24 @@ export default function PandaRunner({
                 EXIT
               </button>
             </div>
+
+            {board.length > 0 && (
+              <div className="runner-board">
+                <p className="pixel-font runner-board-title">GLOBAL — MOST COINS</p>
+                <ol>
+                  {board.slice(0, 8).map((p, i) => (
+                    <li key={`${p.name}-${i}`}>
+                      <span className="runner-board-rank">{i + 1}</span>
+                      <i className="runner-board-dot" style={{ background: p.color }} />
+                      <span className="runner-board-name">{p.name}</span>
+                      <span className="runner-board-score">
+                        {p.coins}🪙 · {p.distance}m
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
         )}
       </div>

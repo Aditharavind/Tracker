@@ -146,6 +146,15 @@ export const api = {
     }),
 
   health: () => req<{ store: string; ok: boolean; checks: Record<string, unknown> }>("/health"),
+
+  submitDash: (userId: number, coins: number, distance: number) =>
+    req<{ coins: number; distance: number }>(`/users/${userId}/dash`, {
+      method: "POST",
+      body: JSON.stringify({ coins, distance }),
+    }),
+
+  dashLeaderboard: () =>
+    req<{ name: string; color: string; coins: number; distance: number }[]>("/dash/leaderboard"),
 };
 
 export const shiftISO = (iso: string, days: number) => {

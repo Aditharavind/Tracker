@@ -2742,32 +2742,28 @@ h3 {
   animation: victory-exit-in 0.5s ease 0.2s forwards;
 }
 
-.victory-exit-board {
-  width: clamp(120px, 17vw, 220px);
-  aspect-ratio: 3 / 2;
-  padding: 5px;
-  background: linear-gradient(180deg, #7a5220, #4c3315);
-  border: 3px solid #3a2810;
-  border-radius: 6px;
-  box-shadow:
-    inset 0 2px 0 rgba(255, 224, 160, 0.25),
-    0 6px 16px rgba(0, 0, 0, 0.55);
+/* The bush the character disappears into at the end of the run. */
+.victory-bush {
+  display: block;
+  width: clamp(150px, 22vw, 300px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+  animation: victory-bush-in 0.5s ease 0.15s both;
 }
 
-.victory-exit-board img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 3px;
-  image-rendering: pixelated;
+@keyframes victory-bush-in {
+  from {
+    transform: translateY(14px) scale(0.9);
+    opacity: 0;
+  }
 }
 
 .victory-sign {
   position: absolute;
   bottom: 0;
-  left: 50%;
-  transform: translate(-50%, 18%);
+  left: 0;
+  transform: translate(-118%, 12%);
 }
 
 .victory-sign-sprite {
@@ -2854,6 +2850,67 @@ h3 {
 .dash-stat-card .btn:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.panel-close-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.panel-close-hint {
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: var(--forest-cream, #f3e6c8);
+  opacity: 0.55;
+  white-space: nowrap;
+}
+
+.dash-board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dash-board-list li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 0;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dash-board-list li.me {
+  color: var(--forest-gold, #f0c04a);
+  font-weight: 700;
+}
+
+.dash-board-list .rank {
+  width: 18px;
+  text-align: right;
+  opacity: 0.55;
+}
+
+.dash-board-list .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dash-board-list .nm {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-board-list .sc {
+  flex: none;
+  opacity: 0.8;
+  font-size: 12px;
 }
 
 /* ---------- past-day lock ---------- */
@@ -4656,6 +4713,62 @@ h3 {
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
+}
+
+.runner-board {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(210, 177, 103, 0.28);
+  text-align: left;
+}
+
+.runner-board-title {
+  margin: 0 0 6px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--forest-gold, #f0c04a);
+}
+
+.runner-board ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.runner-board li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.runner-board-rank {
+  width: 16px;
+  text-align: right;
+  opacity: 0.6;
+}
+
+.runner-board-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.runner-board-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runner-board-score {
+  flex: none;
+  opacity: 0.8;
+  font-size: 11px;
 }
 
 .runner-card {

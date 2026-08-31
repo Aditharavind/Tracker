@@ -724,6 +724,46 @@ export function createRouter() {
     })
   );
 
+  // ---- Forest Dash minigame: a global leaderboard by coins collected. The
+  // minigame never touches challenge state; these are just vanity bests. Only
+  // name + colour + score are exposed (the same fields an invite preview
+  // already shows), never ids or tokens.
+  r.post(
+    "/users/:id/dash",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const user = await loadUser(store, req.params.id);
+      requirePin(user, req.body?.pin);
+      const coins = Math.max(0, Math.min(100000, Math.trunc(Number(req.body?.coins)) || 0));
+      const distance = Math.max(0, Math.min(1000000, Math.trunc(Number(req.body?.distance)) || 0));
+      try {
+        const updated = await store.submitDashScore(user.id, coins, distance);
+        res.json({
+          coins: updated?.dash_best_coins ?? coins,
+          distance: updated?.dash_best_dist ?? distance,
+        });
+      } catch (err) {
+        if (!/dash_best/.test(err?.message ?? "")) throw err;
+        res.json({ coins, distance }); // columns not migrated yet -- accept, don't store
+      }
+    })
+  );
+
+  r.get(
+    "/dash/leaderboard",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const limit = Math.max(1, Math.min(50, Number(req.query.limit) || 15));
+      res.set("Cache-Control", "public, max-age=15, s-maxage=15");
+      try {
+        res.json(await store.topDashScores(limit));
+      } catch (err) {
+        if (!/dash_best/.test(err?.message ?? "")) throw err;
+        res.json([]);
+      }
+    })
+  );
+
   // The client auto-detects the device's IANA zone and pushes it here whenever
   // it differs from what's stored -- first run after the migration, or the user
   // travelling. Every day-boundary decision for this user is then made from it.
