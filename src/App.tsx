@@ -1045,6 +1045,51 @@ export default function App() {
     setOpenPanel(null);
   };
 
+  /**
+   * These two MUST stay above the early returns below.
+   *
+   * React counts hooks per render, so an effect declared after a `return` is
+   * skipped entirely while any gate is on screen (loading skeleton, onboarding,
+   * character gate) and then appears the moment the shell renders. That is
+   * "rendered more hooks than during the previous render" -- React error #310,
+   * which takes down the whole app and leaves a black screen.
+   *
+   * It only bit on a boot with no usable snapshot to paint from. With a
+   * same-day snapshot the very first render already falls through to the shell,
+   * so the hook count never changes and nothing goes wrong. Without one the
+   * first render is a skeleton and the second is the shell -- and readSnapshot
+   * rejects any snapshot from another day, so this fired on the FIRST LOAD OF
+   * EACH NEW DAY (and on cleared storage, or a new device). That is what made
+   * it look intermittent when it was really quite predictable.
+   */
+  // Esc closes whatever drawer / picker is open (the minigame handles its own).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpenPanel(null);
+      setCharacterPanelOpen(false);
+      setShareUrl(null);
+      setInviteUrl(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Whether the game shell itself is what renders below, rather than one of the
+  // gates. Only used to keep the leaderboard fetch on its original schedule now
+  // that the effect runs from the first render instead of the first full one.
+  const shellVisible =
+    users !== null && users.length > 0 && !!me && !!detail && !!myCharacter;
+
+  // Global Forest Dash leaderboard -- pulled when the board opens or the
+  // minigame closes (a fresh score may have landed).
+  useEffect(() => {
+    if (!shellVisible) return;
+    if (openPanel === "leaderboard" || !runnerOpen) {
+      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
+    }
+  }, [openPanel, runnerOpen, shellVisible]);
+
   if (users === null) return <Skeleton />;
 
   if (users.length === 0) {
@@ -1098,27 +1143,6 @@ export default function App() {
 
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
     setOpenPanel((cur) => (cur === p ? null : p));
-
-  // Esc closes whatever drawer / picker is open (the minigame handles its own).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpenPanel(null);
-      setCharacterPanelOpen(false);
-      setShareUrl(null);
-      setInviteUrl(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // Global Forest Dash leaderboard -- pulled when the board opens or the
-  // minigame closes (a fresh score may have landed).
-  useEffect(() => {
-    if (openPanel === "leaderboard" || !runnerOpen) {
-      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
-    }
-  }, [openPanel, runnerOpen]);
 
   return (
     <div className="game-shell" style={{ ["--u" as string]: me.color }}>
