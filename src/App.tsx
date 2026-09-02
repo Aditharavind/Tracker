@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, deviceTimezone, shiftISO, todayISO } from "./api";
+import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
+import * as outbox from "./outbox";
 import type { DayDetail, Progress, TaskItem, User } from "./types";
 import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
@@ -700,6 +701,51 @@ export default function App() {
       .catch((e) => setSaveError(e instanceof Error ? e.message : "Could not load this day"));
   }, [meId, day]);
 
+  /**
+   * Flush any tick that was shown to the user but never confirmed -- see
+   * outbox.ts. Runs once the user is known, and again every time the device
+   * comes back online, which is the moment that actually matters: the tap that
+   * went missing was almost always made with no usable connection.
+   */
+  useEffect(() => {
+    if (meId == null) return;
+    let alive = true;
+
+    const flush = async () => {
+      const flushed = await outbox.replay(
+        (e) => api.toggle(e.userId, e.taskId, e.day, e.done),
+        {
+          today: todayISO(),
+          // Never race a write this session is already making -- the live
+          // request carries a newer intent than anything parked here.
+          skip: (e) =>
+            e.userId !== meId ||
+            pendingToggles.current.has(e.taskId) ||
+            queuedToggles.current.has(e.taskId),
+          isPermanentFailure,
+        }
+      );
+      // Only repaint if something actually landed, and only when no write of
+      // our own is in flight -- an in-flight toggle's own response is the
+      // authority on its task, and clobbering it here is the exact race the
+      // optimistic-value handling in sendToggle exists to prevent.
+      if (!alive || flushed === 0 || pendingToggles.current.size > 0) return;
+      const [freshDay, freshBoard] = await Promise.all([api.day(meId, day), api.board(meId)]);
+      if (!alive || pendingToggles.current.size > 0) return;
+      setDetail(freshDay);
+      setBoard(freshBoard);
+    };
+
+    void flush().catch(() => {
+      /* still offline, or the day moved on -- the next online event retries */
+    });
+    window.addEventListener("online", flush);
+    return () => {
+      alive = false;
+      window.removeEventListener("online", flush);
+    };
+  }, [meId, day]);
+
   // Keep the server's idea of this user's timezone in step with the device.
   // Runs once per session when they differ -- a fresh account created before
   // the timezone column, or the user having travelled. The server derives every
@@ -876,6 +922,11 @@ export default function App() {
     if (meId == null) return;
     pendingToggles.current.add(taskId);
 
+    // Park the intent BEFORE the request, so a write that never lands (tab
+    // closed mid-flight, phone off the network) is replayed on the next launch
+    // instead of vanishing. Cleared the moment the server confirms it.
+    outbox.remember({ userId: meId, taskId, day, done: next, ts: Date.now() });
+
     const wasPerfect = latestMe.current?.perfect_today ?? false;
     const curTasks = latestDetail.current?.tasks ?? [];
     const wasFullClear = curTasks.length > 0 && curTasks.every((x) => x.done);
@@ -915,6 +966,8 @@ export default function App() {
         });
         setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
         setSaveError(null);
+        // Confirmed by the server -- nothing left to replay for this task.
+        outbox.forget({ userId: meId, taskId, day });
 
         const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
         const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
@@ -926,15 +979,25 @@ export default function App() {
         }
       })
       .catch((e) => {
-        // Undo only this task, and only if the user has not since asked for
-        // something else -- a queued intent is newer than this failure, so
-        // reverting to the pre-request value would fight the person tapping.
-        if (!queuedToggles.current.has(t.id)) {
-          setDetail((cur) =>
-            cur
-              ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
-              : cur
-          );
+        // A refusal (4xx) is final -- the server will say the same thing next
+        // time, so drop the parked intent and put the box back to what the
+        // server believes. A delivery failure is not final: the intent stays in
+        // the outbox and the optimistic tick STANDS, because it is going to be
+        // replayed on the next launch or the next online event. Reverting it
+        // there would show the user a false "didn't save" for a write that
+        // does, in fact, still save.
+        if (isPermanentFailure(e)) {
+          outbox.forget({ userId: meId, taskId, day });
+          // Undo only this task, and only if the user has not since asked for
+          // something else -- a queued intent is newer than this failure, so
+          // reverting to the pre-request value would fight the person tapping.
+          if (!queuedToggles.current.has(t.id)) {
+            setDetail((cur) =>
+              cur
+                ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
+                : cur
+            );
+          }
         }
         const msg = e instanceof Error ? e.message : "Could not update task";
         flash(msg);
