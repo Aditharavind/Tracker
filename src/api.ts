@@ -1,5 +1,25 @@
 import type { DayDetail, InvitePreview, Progress, TaskItem, User } from "./types";
 
+/**
+ * A request that reached the server and came back refused, as opposed to one
+ * that never arrived. The outbox needs to tell those apart: a 4xx will be
+ * refused identically forever and must be dropped, while a dropped connection
+ * is worth retrying. `message` is left exactly as before -- runWithPin matches
+ * /pin/i on it.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+/** True for a refusal the server will repeat, so retrying is pointless. */
+export const isPermanentFailure = (err: unknown): boolean =>
+  err instanceof ApiError && err.status >= 400 && err.status < 500;
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -14,7 +34,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* non-JSON error body */
     }
-    throw new Error(message);
+    throw new ApiError(res.status, message);
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
@@ -104,6 +124,11 @@ export const api = {
     req<{ day: DayDetail; progress: Progress }>(`/users/${userId}/toggle`, {
       method: "POST",
       body: JSON.stringify({ task_id: taskId, day, done, pin, today: todayISO() }),
+      // Ticking a box and immediately closing / backgrounding the tab used to
+      // lose the write: browsers abort in-flight fetches when the document is
+      // dismissed. keepalive lets this one outlive the page. The body is a
+      // hundred-odd bytes, far inside the 64KB budget the spec allows.
+      keepalive: true,
     }),
 
   saveNote: (userId: number, day: string, text: string, pin?: string) =>
