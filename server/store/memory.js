@@ -90,6 +90,11 @@ export function createMemoryStore() {
       return users.filter((u) => u.group_id === Number(groupId)).length;
     },
 
+    /** Everyone signed up, across every board -- see the Supabase version. */
+    async countAllUsers() {
+      return users.length;
+    },
+
     async getUserByShareToken(token) {
       return clone(users.find((u) => u.share_token === token));
     },

@@ -486,3 +486,34 @@ test("session/suggest offers the last user seen from this address, and nothing w
   assert.equal(hit.name, "Suggest Me");
   assert.ok(!("pin_hash" in hit) && !("share_token" in hit), "it is a hint, not a credential");
 });
+
+test("GET /stats counts signups across every board, not just the caller's", async () => {
+  // The sign-in screen has no board of its own -- a browser with no saved user
+  // belongs to no group -- so /users would always answer 0 there. /stats is the
+  // global count, and it must see users from boards the caller cannot read.
+  const before = (await call("GET", "/stats")).body.users;
+  assert.ok(before >= 3, "the users created above are counted");
+
+  // stranger sits in a different group; adith cannot see them via /users...
+  const visible = (await call("GET", `/users?as=${adith.id}`)).body;
+  assert.ok(
+    !visible.some((u) => u.id === stranger.id),
+    "group isolation still holds for the credentialed listing"
+  );
+
+  // ...but the global counter still includes them.
+  const made = await call("POST", "/users", { name: "Counted", pin: "9182" });
+  assert.equal(made.status, 201);
+  assert.equal((await call("GET", "/stats")).body.users, before + 1);
+});
+
+test("GET /stats leaks nothing but the number", async () => {
+  const res = await call("GET", "/stats");
+  assert.equal(res.status, 200, "public: no user id or PIN required");
+  assert.deepEqual(
+    Object.keys(res.body),
+    ["users"],
+    "no names, ids, colours or tokens -- it must not be an enumeration route"
+  );
+  assert.equal(typeof res.body.users, "number");
+});
