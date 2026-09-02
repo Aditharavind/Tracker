@@ -140,6 +140,22 @@ export function createSupabaseStore({ url, key }) {
       return count ?? 0;
     },
 
+    /**
+     * Everyone who has ever signed up, across every board. Powers the count on
+     * the sign-in screen, which has no board of its own to count -- a browser
+     * with no saved user belongs to no group yet.
+     *
+     * A head+count query, so the rows never leave the database; only the number
+     * does. That matters because the endpoint serving it is public.
+     */
+    async countAllUsers() {
+      const { count, error } = await db
+        .from("users")
+        .select("id", { count: "exact", head: true });
+      if (error) throw Object.assign(new Error(error.message), { supabase: error });
+      return count ?? 0;
+    },
+
     async getUserByShareToken(token) {
       return unwrap(
         await db.from("users").select("*").eq("share_token", token).maybeSingle()

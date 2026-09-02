@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ThemePicker, { type ThemeId } from "./ThemePicker";
 import { Sprite, type AvatarId } from "./Runner";
+import { api } from "../api";
 
 const COLORS = ["#e8734a", "#4a9ee8", "#5cbd7e", "#b76ae8", "#e8c14a"];
 const AVATARS: AvatarId[] = ["guy", "girl", "panda"];
@@ -34,6 +35,27 @@ export default function Onboard({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [mode, setMode] = useState<"new" | "back">("new");
+
+  /**
+   * How many people have signed up overall. `existing` only ever holds the
+   * caller's own board, which is empty for anyone who has not signed in yet --
+   * so the count has to come from the server. Null until it lands, and it stays
+   * null if the request fails: a sign-in screen must still work offline, so
+   * this is decoration that is simply absent rather than an error.
+   */
+  const [signups, setSignups] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api
+      .stats()
+      .then((s) => alive && setSignups(s.users))
+      .catch(() => {
+        /* offline or the endpoint is down -- just don't show a count */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const pinValid = /^\d{4,6}$/.test(pin);
 
@@ -80,6 +102,12 @@ export default function Onboard({
         </div>
         <h1 className="brand-rock">OnTrack</h1>
         <p className="pixel-font onboard-tagline">75 DAY HARD CHALLENGE</p>
+        {signups !== null && signups > 0 && (
+          <p className="pixel-font onboard-count">
+            <span className="onboard-count-n">{signups}</span>
+            {signups === 1 ? " CHALLENGER" : " CHALLENGERS"}
+          </p>
+        )}
         <p>
           {existing.length === 0
             ? "No excuses, no compromises. Who's in?"

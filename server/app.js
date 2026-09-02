@@ -326,6 +326,27 @@ export function createRouter() {
   );
 
   /**
+   * How many people have signed up, across every board. Shown on the sign-in
+   * screen, which cannot use GET /users: that is scoped to the caller's own
+   * group, and a browser with no saved user belongs to no group yet, so it
+   * would always read zero.
+   *
+   * Public and uncredentialed by necessity -- nobody is signed in when it is
+   * asked. It answers with a single integer and nothing else: no names, ids,
+   * colours or tokens, so it cannot be used to enumerate anyone. Edge-cached
+   * for a minute, since a signup counter does not need to be to-the-second and
+   * this is the one endpoint every visitor hits before doing anything.
+   */
+  r.get(
+    "/stats",
+    wrap(async (_req, res) => {
+      const store = getStore();
+      res.set("Cache-Control", "public, max-age=60, s-maxage=60");
+      res.json({ users: await store.countAllUsers() });
+    })
+  );
+
+  /**
    * Convenience only, never auth: if this address was last seen as a specific
    * user, a browser with no saved local user (cleared storage, new device) gets
    * pre-selected instead of dropped on the onboarding screen. Editing still

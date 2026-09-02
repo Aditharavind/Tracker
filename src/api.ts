@@ -66,6 +66,12 @@ export const deviceTimezone = (): string | null => {
 export const api = {
   users: (asUserId?: number) => req<User[]>(`/users${asUserId != null ? `?as=${asUserId}` : ""}`),
 
+  /**
+   * How many people have signed up overall. Used by the sign-in screen, which
+   * has no board of its own to count. Public -- nobody is signed in yet.
+   */
+  stats: () => req<{ users: number }>("/stats"),
+
   // Convenience only, not auth: if this IP was last seen as a specific
   // user, lets a browser with no saved local user (cleared storage, new
   // device) get pre-selected instead of dropped on the onboarding screen.
