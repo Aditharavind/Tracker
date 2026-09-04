@@ -173,13 +173,21 @@ test("a board read is capped, and reports how much it left out", async () => {
   server.close();
 });
 
-test("a 500 does not leak database detail to the caller", async () => {
+test("a 500 does not leak database detail to the caller", async (t) => {
   const broken = createMemoryStore();
-  broken.listUsersInGroup = async () => {
+  // /board now reads the members and their total in one call -- see
+  // listUsersInGroupPaged. Stub both names so this keeps exercising the error
+  // path rather than silently passing through a working store.
+  broken.listUsersInGroupPaged = async () => {
     throw new Error('relation "public.users" does not exist');
   };
+  broken.listUsersInGroup = broken.listUsersInGroupPaged;
   setStore(broken);
   const server = createApp().listen(0);
+  // Closed via t.after rather than at the end of the body: a failing assertion
+  // would otherwise skip the close, leave the port listening, and hang the
+  // whole run instead of reporting the failure.
+  t.after(() => server.close());
   await new Promise((r) => server.once("listening", r));
   const base = `http://127.0.0.1:${server.address().port}/api`;
 
@@ -190,7 +198,6 @@ test("a 500 does not leak database detail to the caller", async () => {
   const res = await fetch(`${base}/board?as=${user.id}`);
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: "server error" });
-  server.close();
 });
 
 /**
@@ -222,6 +229,184 @@ test("a runaway client is throttled, and told when to come back", async (t) => {
 
   const blocked = await fetch(`${base}/session/suggest`);
   assert.ok(Number(blocked.headers.get("retry-after")) > 0, "and says how long to wait");
+});
+
+test("last_seen_at is not rewritten on every single board load", async (t) => {
+  // Regression: touchSession wrote one UPDATE per /users call, i.e. per page
+  // load per visitor, on the read path. It now writes only when the row is
+  // genuinely stale or the address changed.
+  const store = createMemoryStore();
+  let writes = 0;
+  const realUpdate = store.updateUser.bind(store);
+  store.updateUser = async (id, patch) => {
+    if ("last_seen_at" in patch) writes += 1;
+    return realUpdate(id, patch);
+  };
+  setStore(store);
+  const base = await appOn(t);
+
+  const user = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Toucher", pin: "1234" }),
+    })
+  ).json();
+
+  writes = 0;
+  for (let i = 0; i < 6; i++) await fetch(`${base}/users?as=${user.id}`);
+  assert.equal(writes, 1, "first load records the session, the rest ride on it");
+
+  // A different address is the signal /session/suggest actually reads, so that
+  // must still be written through immediately.
+  await fetch(`${base}/users?as=${user.id}`, { headers: { "x-forwarded-for": "203.0.113.9" } });
+  assert.equal(writes, 2, "a change of address is written straight away");
+});
+
+test("a second board read within the cache window skips the store entirely", async (t) => {
+  const inner = createMemoryStore();
+  const { proxy, calls } = counting(inner);
+  setStore(proxy);
+  const base = await appOn(t);
+
+  const user = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Cached", pin: "1234" }),
+    })
+  ).json();
+
+  const url = `${base}/board?today=${todayISO()}&as=${user.id}`;
+  const first = await (await fetch(url)).json();
+  assert.ok(calls.listUsersInGroupPaged >= 1, "the first read has to hit the store");
+
+  const before = {
+    listUsersInGroupPaged: calls.listUsersInGroupPaged,
+    listTasksForUsers: calls.listTasksForUsers,
+    listCompletionsForUsers: calls.listCompletionsForUsers,
+  };
+  const second = await (await fetch(url)).json();
+  // getUser still runs -- callerGroup has to identify who is asking whether or
+  // not the answer comes from cache. It is the three board-computation calls
+  // the cache exists to remove, and only those are asserted here.
+  assert.deepEqual(
+    {
+      listUsersInGroupPaged: calls.listUsersInGroupPaged,
+      listTasksForUsers: calls.listTasksForUsers,
+      listCompletionsForUsers: calls.listCompletionsForUsers,
+    },
+    before,
+    "the second identical read recomputes nothing"
+  );
+  assert.deepEqual(second, first, "and returns exactly what the first one computed");
+});
+
+test("ticking a task busts the board cache for that group immediately", async (t) => {
+  const inner = createMemoryStore();
+  const { proxy, calls } = counting(inner);
+  setStore(proxy);
+  const base = await appOn(t);
+
+  const user = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Ticker", pin: "1234" }),
+    })
+  ).json();
+  const tasks = await (await fetch(`${base}/users/${user.id}/tasks`)).json();
+  const task = tasks[0];
+  const today = todayISO();
+  const boardUrl = `${base}/board?today=${today}&as=${user.id}`;
+
+  const before = await (await fetch(boardUrl)).json();
+  assert.equal(before[0].completed_today, 0, "nothing ticked yet");
+
+  await fetch(`${base}/users/${user.id}/toggle`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task_id: task.id, day: today, done: true, today }),
+  });
+
+  const listCallsAfterToggle = calls.listUsersInGroupPaged;
+  const after = await (await fetch(boardUrl)).json();
+  assert.equal(after[0].completed_today, 1, "the tick shows up on the very next board read");
+  assert.ok(
+    calls.listUsersInGroupPaged > listCallsAfterToggle,
+    "because the toggle invalidated the cache rather than leaving a stale hit"
+  );
+});
+
+test("a write to one group never invalidates another group's cached board", async (t) => {
+  const inner = createMemoryStore();
+  const { proxy, calls } = counting(inner);
+  setStore(proxy);
+  const base = await appOn(t);
+
+  const make = async (name) =>
+    (
+      await fetch(`${base}/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, pin: "1234" }),
+      })
+    ).json();
+
+  const a = await make("GroupA");
+  const b = await make("GroupB"); // POST /users with no invited_by -- its own fresh group
+  const today = todayISO();
+  const boardA = `${base}/board?today=${today}&as=${a.id}`;
+  const boardB = `${base}/board?today=${today}&as=${b.id}`;
+
+  await fetch(boardA);
+  await fetch(boardB);
+
+  const tasksB = await (await fetch(`${base}/users/${b.id}/tasks`)).json();
+  await fetch(`${base}/users/${b.id}/toggle`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task_id: tasksB[0].id, day: today, done: true, today }),
+  });
+
+  const beforeA = calls.listUsersInGroupPaged;
+  await fetch(boardA);
+  assert.equal(
+    calls.listUsersInGroupPaged,
+    beforeA,
+    "A's board is untouched by a write that happened entirely in B's group"
+  );
+});
+
+test("writes get a tighter budget than reads", async (t) => {
+  // Writes are unauthenticated (requirePin is a no-op), hit the database
+  // harder and leave rows behind, so they are rationed separately -- a read
+  // ceiling generous enough for a whole office behind one NAT address would be
+  // far too loose to apply to writes.
+  process.env.RATE_LIMIT_PER_MIN = "50";
+  process.env.RATE_LIMIT_WRITES_PER_MIN = "2";
+  t.after(() => {
+    delete process.env.RATE_LIMIT_PER_MIN;
+    delete process.env.RATE_LIMIT_WRITES_PER_MIN;
+  });
+  setStore(createMemoryStore());
+  const base = await appOn(t);
+
+  const writes = [];
+  for (let i = 0; i < 4; i++) {
+    const r = await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `W${i}`, pin: "1234" }),
+    });
+    writes.push(r.status);
+  }
+  assert.ok(writes[0] < 429 && writes[1] < 429, "the first writes go through");
+  assert.deepEqual(writes.slice(2), [429, 429], "past the write ceiling they are refused");
+
+  // ...and the read budget is untouched by that, since it is counted apart.
+  const read = await fetch(`${base}/session/suggest`);
+  assert.equal(read.status, 200, "reads keep their own, larger budget");
 });
 
 test("each instance starts with a clean rate budget", async (t) => {

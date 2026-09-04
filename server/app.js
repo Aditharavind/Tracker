@@ -5,6 +5,8 @@ import { neglectedTasks } from "./insights.js";
 import { hashSecret, newShareToken, verifySecret } from "./security.js";
 import { getStore } from "./store/index.js";
 import { isValidZone, zoneToday } from "./time.js";
+import { createRateLimit } from "./ratelimit.js";
+import { bumpGroupVersion, cacheGet, cacheSet, groupVersion } from "./cache.js";
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
@@ -63,56 +65,6 @@ function setPageHeaders(res, { limit, offset }, total) {
   res.set("X-Page-Limit", String(limit));
   res.set("X-Page-Offset", String(offset));
   if (offset + limit < total) res.set("X-Has-More", "1");
-}
-
-const RATE_WINDOW_MS = 60_000;
-/**
- * 10 req/s sustained. Set high on purpose: mobile carriers and offices put
- * thousands of people behind one address, so a tight per-IP limit would lock
- * out real users long before it inconvenienced anyone. This is sized to catch
- * a runaway loop, not to apportion capacity.
- */
-const rateMax = () => Number(process.env.RATE_LIMIT_PER_MIN) || 600;
-
-/**
- * Coarse per-IP backstop, and honest about being only that: serverless
- * instances share no memory, so the fleet-wide ceiling is this times however
- * many instances are warm. It exists because writes are unauthenticated (see
- * requirePin) and one client in a retry loop should not be able to sit on the
- * database. For a real guarantee put rate limiting at the edge, where it sees
- * every request and can key on more than an address.
- *
- * The counter lives per app instance rather than per module so that each
- * createApp() -- one per cold start in production, one per test here -- starts
- * clean, instead of tests bleeding budget into each other.
- */
-function createRateLimit() {
-  const hits = new Map();
-  // Read per instance rather than at import, so a deployment can retune it
-  // without a rebuild -- and so tests can set a small ceiling.
-  const max = rateMax();
-
-  return function rateLimit(req, res, next) {
-    const now = Date.now();
-    const ip = clientIp(req);
-    const entry = hits.get(ip);
-
-    if (!entry || now >= entry.reset) {
-      hits.set(ip, { count: 1, reset: now + RATE_WINDOW_MS });
-    } else if (entry.count >= max) {
-      res.set("Retry-After", String(Math.ceil((entry.reset - now) / 1000)));
-      return res.status(429).json({ error: "too many requests -- slow down" });
-    } else {
-      entry.count += 1;
-    }
-
-    // Sweep on write rather than on a timer: an interval would hold a
-    // serverless instance open, and an unbounded Map is the leak this guards.
-    if (hits.size > 10_000) {
-      for (const [key, value] of hits) if (now >= value.reset) hits.delete(key);
-    }
-    next();
-  };
 }
 
 async function loadUser(store, id) {
@@ -176,11 +128,35 @@ function clientIp(req) {
   return req.socket?.remoteAddress ?? "unknown";
 }
 
-/** Records where a user was last seen, so a cleared browser can be offered them. */
+/**
+ * How stale last_seen_at may get before it is worth a write. Ten minutes is
+ * far finer than /session/suggest needs -- it only asks "who was last here from
+ * this address" -- and coarse enough to take essentially all of the writes out.
+ */
+const SESSION_TOUCH_MS = 10 * 60_000;
+
+/**
+ * Records where a user was last seen, so a cleared browser can be offered them.
+ *
+ * This used to write on EVERY /users call, which is one UPDATE per page load
+ * per visitor, on the hot path. That is the most expensive thing the read path
+ * did: each update leaves a dead tuple behind for vacuum, and at any real scale
+ * it is a continuous write load bought for a convenience feature.
+ *
+ * It now writes only when the row is actually out of date -- either the address
+ * changed (which is the whole signal /session/suggest reads) or the timestamp
+ * has gone stale. The user row is already in hand from callerGroup, so deciding
+ * this costs no extra query.
+ */
 async function touchSession(store, user, req) {
+  const ip = clientIp(req);
+  const seen = user.last_seen_at ? Date.parse(user.last_seen_at) : NaN;
+  const fresh = Number.isFinite(seen) && Date.now() - seen < SESSION_TOUCH_MS;
+  if (fresh && user.last_ip === ip) return;
+
   try {
     await store.updateUser(user.id, {
-      last_ip: clientIp(req),
+      last_ip: ip,
       last_seen_at: new Date().toISOString(),
     });
   } catch {
@@ -258,7 +234,15 @@ async function syncWakeTask(store, user, wakeTime, repsTarget) {
   const tasks = await store.listTasks(user.id);
   const locked = tasks.find((t) => t.locked);
 
-  if (wakeTime == null) return; // keeping the task is harmless; it stays ticked-off work
+  // Turning the alarm off has to retire the reps task with it. Leaving it was
+  // not "harmless" as the old comment claimed: the task is locked, so DELETE
+  // /tasks/:id refuses it with a 409, and it still counts toward a full clear.
+  // Switching the alarm off therefore left an undeletable chore in the daily
+  // list that made every day impossible to finish.
+  if (wakeTime == null) {
+    if (locked) await store.archiveTask(locked.id);
+    return;
+  }
 
   if (locked) {
     await store.updateTask(locked.id, {
@@ -316,13 +300,34 @@ export function createRouter() {
       if (!me) return res.json([]);
       await touchSession(store, me, req);
       const page = pageParams(req.query);
-      const [users, group, total] = await Promise.all([
-        store.listUsersInGroup(me.group_id, page),
+      // rows + total arrive together; see listUsersInGroupPaged.
+      const [{ rows: users, total }, group] = await Promise.all([
+        store.listUsersInGroupPaged(me.group_id, page),
         store.getGroup(me.group_id),
-        store.countUsersInGroup(me.group_id),
       ]);
       setPageHeaders(res, page, total);
       res.json(users.map((u) => userOut(u, u.id === me.id, group)));
+    })
+  );
+
+  /**
+   * How many people have signed up, across every board. Shown on the sign-in
+   * screen, which cannot use GET /users: that is scoped to the caller's own
+   * group, and a browser with no saved user belongs to no group yet, so it
+   * would always read zero.
+   *
+   * Public and uncredentialed by necessity -- nobody is signed in when it is
+   * asked. It answers with a single integer and nothing else: no names, ids,
+   * colours or tokens, so it cannot be used to enumerate anyone. Edge-cached
+   * for a minute, since a signup counter does not need to be to-the-second and
+   * this is the one endpoint every visitor hits before doing anything.
+   */
+  r.get(
+    "/stats",
+    wrap(async (_req, res) => {
+      const store = getStore();
+      res.set("Cache-Control", "public, max-age=60, s-maxage=60");
+      res.json({ users: await store.countAllUsers() });
     })
   );
 
@@ -353,10 +358,7 @@ export function createRouter() {
       // This endpoint is public and uncredentialed, so it must not become a way
       // to enumerate an entire board.
       const page = { limit: 12, offset: 0 };
-      const [members, total] = await Promise.all([
-        store.listUsersInGroup(group.id, page),
-        store.countUsersInGroup(group.id),
-      ]);
+      const { rows: members, total } = await store.listUsersInGroupPaged(group.id, page);
       res.set("Cache-Control", "public, max-age=30, s-maxage=30");
       res.json({
         members: members.map((u) => ({ name: u.name, color: u.color })),
@@ -408,6 +410,7 @@ export function createRouter() {
       });
 
       if (wakeTime !== null) await syncWakeTask(store, user, wakeTime, repsTarget);
+      bumpGroupVersion(group.id);
       res.status(201).json(userOut(user, true, group));
     })
   );
@@ -459,6 +462,9 @@ export function createRouter() {
       });
 
       if (wakeTime !== null) await syncWakeTask(store, user, wakeTime, repsTarget);
+      // Only matters when this joined an existing group (invitedBy != null) --
+      // a brand-new group has nothing cached yet, so the bump is a no-op there.
+      bumpGroupVersion(groupId);
       res.status(201).json(userOut(user, true, await store.getGroup(groupId)));
     })
   );
@@ -505,12 +511,29 @@ export function createRouter() {
       if (!me) return res.json([]);
       const today = dayFrom(req.query.today);
       const page = pageParams(req.query);
-      const [users, total] = await Promise.all([
-        store.listUsersInGroup(me.group_id, page),
-        store.countUsersInGroup(me.group_id),
-      ]);
+
+      // Board reads can't use HTTP/edge caching the way /dash/leaderboard
+      // does -- the response is scoped to `as` and can reveal the caller's own
+      // tokens, so it must never be shared across viewers. This is a private,
+      // per-instance cache instead: same effect (skip the database on a
+      // repeat read) without the risk of serving one viewer's tokens to
+      // another. See cache.js for why per-instance is the right shape here.
+      const cacheKey = `board:${me.group_id}:${await groupVersion(me.group_id)}:${today}:${page.limit}:${page.offset}`;
+      const cached = await cacheGet(cacheKey);
+      if (cached) {
+        setPageHeaders(res, page, cached.total);
+        return res.json(cached.body);
+      }
+
+      const { rows: users, total } = await store.listUsersInGroupPaged(me.group_id, page);
       setPageHeaders(res, page, total);
-      res.json(await boardFor(store, users, today));
+      const body = await boardFor(store, users, today);
+      // A few seconds is plenty to absorb a burst, and short enough that
+      // nobody could notice the staleness -- bumpGroupVersion clears it
+      // immediately on any write anyway, so this window only ever matters for
+      // truly concurrent reads.
+      cacheSet(cacheKey, { body, total }, 5000);
+      res.json(body);
     })
   );
 
@@ -597,6 +620,7 @@ export function createRouter() {
       const row = { user_id: user.id, task_id: task.id, day };
       if (done) await store.addCompletion(row);
       else await store.removeCompletion(row);
+      bumpGroupVersion(user.group_id);
 
       // persist -> verify (CLAUDE.md Stage 5 / section 12): the response day is
       // built from a fresh read of what actually landed in the store, so the
@@ -654,15 +678,19 @@ export function createRouter() {
       const existing = await store.listTasks(user.id);
       const top = existing.reduce((max, t) => Math.max(max, t.sort), 0);
 
-      res.status(201).json(
-        await store.createTask({
-          user_id: user.id,
-          title,
-          emoji: String(req.body?.emoji || "*"),
-          is_core: Boolean(req.body?.is_core),
-          sort: top + 1,
-        })
-      );
+      const created = await store.createTask({
+        user_id: user.id,
+        title,
+        emoji: String(req.body?.emoji || "*"),
+        is_core: Boolean(req.body?.is_core),
+        sort: top + 1,
+      });
+      // A new core task changes what "perfect day" means for this user, which
+      // the board reads -- a bonus/non-core one doesn't, but bumping either
+      // way costs nothing and keeps this from silently drifting if that ever
+      // changes.
+      bumpGroupVersion(user.group_id);
+      res.status(201).json(created);
     })
   );
 
@@ -681,6 +709,7 @@ export function createRouter() {
         throw new HttpError(409, "this one's the bare minimum -- can't be removed");
       }
       await store.archiveTask(task.id);
+      bumpGroupVersion(user.group_id);
       res.status(204).end();
     })
   );
@@ -714,6 +743,7 @@ export function createRouter() {
           restartedAt: updated.restarted_at ?? null,
         });
       }
+      bumpGroupVersion(user.group_id);
       res.json(await progressFor(store, (await store.getUser(user.id)) ?? updated, today));
     })
   );
@@ -747,6 +777,7 @@ export function createRouter() {
 
       const updated = await store.updateUser(user.id, { wake_time: wakeTime });
       await syncWakeTask(store, user, wakeTime, repsTarget);
+      bumpGroupVersion(user.group_id);
       res.json(
         userOut(updated ?? { ...user, wake_time: wakeTime }, true, await store.getGroup(user.group_id))
       );
@@ -825,7 +856,7 @@ export function createApp() {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "64kb" }));
-  app.use(createRateLimit());
+  app.use(createRateLimit(clientIp));
 
   // Everything here is either personal or mutable, so nothing may sit in a
   // shared cache by default. The two public read-only endpoints opt back in

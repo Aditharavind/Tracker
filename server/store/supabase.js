@@ -11,22 +11,49 @@ import { PostgrestClient } from "@supabase/postgrest-js";
 import { newShareToken } from "../security.js";
 
 const PAGE = 1000; // PostgREST's default cap -- it truncates silently past this
+const BATCH = 4; // pages fetched concurrently once we know there is more than one
 
 /**
- * Reads every row of a query, a page at a time.
+ * Reads every row of a query.
  *
- * Without this, a user with more than 1000 completions gets a silently
- * truncated history and their streak, XP and trophies all come out wrong.
- * That happens after ~125 days of use with the seven core tasks, sooner if
- * they add bonus habits, because we deliberately keep lifetime history.
+ * Two things matter here beyond "get all the rows".
+ *
+ * Ordering. Range pagination without an ORDER BY is not stable: Postgres may
+ * return rows in a different order for each page, so anyone past the first page
+ * can get one completion twice and miss another -- which silently corrupts the
+ * streak, XP and trophies derived from them. Every caller must therefore build
+ * a query with a deterministic .order().
+ *
+ * Concurrency. Pages used to be fetched strictly one after another. Against a
+ * database ~300ms away that is ~300ms per thousand rows, so a member with a
+ * long history -- or a board totalling several of them -- spent most of the
+ * request waiting on round trips that have no reason to be ordered. They now
+ * go out in batches.
+ *
+ * Without this a user past 1000 completions gets a silently truncated history
+ * and their streak, XP and trophies all come out wrong. That happens after
+ * ~125 days with the seven core tasks, sooner with bonus habits, because we
+ * deliberately keep lifetime history.
  */
 async function readAll(build) {
-  const out = [];
-  for (let from = 0; ; from += PAGE) {
+  const page = async (from) => {
     const { data, error } = await build().range(from, from + PAGE - 1);
     if (error) throw Object.assign(new Error(error.message), { supabase: error });
-    out.push(...data);
-    if (data.length < PAGE) return out;
+    return data ?? [];
+  };
+
+  const first = await page(0);
+  if (first.length < PAGE) return first;
+
+  const out = first;
+  for (let from = PAGE; ; from += BATCH * PAGE) {
+    const pages = await Promise.all(
+      Array.from({ length: BATCH }, (_, i) => page(from + i * PAGE))
+    );
+    for (const p of pages) out.push(...p);
+    // A short page is the end of the data. With a stable order every page
+    // after it is empty too, so nothing is left behind.
+    if (pages.some((p) => p.length < PAGE)) return out;
   }
 }
 
@@ -131,11 +158,43 @@ export function createSupabaseStore({ url, key }) {
       return unwrap(await q);
     },
 
+    /**
+     * Members of a board plus the total, in ONE request.
+     *
+     * /board and /users both need the page and the count, and asking for them
+     * separately was a second round trip to the same table with the same
+     * filter. PostgREST returns the count in the Content-Range header of the
+     * very query that fetches the rows, so it costs nothing extra.
+     */
+    async listUsersInGroupPaged(groupId, page) {
+      let q = db.from("users").select("*", { count: "exact" }).eq("group_id", groupId).order("id");
+      if (page) q = q.range(page.offset, page.offset + page.limit - 1);
+      const { data, count, error } = await q;
+      if (error) throw Object.assign(new Error(error.message), { supabase: error });
+      return { rows: data ?? [], total: count ?? (data?.length ?? 0) };
+    },
+
     async countUsersInGroup(groupId) {
       const { count, error } = await db
         .from("users")
         .select("id", { count: "exact", head: true })
         .eq("group_id", groupId);
+      if (error) throw Object.assign(new Error(error.message), { supabase: error });
+      return count ?? 0;
+    },
+
+    /**
+     * Everyone who has ever signed up, across every board. Powers the count on
+     * the sign-in screen, which has no board of its own to count -- a browser
+     * with no saved user belongs to no group yet.
+     *
+     * A head+count query, so the rows never leave the database; only the number
+     * does. That matters because the endpoint serving it is public.
+     */
+    async countAllUsers() {
+      const { count, error } = await db
+        .from("users")
+        .select("id", { count: "exact", head: true });
       if (error) throw Object.assign(new Error(error.message), { supabase: error });
       return count ?? 0;
     },
@@ -242,7 +301,10 @@ export function createSupabaseStore({ url, key }) {
     },
 
     async listCompletions(userId) {
-      return readAll(() => db.from("completions").select("task_id, day").eq("user_id", userId));
+      return readAll(() =>
+        // .order() is required by readAll -- see the note there on stable pagination.
+        db.from("completions").select("task_id, day").eq("user_id", userId).order("day").order("task_id")
+      );
     },
 
     /**
@@ -262,7 +324,13 @@ export function createSupabaseStore({ url, key }) {
     async listCompletionsForUsers(userIds) {
       if (!userIds.length) return [];
       return readAll(() =>
-        db.from("completions").select("user_id, task_id, day").in("user_id", userIds)
+        db
+          .from("completions")
+          .select("user_id, task_id, day")
+          .in("user_id", userIds)
+          .order("user_id")
+          .order("day")
+          .order("task_id")
       );
     },
 

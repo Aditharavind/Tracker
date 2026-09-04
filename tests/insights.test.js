@@ -53,12 +53,14 @@ test("a brand-new task never flags, even with zero completions", () => {
 });
 
 test("a miss from before a manual restart does not count", () => {
+  // Never completed in 60 days of account history, but restarted 6 days ago --
+  // the miss-streak must stop at the restart, not run back through the whole
+  // pre-restart history (which would wrongly read as a much longer streak).
   const t = task(1, { created_at: ago(60) });
-  const restarted = { ...user, restarted_at: ago(3) };
-  // never completed at all, but the run only started 3 days ago
+  const restarted = { ...user, restarted_at: ago(6) };
   const out = neglectedTasks({ user: restarted, tasks: [t], completions: [] }, TODAY);
   assert.equal(out.length, 1);
-  assert.equal(out[0].missStreak, 3, "only counts days since the restart, not the whole history");
+  assert.equal(out[0].missStreak, 6, "stops at the restart floor, not the 60-day account history");
 });
 
 test("a low completion rate flags even with a short current streak", () => {
