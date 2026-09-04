@@ -1,4 +1,4 @@
-import type { DayDetail, InvitePreview, Progress, TaskItem, User } from "./types";
+import type { DayDetail, InvitePreview, NeglectedTask, Progress, TaskItem, User } from "./types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -99,6 +99,9 @@ export const api = {
     }),
 
   day: (userId: number, day: string) => req<DayDetail>(`/users/${userId}/day/${day}`),
+
+  insights: (userId: number) =>
+    req<{ neglected: NeglectedTask[] }>(`/users/${userId}/insights?today=${todayISO()}`),
 
   toggle: (userId: number, taskId: number, day: string, done: boolean, pin?: string) =>
     req<{ day: DayDetail; progress: Progress }>(`/users/${userId}/toggle`, {
