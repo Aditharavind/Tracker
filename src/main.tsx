@@ -26,14 +26,19 @@ registerSW({ immediate: true });
 //
 //     total blocking time   205ms -> 17ms     (how long taps go unanswered)
 //     transferred in 7s     604KB -> 409KB
-//     time to game shell   1227ms -> 1231ms   (unchanged, within noise)
 //
-// index.html still carries <link rel="modulepreload"> for the chunk (see
-// preloadModelViewer in vite.config.ts) so the bytes are fetched and compiled
-// early and only the *execution* waits for idle. Do not downgrade that to
-// rel="prefetch": prefetch and the module import use different caches, so it
-// downloads the whole megabyte twice (measured: 897KB and blocking back up to
-// 167ms).
+// The idle start now also does the FETCHING. index.html used to carry a
+// <link rel="modulepreload"> for this chunk, on the theory that pulling the
+// bytes early and only deferring execution was free. On a phone it is not: the
+// preload is high priority, so a megabyte competed with the app bundle for a
+// narrow pipe and index.js took 1065ms to arrive instead of ~370ms. The
+// measurement that cleared the preload had been reading the loading skeleton,
+// which paints before any of this matters, so the cost never showed up.
+//
+// Do NOT reinstate it as rel="prefetch": prefetch and the module import use
+// different caches, so the whole megabyte downloads twice (measured: 897KB,
+// blocking back up to 167ms). The service worker precaches this chunk, so
+// every load after the first gets it for nothing anyway.
 //
 // loadModelViewer() memoises its promise, so this is the same import Panda
 // awaits, not a second fetch. The catch only stops a failed fetch becoming an

@@ -91,6 +91,30 @@ const readSnapshot = (): Snapshot | null => {
   }
 };
 
+/**
+ * Who this device last signed in as, read synchronously at boot.
+ *
+ * The bootstrap effect below already reads this key to decide which board to
+ * ask for, but `meId` itself was only ever seeded from the snapshot -- so on
+ * any load without a same-day snapshot (a new day, cleared storage, a fresh
+ * device) the day fetch could not start until /users came back and told it
+ * whose day to ask for. That serialised two round trips which have no reason
+ * to be ordered: the id was sitting in localStorage the whole time.
+ *
+ * Measured cold on a throttled phone, /day did not leave the device until
+ * 2799ms and landed at 4342ms, entirely behind /users.
+ *
+ * signOut removes this key, so a signed-out device seeds nothing and still
+ * lands on onboarding.
+ */
+const storedUserId = (): number | null => {
+  try {
+    return Number(localStorage.getItem(LAST_USER)) || null;
+  } catch {
+    return null;
+  }
+};
+
 /** Local midnight tonight, so a dismiss lasts exactly until tomorrow's alarm. */
 const msUntilTomorrow = () => {
   const d = new Date();
@@ -464,7 +488,7 @@ export default function App() {
   // Read once, lazily, before any state that seeds from it.
   const [boot] = useState(readSnapshot);
   const [users, setUsers] = useState<User[] | null>(boot?.users ?? null);
-  const [meId, setMeId] = useState<number | null>(boot?.userId ?? null);
+  const [meId, setMeId] = useState<number | null>(boot?.userId ?? storedUserId());
   const [board, setBoard] = useState<Progress[]>(boot?.board ?? []);
   const [day, setDay] = useState(todayISO());
   const [detail, setDetail] = useState<DayDetail | null>(boot?.detail ?? null);
@@ -684,7 +708,12 @@ export default function App() {
     setUsers(list);
     if (list.length) {
       const pick = list.find((u) => u.id === asUserId) ?? list[0];
-      setMeId((cur) => cur ?? pick.id);
+      // Keep whoever is already selected, but only if the board actually
+      // contains them. meId is now seeded from localStorage before any request
+      // goes out, so it can name an account that has since been deleted or
+      // belongs to another board -- and without this correction the shell would
+      // wait forever for a user the board is never going to have.
+      setMeId((cur) => (cur != null && list.some((u) => u.id === cur) ? cur : pick.id));
     }
     return list;
   }, []);
