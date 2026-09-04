@@ -2,50 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-/**
- * <model-viewer> is ~1MB and is reached through a dynamic import inside
- * Panda.tsx, which sits on the first screen. That import is only discovered
- * after index.js has downloaded, parsed, mounted React and run an effect --
- * four serial steps before the largest asset on the page even starts loading.
- *
- * This emits a <link rel="modulepreload"> for that chunk into index.html so the
- * browser starts it while it is still parsing the HTML, in parallel with the
- * app bundle rather than after it. The href is read out of the real bundle, so
- * it always tracks the content hash instead of being pinned to a stale name.
- *
- * It goes at the END of <head> (injectTo: "head"), after the stylesheet, so the
- * render-blocking CSS still wins the race for bandwidth.
- */
-function preloadModelViewer() {
-  return {
-    name: "preload-model-viewer",
-    apply: "build" as const,
-    enforce: "post" as const,
-    transformIndexHtml(_html: string, ctx: { bundle?: Record<string, unknown> }) {
-      const file = Object.keys(ctx.bundle ?? {}).find((f) =>
-        /(^|\/)model-viewer-[^/]*\.js$/.test(f)
-      );
-      if (!file) return;
-      return [
-        {
-          // `crossorigin` is not optional here. Module scripts are always
-          // fetched in CORS mode, and a preload whose mode does not match the
-          // real request is discarded and fetched again -- which would download
-          // the 1MB chunk twice and be worse than not preloading at all. Vite
-          // marks its own entry script and preload links the same way.
-          tag: "link",
-          attrs: { rel: "modulepreload", href: `/${file}`, crossorigin: true },
-          injectTo: "head" as const,
-        },
-      ];
-    },
-  };
-}
-
 export default defineConfig({
   plugins: [
     react(),
-    preloadModelViewer(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
