@@ -45,13 +45,17 @@ export const CHARACTER_FUR: Record<CharacterId, string> = {
  * `y` the eye-centre height, `w`/`h` the lid size. The blink overlay and the
  * canvas minigame both position the eyelids from this.
  */
+// Sized with a little extra margin beyond the measured eye box -- the in-world
+// render can be the flat sprite OR the billboard .glb (a 3D quad with its own
+// camera framing that a CSS overlay can't measure directly), so the lids need
+// slack to still land on the eye even if that render is a few % off.
 export const CHARACTER_EYES: Record<
   CharacterId,
   { lx: number; rx: number; y: number; w: number; h: number }
 > = {
-  panda: { lx: 40, rx: 57, y: 42, w: 15, h: 17 },
-  koala: { lx: 41, rx: 55, y: 45, w: 11, h: 13 },
-  redpanda: { lx: 40, rx: 58, y: 41, w: 14, h: 16 },
+  panda: { lx: 40, rx: 57, y: 43, w: 19, h: 21 },
+  koala: { lx: 41, rx: 55, y: 46, w: 15, h: 17 },
+  redpanda: { lx: 40, rx: 58, y: 42, w: 18, h: 20 },
 };
 
 export type CharacterAnim = "Idle" | "Run" | "Hop" | "Dance";

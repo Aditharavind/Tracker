@@ -156,6 +156,7 @@ export function createMemoryStore() {
           archived: false,
           locked: false,
           reps_target: null,
+          created_at: user.created_at,
         });
       });
       return clone(user);
@@ -189,6 +190,7 @@ export function createMemoryStore() {
         archived: false,
         locked: locked ?? false,
         reps_target: reps_target ?? null,
+        created_at: new Date().toISOString(),
       };
       tasks.push(task);
       return clone(task);

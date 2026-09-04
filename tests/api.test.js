@@ -373,6 +373,24 @@ test("Forest Dash keeps a global best and ranks players by coins", async () => {
   assert.equal("id" in board[0], false, "no ids leak onto the public board");
 });
 
+test("GET insights flags a task only after a real gap in its own completions", async () => {
+  const u = (await call("POST", "/users", { name: "Neglecta", pin: "1414" })).body;
+  const { body: tasks } = await call("GET", `/users/${u.id}/tasks`);
+  const target = tasks[0];
+
+  // brand new -- no history yet, must not be flagged
+  const fresh = await call("GET", `/users/${u.id}/insights`);
+  assert.equal(fresh.status, 200);
+  assert.deepEqual(fresh.body.neglected, []);
+
+  // tick it today; today is never itself judged, so still nothing to flag
+  await call("POST", `/users/${u.id}/toggle`, {
+    task_id: target.id, day: TODAY, done: true, today: TODAY,
+  });
+  const stillFresh = await call("GET", `/users/${u.id}/insights`);
+  assert.deepEqual(stillFresh.body.neglected, []);
+});
+
 test("missing things 404 rather than 500", async () => {
   assert.equal((await call("GET", "/users/9999/progress")).status, 404);
   assert.equal((await call("GET", `/users/9999/day/${TODAY}`)).status, 404);
