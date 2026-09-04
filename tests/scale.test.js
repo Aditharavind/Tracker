@@ -263,6 +263,121 @@ test("last_seen_at is not rewritten on every single board load", async (t) => {
   assert.equal(writes, 2, "a change of address is written straight away");
 });
 
+test("a second board read within the cache window skips the store entirely", async (t) => {
+  const inner = createMemoryStore();
+  const { proxy, calls } = counting(inner);
+  setStore(proxy);
+  const base = await appOn(t);
+
+  const user = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Cached", pin: "1234" }),
+    })
+  ).json();
+
+  const url = `${base}/board?today=${todayISO()}&as=${user.id}`;
+  const first = await (await fetch(url)).json();
+  assert.ok(calls.listUsersInGroupPaged >= 1, "the first read has to hit the store");
+
+  const before = {
+    listUsersInGroupPaged: calls.listUsersInGroupPaged,
+    listTasksForUsers: calls.listTasksForUsers,
+    listCompletionsForUsers: calls.listCompletionsForUsers,
+  };
+  const second = await (await fetch(url)).json();
+  // getUser still runs -- callerGroup has to identify who is asking whether or
+  // not the answer comes from cache. It is the three board-computation calls
+  // the cache exists to remove, and only those are asserted here.
+  assert.deepEqual(
+    {
+      listUsersInGroupPaged: calls.listUsersInGroupPaged,
+      listTasksForUsers: calls.listTasksForUsers,
+      listCompletionsForUsers: calls.listCompletionsForUsers,
+    },
+    before,
+    "the second identical read recomputes nothing"
+  );
+  assert.deepEqual(second, first, "and returns exactly what the first one computed");
+});
+
+test("ticking a task busts the board cache for that group immediately", async (t) => {
+  const inner = createMemoryStore();
+  const { proxy, calls } = counting(inner);
+  setStore(proxy);
+  const base = await appOn(t);
+
+  const user = await (
+    await fetch(`${base}/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Ticker", pin: "1234" }),
+    })
+  ).json();
+  const tasks = await (await fetch(`${base}/users/${user.id}/tasks`)).json();
+  const task = tasks[0];
+  const today = todayISO();
+  const boardUrl = `${base}/board?today=${today}&as=${user.id}`;
+
+  const before = await (await fetch(boardUrl)).json();
+  assert.equal(before[0].completed_today, 0, "nothing ticked yet");
+
+  await fetch(`${base}/users/${user.id}/toggle`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task_id: task.id, day: today, done: true, today }),
+  });
+
+  const listCallsAfterToggle = calls.listUsersInGroupPaged;
+  const after = await (await fetch(boardUrl)).json();
+  assert.equal(after[0].completed_today, 1, "the tick shows up on the very next board read");
+  assert.ok(
+    calls.listUsersInGroupPaged > listCallsAfterToggle,
+    "because the toggle invalidated the cache rather than leaving a stale hit"
+  );
+});
+
+test("a write to one group never invalidates another group's cached board", async (t) => {
+  const inner = createMemoryStore();
+  const { proxy, calls } = counting(inner);
+  setStore(proxy);
+  const base = await appOn(t);
+
+  const make = async (name) =>
+    (
+      await fetch(`${base}/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, pin: "1234" }),
+      })
+    ).json();
+
+  const a = await make("GroupA");
+  const b = await make("GroupB"); // POST /users with no invited_by -- its own fresh group
+  const today = todayISO();
+  const boardA = `${base}/board?today=${today}&as=${a.id}`;
+  const boardB = `${base}/board?today=${today}&as=${b.id}`;
+
+  await fetch(boardA);
+  await fetch(boardB);
+
+  const tasksB = await (await fetch(`${base}/users/${b.id}/tasks`)).json();
+  await fetch(`${base}/users/${b.id}/toggle`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task_id: tasksB[0].id, day: today, done: true, today }),
+  });
+
+  const beforeA = calls.listUsersInGroupPaged;
+  await fetch(boardA);
+  assert.equal(
+    calls.listUsersInGroupPaged,
+    beforeA,
+    "A's board is untouched by a write that happened entirely in B's group"
+  );
+});
+
 test("writes get a tighter budget than reads", async (t) => {
   // Writes are unauthenticated (requirePin is a no-op), hit the database
   // harder and leave rows behind, so they are rationed separately -- a read
