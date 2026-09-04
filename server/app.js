@@ -5,6 +5,7 @@ import { hashSecret, newShareToken, verifySecret } from "./security.js";
 import { getStore } from "./store/index.js";
 import { isValidZone, zoneToday } from "./time.js";
 import { createRateLimit } from "./ratelimit.js";
+import { bumpGroupVersion, cacheGet, cacheSet, groupVersion } from "./cache.js";
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
@@ -408,6 +409,7 @@ export function createRouter() {
       });
 
       if (wakeTime !== null) await syncWakeTask(store, user, wakeTime, repsTarget);
+      bumpGroupVersion(group.id);
       res.status(201).json(userOut(user, true, group));
     })
   );
@@ -459,6 +461,9 @@ export function createRouter() {
       });
 
       if (wakeTime !== null) await syncWakeTask(store, user, wakeTime, repsTarget);
+      // Only matters when this joined an existing group (invitedBy != null) --
+      // a brand-new group has nothing cached yet, so the bump is a no-op there.
+      bumpGroupVersion(groupId);
       res.status(201).json(userOut(user, true, await store.getGroup(groupId)));
     })
   );
@@ -505,9 +510,29 @@ export function createRouter() {
       if (!me) return res.json([]);
       const today = dayFrom(req.query.today);
       const page = pageParams(req.query);
+
+      // Board reads can't use HTTP/edge caching the way /dash/leaderboard
+      // does -- the response is scoped to `as` and can reveal the caller's own
+      // tokens, so it must never be shared across viewers. This is a private,
+      // per-instance cache instead: same effect (skip the database on a
+      // repeat read) without the risk of serving one viewer's tokens to
+      // another. See cache.js for why per-instance is the right shape here.
+      const cacheKey = `board:${me.group_id}:${groupVersion(me.group_id)}:${today}:${page.limit}:${page.offset}`;
+      const cached = cacheGet(cacheKey);
+      if (cached) {
+        setPageHeaders(res, page, cached.total);
+        return res.json(cached.body);
+      }
+
       const { rows: users, total } = await store.listUsersInGroupPaged(me.group_id, page);
       setPageHeaders(res, page, total);
-      res.json(await boardFor(store, users, today));
+      const body = await boardFor(store, users, today);
+      // A few seconds is plenty to absorb a burst, and short enough that
+      // nobody could notice the staleness -- bumpGroupVersion clears it
+      // immediately on any write anyway, so this window only ever matters for
+      // truly concurrent reads.
+      cacheSet(cacheKey, { body, total }, 5000);
+      res.json(body);
     })
   );
 
@@ -576,6 +601,7 @@ export function createRouter() {
       const row = { user_id: user.id, task_id: task.id, day };
       if (done) await store.addCompletion(row);
       else await store.removeCompletion(row);
+      bumpGroupVersion(user.group_id);
 
       // persist -> verify (CLAUDE.md Stage 5 / section 12): the response day is
       // built from a fresh read of what actually landed in the store, so the
@@ -633,15 +659,19 @@ export function createRouter() {
       const existing = await store.listTasks(user.id);
       const top = existing.reduce((max, t) => Math.max(max, t.sort), 0);
 
-      res.status(201).json(
-        await store.createTask({
-          user_id: user.id,
-          title,
-          emoji: String(req.body?.emoji || "*"),
-          is_core: Boolean(req.body?.is_core),
-          sort: top + 1,
-        })
-      );
+      const created = await store.createTask({
+        user_id: user.id,
+        title,
+        emoji: String(req.body?.emoji || "*"),
+        is_core: Boolean(req.body?.is_core),
+        sort: top + 1,
+      });
+      // A new core task changes what "perfect day" means for this user, which
+      // the board reads -- a bonus/non-core one doesn't, but bumping either
+      // way costs nothing and keeps this from silently drifting if that ever
+      // changes.
+      bumpGroupVersion(user.group_id);
+      res.status(201).json(created);
     })
   );
 
@@ -660,6 +690,7 @@ export function createRouter() {
         throw new HttpError(409, "this one's the bare minimum -- can't be removed");
       }
       await store.archiveTask(task.id);
+      bumpGroupVersion(user.group_id);
       res.status(204).end();
     })
   );
@@ -693,6 +724,7 @@ export function createRouter() {
           restartedAt: updated.restarted_at ?? null,
         });
       }
+      bumpGroupVersion(user.group_id);
       res.json(await progressFor(store, (await store.getUser(user.id)) ?? updated, today));
     })
   );
@@ -726,6 +758,7 @@ export function createRouter() {
 
       const updated = await store.updateUser(user.id, { wake_time: wakeTime });
       await syncWakeTask(store, user, wakeTime, repsTarget);
+      bumpGroupVersion(user.group_id);
       res.json(
         userOut(updated ?? { ...user, wake_time: wakeTime }, true, await store.getGroup(user.group_id))
       );

@@ -1,5 +1,6 @@
 import { createMemoryStore } from "./memory.js";
 import { createSupabaseStore } from "./supabase.js";
+import { resetCache } from "../cache.js";
 
 let cached = null;
 
@@ -31,7 +32,11 @@ export function getStore() {
   return cached;
 }
 
-/** Tests inject their own store. */
+/**
+ * Tests inject their own store. Also resets the board cache -- see
+ * resetCache's own comment for why a store swap has to drop it.
+ */
 export function setStore(store) {
   cached = store;
+  resetCache();
 }
