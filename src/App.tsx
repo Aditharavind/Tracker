@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, deviceTimezone, shiftISO, todayISO } from "./api";
+import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
+import * as outbox from "./outbox";
 import type { DayDetail, NeglectedTask, Progress, TaskItem, User } from "./types";
 import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
@@ -17,6 +18,7 @@ import PandaRunner from "./components/forest/PandaRunner";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
+import { isAlarmDue, toMinutes } from "./game/alarm";
 import CharacterSelect from "./components/CharacterSelect";
 import { CHARACTER_SPRITE, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
@@ -85,6 +87,30 @@ const readSnapshot = (): Snapshot | null => {
     // Only for whoever this device is signed in as.
     if (s.userId !== (Number(localStorage.getItem(LAST_USER)) || null)) return null;
     return s;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Who this device last signed in as, read synchronously at boot.
+ *
+ * The bootstrap effect below already reads this key to decide which board to
+ * ask for, but `meId` itself was only ever seeded from the snapshot -- so on
+ * any load without a same-day snapshot (a new day, cleared storage, a fresh
+ * device) the day fetch could not start until /users came back and told it
+ * whose day to ask for. That serialised two round trips which have no reason
+ * to be ordered: the id was sitting in localStorage the whole time.
+ *
+ * Measured cold on a throttled phone, /day did not leave the device until
+ * 2799ms and landed at 4342ms, entirely behind /users.
+ *
+ * signOut removes this key, so a signed-out device seeds nothing and still
+ * lands on onboarding.
+ */
+const storedUserId = (): number | null => {
+  try {
+    return Number(localStorage.getItem(LAST_USER)) || null;
   } catch {
     return null;
   }
@@ -463,7 +489,7 @@ export default function App() {
   // Read once, lazily, before any state that seeds from it.
   const [boot] = useState(readSnapshot);
   const [users, setUsers] = useState<User[] | null>(boot?.users ?? null);
-  const [meId, setMeId] = useState<number | null>(boot?.userId ?? null);
+  const [meId, setMeId] = useState<number | null>(boot?.userId ?? storedUserId());
   const [board, setBoard] = useState<Progress[]>(boot?.board ?? []);
   const [day, setDay] = useState(todayISO());
   const [detail, setDetail] = useState<DayDetail | null>(boot?.detail ?? null);
@@ -489,6 +515,17 @@ export default function App() {
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [runnerOpen, setRunnerOpen] = useState(false);
   const [muted, setMuted] = useState(isMuted);
+  // Wake-up alarm settings. Until now the only way to set these was the signup
+  // form, whose checkbox defaults to off -- so anyone who skipped it could
+  // never turn the alarm on afterwards, and anyone who took it could never
+  // turn it off. api.setWake existed the whole time with nothing calling it.
+  const [wakeOn, setWakeOn] = useState(false);
+  const [wakeAt, setWakeAt] = useState("06:00");
+  const [wakeReps, setWakeReps] = useState(20);
+  const [wakeBusy, setWakeBusy] = useState(false);
+  // Which user the form below has been filled in for, so a board refresh
+  // doesn't overwrite what someone is halfway through typing.
+  const wakeSeeded = useRef<number | null>(null);
   const [dashBoard, setDashBoard] = useState<
     { name: string; color: string; coins: number; distance: number }[]
   >([]);
@@ -618,6 +655,38 @@ export default function App() {
     window.setTimeout(() => setToast(null), 2600);
   };
 
+  /**
+   * Save the alarm. Turning it on creates the locked reps task, turning it off
+   * archives it -- so `detail` has to be refetched either way or the task list
+   * keeps showing a chore that no longer exists (or misses one that now does).
+   */
+  const saveWake = async () => {
+    if (meId == null || wakeBusy) return;
+    setWakeBusy(true);
+    try {
+      await api.setWake(meId, wakeOn ? wakeAt : null, wakeReps);
+      const [, fresh] = await Promise.all([loadUsers(meId), api.day(meId, day)]);
+      setDetail(fresh);
+      // A new alarm should get a fair hearing: drop any leftover snooze or
+      // "dismiss for today" so it can actually ring at the time just set.
+      setSnoozed((prev) => {
+        const next = { ...prev };
+        delete next[meId];
+        try {
+          localStorage.setItem(SNOOZE_KEY, JSON.stringify(next));
+        } catch {
+          /* storage blocked -- the deadline is a nicety, not state */
+        }
+        return next;
+      });
+      flash(wakeOn ? `Alarm set for ${wakeAt}` : "Alarm off");
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not save the alarm");
+    } finally {
+      setWakeBusy(false);
+    }
+  };
+
   // Expired deadlines are pruned on write so the record can't grow forever.
   const silenceAlarm = (ms: number) => {
     if (meId == null) return;
@@ -641,7 +710,12 @@ export default function App() {
     setUsers(list);
     if (list.length) {
       const pick = list.find((u) => u.id === asUserId) ?? list[0];
-      setMeId((cur) => cur ?? pick.id);
+      // Keep whoever is already selected, but only if the board actually
+      // contains them. meId is now seeded from localStorage before any request
+      // goes out, so it can name an account that has since been deleted or
+      // belongs to another board -- and without this correction the shell would
+      // wait forever for a user the board is never going to have.
+      setMeId((cur) => (cur != null && list.some((u) => u.id === cur) ? cur : pick.id));
     }
     return list;
   }, []);
@@ -701,6 +775,65 @@ export default function App() {
       })
       .catch((e) => setSaveError(e instanceof Error ? e.message : "Could not load this day"));
   }, [meId, day]);
+
+  /**
+   * Flush any tick that was shown to the user but never confirmed -- see
+   * outbox.ts. Runs once the user is known, and again every time the device
+   * comes back online, which is the moment that actually matters: the tap that
+   * went missing was almost always made with no usable connection.
+   */
+  useEffect(() => {
+    if (meId == null) return;
+    let alive = true;
+
+    const flush = async () => {
+      const flushed = await outbox.replay(
+        (e) => api.toggle(e.userId, e.taskId, e.day, e.done),
+        {
+          today: todayISO(),
+          // Never race a write this session is already making -- the live
+          // request carries a newer intent than anything parked here.
+          skip: (e) =>
+            e.userId !== meId ||
+            pendingToggles.current.has(e.taskId) ||
+            queuedToggles.current.has(e.taskId),
+          isPermanentFailure,
+        }
+      );
+      // Only repaint if something actually landed, and only when no write of
+      // our own is in flight -- an in-flight toggle's own response is the
+      // authority on its task, and clobbering it here is the exact race the
+      // optimistic-value handling in sendToggle exists to prevent.
+      if (!alive || flushed === 0 || pendingToggles.current.size > 0) return;
+      const [freshDay, freshBoard] = await Promise.all([api.day(meId, day), api.board(meId)]);
+      if (!alive || pendingToggles.current.size > 0) return;
+      setDetail(freshDay);
+      setBoard(freshBoard);
+    };
+
+    void flush().catch(() => {
+      /* still offline, or the day moved on -- the next online event retries */
+    });
+    window.addEventListener("online", flush);
+    return () => {
+      alive = false;
+      window.removeEventListener("online", flush);
+    };
+  }, [meId, day]);
+
+  // Fill the alarm form from whatever the server has, once per user. Reps live
+  // on the locked task rather than on the user, so they come from `detail`.
+  useEffect(() => {
+    if (meId == null || wakeSeeded.current === meId) return;
+    const u = users?.find((x) => x.id === meId);
+    if (!u) return;
+    wakeSeeded.current = meId;
+    setWakeOn(!!u.wake_time);
+    // Postgres hands back 'HH:MM:SS'; <input type="time"> wants 'HH:MM'.
+    if (toMinutes(u.wake_time) !== null) setWakeAt(u.wake_time!.slice(0, 5));
+    const reps = detail?.tasks.find((t) => t.locked)?.reps_target;
+    if (typeof reps === "number") setWakeReps(reps);
+  }, [users, meId, detail]);
 
   // Keep the server's idea of this user's timezone in step with the device.
   // Runs once per session when they differ -- a fresh account created before
@@ -819,13 +952,15 @@ export default function App() {
   const myUser = users?.find((u) => u.id === meId) ?? null;
   const lockedTask = detail?.tasks.find((t) => t.locked) ?? null;
   const silencedUntil = (meId != null ? snoozed[meId] : 0) ?? 0;
+  // Recomputed every render; the minute poll above forces one each time the
+  // wall-clock minute changes, which is what makes a Date-based condition
+  // reactive at all.
   const alarmActive =
     day === todayISO() &&
-    !!myUser?.wake_time &&
     !!lockedTask &&
     !lockedTask.done &&
     Date.now() >= silencedUntil &&
-    new Date().toTimeString().slice(0, 8) >= myUser!.wake_time!;
+    isAlarmDue(myUser?.wake_time, new Date());
 
   /**
    * One request per task at a time. Without this, a quick double-tap fires two
@@ -878,6 +1013,11 @@ export default function App() {
     if (meId == null) return;
     pendingToggles.current.add(taskId);
 
+    // Park the intent BEFORE the request, so a write that never lands (tab
+    // closed mid-flight, phone off the network) is replayed on the next launch
+    // instead of vanishing. Cleared the moment the server confirms it.
+    outbox.remember({ userId: meId, taskId, day, done: next, ts: Date.now() });
+
     const wasPerfect = latestMe.current?.perfect_today ?? false;
     const curTasks = latestDetail.current?.tasks ?? [];
     const wasFullClear = curTasks.length > 0 && curTasks.every((x) => x.done);
@@ -917,6 +1057,8 @@ export default function App() {
         });
         setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
         setSaveError(null);
+        // Confirmed by the server -- nothing left to replay for this task.
+        outbox.forget({ userId: meId, taskId, day });
 
         const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
         const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
@@ -928,15 +1070,25 @@ export default function App() {
         }
       })
       .catch((e) => {
-        // Undo only this task, and only if the user has not since asked for
-        // something else -- a queued intent is newer than this failure, so
-        // reverting to the pre-request value would fight the person tapping.
-        if (!queuedToggles.current.has(t.id)) {
-          setDetail((cur) =>
-            cur
-              ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
-              : cur
-          );
+        // A refusal (4xx) is final -- the server will say the same thing next
+        // time, so drop the parked intent and put the box back to what the
+        // server believes. A delivery failure is not final: the intent stays in
+        // the outbox and the optimistic tick STANDS, because it is going to be
+        // replayed on the next launch or the next online event. Reverting it
+        // there would show the user a false "didn't save" for a write that
+        // does, in fact, still save.
+        if (isPermanentFailure(e)) {
+          outbox.forget({ userId: meId, taskId, day });
+          // Undo only this task, and only if the user has not since asked for
+          // something else -- a queued intent is newer than this failure, so
+          // reverting to the pre-request value would fight the person tapping.
+          if (!queuedToggles.current.has(t.id)) {
+            setDetail((cur) =>
+              cur
+                ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
+                : cur
+            );
+          }
         }
         const msg = e instanceof Error ? e.message : "Could not update task";
         flash(msg);
@@ -1046,6 +1198,51 @@ export default function App() {
     setDetail(null);
     setOpenPanel(null);
   };
+
+  /**
+   * These two MUST stay above the early returns below.
+   *
+   * React counts hooks per render, so an effect declared after a `return` is
+   * skipped entirely while any gate is on screen (loading skeleton, onboarding,
+   * character gate) and then appears the moment the shell renders. That is
+   * "rendered more hooks than during the previous render" -- React error #310,
+   * which takes down the whole app and leaves a black screen.
+   *
+   * It only bit on a boot with no usable snapshot to paint from. With a
+   * same-day snapshot the very first render already falls through to the shell,
+   * so the hook count never changes and nothing goes wrong. Without one the
+   * first render is a skeleton and the second is the shell -- and readSnapshot
+   * rejects any snapshot from another day, so this fired on the FIRST LOAD OF
+   * EACH NEW DAY (and on cleared storage, or a new device). That is what made
+   * it look intermittent when it was really quite predictable.
+   */
+  // Esc closes whatever drawer / picker is open (the minigame handles its own).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpenPanel(null);
+      setCharacterPanelOpen(false);
+      setShareUrl(null);
+      setInviteUrl(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Whether the game shell itself is what renders below, rather than one of the
+  // gates. Only used to keep the leaderboard fetch on its original schedule now
+  // that the effect runs from the first render instead of the first full one.
+  const shellVisible =
+    users !== null && users.length > 0 && !!me && !!detail && !!myCharacter;
+
+  // Global Forest Dash leaderboard -- pulled when the board opens or the
+  // minigame closes (a fresh score may have landed).
+  useEffect(() => {
+    if (!shellVisible) return;
+    if (openPanel === "leaderboard" || !runnerOpen) {
+      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
+    }
+  }, [openPanel, runnerOpen, shellVisible]);
 
   if (users === null) return <Skeleton />;
 
@@ -1505,6 +1702,48 @@ export default function App() {
                 <div style={{ marginTop: 14 }}>
                   <ThemePicker theme={theme} onPick={setTheme} />
                 </div>
+              </div>
+
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>Wake-up alarm</h2>
+                </div>
+                <label className="wake-toggle">
+                  <input
+                    type="checkbox"
+                    checked={wakeOn}
+                    onChange={(e) => setWakeOn(e.target.checked)}
+                  />
+                  Wake-up alarm (won't stop until you confirm your reps)
+                </label>
+                {wakeOn && (
+                  <div className="wake-fields">
+                    <input
+                      className="field"
+                      type="time"
+                      aria-label="Alarm time"
+                      value={wakeAt}
+                      onChange={(e) => setWakeAt(e.target.value)}
+                    />
+                    <input
+                      className="field"
+                      type="number"
+                      min={1}
+                      max={200}
+                      aria-label="Reps to wake up"
+                      value={wakeReps}
+                      onChange={(e) => setWakeReps(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                  </div>
+                )}
+                <button
+                  className="btn wide"
+                  style={{ marginTop: 10 }}
+                  onClick={saveWake}
+                  disabled={wakeBusy}
+                >
+                  {wakeBusy ? "..." : wakeOn ? "Save alarm" : "Turn alarm off"}
+                </button>
               </div>
 
               <div className="card panel-section">

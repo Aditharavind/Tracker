@@ -32,17 +32,36 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // The 3D viewer chunk and the .glb models are megabytes and aren't
-        // needed to open the app, so they stay out of the precache and load on
-        // demand instead. model-viewer also code-splits its Draco/Basis
-        // decoders into sibling chunks (one is ~720KB, over the size limit and
-        // enough to fail the build if precached), so those ride along in the
-        // same 3D-only bucket. The forest background *is* precached: as WebP it
-        // is ~120KB rather than the 1.8MB PNG it replaced, and it is the first
-        // thing you see, so having it offline-ready is worth the space.
-        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2}"],
-        globIgnores: ["**/model-viewer-*.js", "**/draco_*.js", "**/basis_transcoder-*.js"],
-        maximumFileSizeToCacheInBytes: 600 * 1024,
+        // The 3D viewer chunk and the character .glb models ARE precached, and
+        // that is deliberate: the forest panda is a <model-viewer>, so both are
+        // on the critical path of the very first screen, not behind a tap.
+        // Leaving them to the runtime CacheFirst rule below meant they were
+        // only ever cached as a side effect of a visit that got far enough to
+        // mount the panda -- so a first visit that was interrupted, or one on a
+        // flaky connection, cached nothing and paid the full ~1.1MB again next
+        // time. Precaching fetches them during service-worker install, off the
+        // critical path, and makes every subsequent load a guaranteed hit with
+        // no revalidation.
+        //
+        // public/avatars/*.glb stays out: 6MB for the old Runner avatars, which
+        // nothing renders any more (Runner's Avatar3D export is unreferenced).
+        // Draco/Basis decoders stay out too -- the character models are plain
+        // glTF with no compression extensions, so model-viewer never asks for
+        // them; the ignore is future-proofing, and one of those chunks is
+        // ~720KB, which would fail the build if it were ever precached.
+        //
+        // The forest background is precached for the same reason: as WebP it is
+        // ~120KB rather than the 1.8MB PNG it replaced, and it is the first
+        // thing you see.
+        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2,glb}"],
+        globIgnores: [
+          "**/avatars/*.glb",
+          "**/draco_*.js",
+          "**/basis_transcoder-*.js",
+        ],
+        // Sized to admit the ~1.05MB model-viewer runtime. Anything genuinely
+        // huge is excluded by name above rather than by slipping under a cap.
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
         // The API must never be served from cache -- a stale streak is worse
         // than no streak. Navigation falls back to the shell when offline.
         navigateFallback: "/index.html",
@@ -53,7 +72,12 @@ export default defineConfig({
             handler: "NetworkOnly",
           },
           {
-            // big, immutable, rarely changed -- cache once, reuse forever
+            // Backstop for the heavy assets that are NOT precached above -- the
+            // Draco/Basis decoders if a compressed model is ever shipped, and
+            // the avatars/*.glb set if anything starts rendering it again. The
+            // precache route is registered first, so anything already in the
+            // precache is served from there and never reaches this rule.
+            // Big, content-hashed, rarely changed: cache once, reuse for weeks.
             urlPattern: /model-viewer-.*\.js$|draco_.*\.js$|basis_transcoder-.*\.js$|\.glb$/,
             handler: "CacheFirst",
             options: {

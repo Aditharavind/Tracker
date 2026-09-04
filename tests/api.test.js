@@ -263,6 +263,38 @@ test("wake time adds a locked task that cannot be deleted", async () => {
   );
 });
 
+test("turning the alarm off retires the locked task, and back on re-arms it", async () => {
+  // Regression: clearing the wake time left the locked reps task behind. It is
+  // locked, so DELETE refuses it with a 409, and it still counted toward a full
+  // clear -- so switching the alarm off left an undeletable chore that made
+  // every day impossible to finish.
+  await call("PUT", `/users/${adith.id}/wake`, {
+    wake_time: "05:30", reps_target: 25, pin: PIN,
+  });
+  const armed = await call("GET", `/users/${adith.id}/tasks`);
+  assert.equal(armed.body.filter((t) => t.locked).length, 1, "armed");
+
+  const off = await call("PUT", `/users/${adith.id}/wake`, { wake_time: null, pin: PIN });
+  assert.equal(off.status, 200);
+  assert.equal(off.body.wake_time, null, "the user's wake time is cleared");
+
+  const cleared = await call("GET", `/users/${adith.id}/tasks`);
+  assert.equal(
+    cleared.body.filter((t) => t.locked).length,
+    0,
+    "and the reps task goes with it rather than being stranded"
+  );
+
+  // Re-arming builds a fresh one rather than resurrecting a duplicate.
+  await call("PUT", `/users/${adith.id}/wake`, {
+    wake_time: "07:15", reps_target: 30, pin: PIN,
+  });
+  const rearmed = await call("GET", `/users/${adith.id}/tasks`);
+  const locked = rearmed.body.filter((t) => t.locked);
+  assert.equal(locked.length, 1, "exactly one, never a stack of them");
+  assert.equal(locked[0].title, "30 reps to wake up");
+});
+
 test("signing up with a wake time seeds the locked task straight away", async () => {
   const early = (
     await call("POST", "/users", {
@@ -503,4 +535,35 @@ test("session/suggest offers the last user seen from this address, and nothing w
   assert.equal(hit.user_id, user.id);
   assert.equal(hit.name, "Suggest Me");
   assert.ok(!("pin_hash" in hit) && !("share_token" in hit), "it is a hint, not a credential");
+});
+
+test("GET /stats counts signups across every board, not just the caller's", async () => {
+  // The sign-in screen has no board of its own -- a browser with no saved user
+  // belongs to no group -- so /users would always answer 0 there. /stats is the
+  // global count, and it must see users from boards the caller cannot read.
+  const before = (await call("GET", "/stats")).body.users;
+  assert.ok(before >= 3, "the users created above are counted");
+
+  // stranger sits in a different group; adith cannot see them via /users...
+  const visible = (await call("GET", `/users?as=${adith.id}`)).body;
+  assert.ok(
+    !visible.some((u) => u.id === stranger.id),
+    "group isolation still holds for the credentialed listing"
+  );
+
+  // ...but the global counter still includes them.
+  const made = await call("POST", "/users", { name: "Counted", pin: "9182" });
+  assert.equal(made.status, 201);
+  assert.equal((await call("GET", "/stats")).body.users, before + 1);
+});
+
+test("GET /stats leaks nothing but the number", async () => {
+  const res = await call("GET", "/stats");
+  assert.equal(res.status, 200, "public: no user id or PIN required");
+  assert.deepEqual(
+    Object.keys(res.body),
+    ["users"],
+    "no names, ids, colours or tokens -- it must not be an enumeration route"
+  );
+  assert.equal(typeof res.body.users, "number");
 });

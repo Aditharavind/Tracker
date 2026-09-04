@@ -1243,6 +1243,27 @@ h3 {
   font-size: 14px;
 }
 
+/* Sign-up count. Deliberately echoes the DAY pill in the game HUD -- dark
+   panel, thin warm border, pixel type, gold numerals -- so the sign-in screen
+   reads as part of the same world instead of a plain web form. Needs the
+   .onboard prefix to outrank the `.onboard p` rule above. */
+.onboard .onboard-count {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 6px 12px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--forest-cream, #f3e6c8);
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(226, 178, 74, 0.4);
+  border-radius: 6px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+}
+
+.onboard .onboard-count-n {
+  color: var(--forest-gold, #e2b24a);
+}
+
 .field {
   width: 100%;
   background: var(--panel);

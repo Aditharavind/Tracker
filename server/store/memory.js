@@ -86,8 +86,22 @@ export function createMemoryStore() {
       return slice.map(clone);
     },
 
+    /** Rows + total in one call -- mirrors the Supabase version. */
+    async listUsersInGroupPaged(groupId, page) {
+      const all = users
+        .filter((u) => u.group_id === Number(groupId))
+        .sort((a, b) => a.id - b.id);
+      const slice = page ? all.slice(page.offset, page.offset + page.limit) : all;
+      return { rows: slice.map(clone), total: all.length };
+    },
+
     async countUsersInGroup(groupId) {
       return users.filter((u) => u.group_id === Number(groupId)).length;
+    },
+
+    /** Everyone signed up, across every board -- see the Supabase version. */
+    async countAllUsers() {
+      return users.length;
     },
 
     async getUserByShareToken(token) {
