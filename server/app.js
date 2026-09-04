@@ -517,8 +517,8 @@ export function createRouter() {
       // per-instance cache instead: same effect (skip the database on a
       // repeat read) without the risk of serving one viewer's tokens to
       // another. See cache.js for why per-instance is the right shape here.
-      const cacheKey = `board:${me.group_id}:${groupVersion(me.group_id)}:${today}:${page.limit}:${page.offset}`;
-      const cached = cacheGet(cacheKey);
+      const cacheKey = `board:${me.group_id}:${await groupVersion(me.group_id)}:${today}:${page.limit}:${page.offset}`;
+      const cached = await cacheGet(cacheKey);
       if (cached) {
         setPageHeaders(res, page, cached.total);
         return res.json(cached.body);
