@@ -257,7 +257,15 @@ async function syncWakeTask(store, user, wakeTime, repsTarget) {
   const tasks = await store.listTasks(user.id);
   const locked = tasks.find((t) => t.locked);
 
-  if (wakeTime == null) return; // keeping the task is harmless; it stays ticked-off work
+  // Turning the alarm off has to retire the reps task with it. Leaving it was
+  // not "harmless" as the old comment claimed: the task is locked, so DELETE
+  // /tasks/:id refuses it with a 409, and it still counts toward a full clear.
+  // Switching the alarm off therefore left an undeletable chore in the daily
+  // list that made every day impossible to finish.
+  if (wakeTime == null) {
+    if (locked) await store.archiveTask(locked.id);
+    return;
+  }
 
   if (locked) {
     await store.updateTask(locked.id, {

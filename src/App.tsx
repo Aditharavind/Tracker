@@ -17,6 +17,7 @@ import PandaRunner from "./components/forest/PandaRunner";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
+import { isAlarmDue, toMinutes } from "./game/alarm";
 import CharacterSelect from "./components/CharacterSelect";
 import { CHARACTER_SPRITE, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
@@ -489,6 +490,17 @@ export default function App() {
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [runnerOpen, setRunnerOpen] = useState(false);
   const [muted, setMuted] = useState(isMuted);
+  // Wake-up alarm settings. Until now the only way to set these was the signup
+  // form, whose checkbox defaults to off -- so anyone who skipped it could
+  // never turn the alarm on afterwards, and anyone who took it could never
+  // turn it off. api.setWake existed the whole time with nothing calling it.
+  const [wakeOn, setWakeOn] = useState(false);
+  const [wakeAt, setWakeAt] = useState("06:00");
+  const [wakeReps, setWakeReps] = useState(20);
+  const [wakeBusy, setWakeBusy] = useState(false);
+  // Which user the form below has been filled in for, so a board refresh
+  // doesn't overwrite what someone is halfway through typing.
+  const wakeSeeded = useRef<number | null>(null);
   const [dashBoard, setDashBoard] = useState<
     { name: string; color: string; coins: number; distance: number }[]
   >([]);
@@ -615,6 +627,38 @@ export default function App() {
   const flash = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2600);
+  };
+
+  /**
+   * Save the alarm. Turning it on creates the locked reps task, turning it off
+   * archives it -- so `detail` has to be refetched either way or the task list
+   * keeps showing a chore that no longer exists (or misses one that now does).
+   */
+  const saveWake = async () => {
+    if (meId == null || wakeBusy) return;
+    setWakeBusy(true);
+    try {
+      await api.setWake(meId, wakeOn ? wakeAt : null, wakeReps);
+      const [, fresh] = await Promise.all([loadUsers(meId), api.day(meId, day)]);
+      setDetail(fresh);
+      // A new alarm should get a fair hearing: drop any leftover snooze or
+      // "dismiss for today" so it can actually ring at the time just set.
+      setSnoozed((prev) => {
+        const next = { ...prev };
+        delete next[meId];
+        try {
+          localStorage.setItem(SNOOZE_KEY, JSON.stringify(next));
+        } catch {
+          /* storage blocked -- the deadline is a nicety, not state */
+        }
+        return next;
+      });
+      flash(wakeOn ? `Alarm set for ${wakeAt}` : "Alarm off");
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Could not save the alarm");
+    } finally {
+      setWakeBusy(false);
+    }
   };
 
   // Expired deadlines are pruned on write so the record can't grow forever.
@@ -746,6 +790,20 @@ export default function App() {
     };
   }, [meId, day]);
 
+  // Fill the alarm form from whatever the server has, once per user. Reps live
+  // on the locked task rather than on the user, so they come from `detail`.
+  useEffect(() => {
+    if (meId == null || wakeSeeded.current === meId) return;
+    const u = users?.find((x) => x.id === meId);
+    if (!u) return;
+    wakeSeeded.current = meId;
+    setWakeOn(!!u.wake_time);
+    // Postgres hands back 'HH:MM:SS'; <input type="time"> wants 'HH:MM'.
+    if (toMinutes(u.wake_time) !== null) setWakeAt(u.wake_time!.slice(0, 5));
+    const reps = detail?.tasks.find((t) => t.locked)?.reps_target;
+    if (typeof reps === "number") setWakeReps(reps);
+  }, [users, meId, detail]);
+
   // Keep the server's idea of this user's timezone in step with the device.
   // Runs once per session when they differ -- a fresh account created before
   // the timezone column, or the user having travelled. The server derives every
@@ -863,13 +921,15 @@ export default function App() {
   const myUser = users?.find((u) => u.id === meId) ?? null;
   const lockedTask = detail?.tasks.find((t) => t.locked) ?? null;
   const silencedUntil = (meId != null ? snoozed[meId] : 0) ?? 0;
+  // Recomputed every render; the minute poll above forces one each time the
+  // wall-clock minute changes, which is what makes a Date-based condition
+  // reactive at all.
   const alarmActive =
     day === todayISO() &&
-    !!myUser?.wake_time &&
     !!lockedTask &&
     !lockedTask.done &&
     Date.now() >= silencedUntil &&
-    new Date().toTimeString().slice(0, 8) >= myUser!.wake_time!;
+    isAlarmDue(myUser?.wake_time, new Date());
 
   /**
    * One request per task at a time. Without this, a quick double-tap fires two
@@ -1577,6 +1637,48 @@ export default function App() {
                 <div style={{ marginTop: 14 }}>
                   <ThemePicker theme={theme} onPick={setTheme} />
                 </div>
+              </div>
+
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>Wake-up alarm</h2>
+                </div>
+                <label className="wake-toggle">
+                  <input
+                    type="checkbox"
+                    checked={wakeOn}
+                    onChange={(e) => setWakeOn(e.target.checked)}
+                  />
+                  Wake-up alarm (won't stop until you confirm your reps)
+                </label>
+                {wakeOn && (
+                  <div className="wake-fields">
+                    <input
+                      className="field"
+                      type="time"
+                      aria-label="Alarm time"
+                      value={wakeAt}
+                      onChange={(e) => setWakeAt(e.target.value)}
+                    />
+                    <input
+                      className="field"
+                      type="number"
+                      min={1}
+                      max={200}
+                      aria-label="Reps to wake up"
+                      value={wakeReps}
+                      onChange={(e) => setWakeReps(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                  </div>
+                )}
+                <button
+                  className="btn wide"
+                  style={{ marginTop: 10 }}
+                  onClick={saveWake}
+                  disabled={wakeBusy}
+                >
+                  {wakeBusy ? "..." : wakeOn ? "Save alarm" : "Turn alarm off"}
+                </button>
               </div>
 
               <div className="card panel-section">
