@@ -4,6 +4,7 @@ import { compute, dayDetail } from "./engine.js";
 import { hashSecret, newShareToken, verifySecret } from "./security.js";
 import { getStore } from "./store/index.js";
 import { isValidZone, zoneToday } from "./time.js";
+import { createRateLimit } from "./ratelimit.js";
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
@@ -62,56 +63,6 @@ function setPageHeaders(res, { limit, offset }, total) {
   res.set("X-Page-Limit", String(limit));
   res.set("X-Page-Offset", String(offset));
   if (offset + limit < total) res.set("X-Has-More", "1");
-}
-
-const RATE_WINDOW_MS = 60_000;
-/**
- * 10 req/s sustained. Set high on purpose: mobile carriers and offices put
- * thousands of people behind one address, so a tight per-IP limit would lock
- * out real users long before it inconvenienced anyone. This is sized to catch
- * a runaway loop, not to apportion capacity.
- */
-const rateMax = () => Number(process.env.RATE_LIMIT_PER_MIN) || 600;
-
-/**
- * Coarse per-IP backstop, and honest about being only that: serverless
- * instances share no memory, so the fleet-wide ceiling is this times however
- * many instances are warm. It exists because writes are unauthenticated (see
- * requirePin) and one client in a retry loop should not be able to sit on the
- * database. For a real guarantee put rate limiting at the edge, where it sees
- * every request and can key on more than an address.
- *
- * The counter lives per app instance rather than per module so that each
- * createApp() -- one per cold start in production, one per test here -- starts
- * clean, instead of tests bleeding budget into each other.
- */
-function createRateLimit() {
-  const hits = new Map();
-  // Read per instance rather than at import, so a deployment can retune it
-  // without a rebuild -- and so tests can set a small ceiling.
-  const max = rateMax();
-
-  return function rateLimit(req, res, next) {
-    const now = Date.now();
-    const ip = clientIp(req);
-    const entry = hits.get(ip);
-
-    if (!entry || now >= entry.reset) {
-      hits.set(ip, { count: 1, reset: now + RATE_WINDOW_MS });
-    } else if (entry.count >= max) {
-      res.set("Retry-After", String(Math.ceil((entry.reset - now) / 1000)));
-      return res.status(429).json({ error: "too many requests -- slow down" });
-    } else {
-      entry.count += 1;
-    }
-
-    // Sweep on write rather than on a timer: an interval would hold a
-    // serverless instance open, and an unbounded Map is the leak this guards.
-    if (hits.size > 10_000) {
-      for (const [key, value] of hits) if (now >= value.reset) hits.delete(key);
-    }
-    next();
-  };
 }
 
 async function loadUser(store, id) {
@@ -175,11 +126,35 @@ function clientIp(req) {
   return req.socket?.remoteAddress ?? "unknown";
 }
 
-/** Records where a user was last seen, so a cleared browser can be offered them. */
+/**
+ * How stale last_seen_at may get before it is worth a write. Ten minutes is
+ * far finer than /session/suggest needs -- it only asks "who was last here from
+ * this address" -- and coarse enough to take essentially all of the writes out.
+ */
+const SESSION_TOUCH_MS = 10 * 60_000;
+
+/**
+ * Records where a user was last seen, so a cleared browser can be offered them.
+ *
+ * This used to write on EVERY /users call, which is one UPDATE per page load
+ * per visitor, on the hot path. That is the most expensive thing the read path
+ * did: each update leaves a dead tuple behind for vacuum, and at any real scale
+ * it is a continuous write load bought for a convenience feature.
+ *
+ * It now writes only when the row is actually out of date -- either the address
+ * changed (which is the whole signal /session/suggest reads) or the timestamp
+ * has gone stale. The user row is already in hand from callerGroup, so deciding
+ * this costs no extra query.
+ */
 async function touchSession(store, user, req) {
+  const ip = clientIp(req);
+  const seen = user.last_seen_at ? Date.parse(user.last_seen_at) : NaN;
+  const fresh = Number.isFinite(seen) && Date.now() - seen < SESSION_TOUCH_MS;
+  if (fresh && user.last_ip === ip) return;
+
   try {
     await store.updateUser(user.id, {
-      last_ip: clientIp(req),
+      last_ip: ip,
       last_seen_at: new Date().toISOString(),
     });
   } catch {
@@ -323,10 +298,10 @@ export function createRouter() {
       if (!me) return res.json([]);
       await touchSession(store, me, req);
       const page = pageParams(req.query);
-      const [users, group, total] = await Promise.all([
-        store.listUsersInGroup(me.group_id, page),
+      // rows + total arrive together; see listUsersInGroupPaged.
+      const [{ rows: users, total }, group] = await Promise.all([
+        store.listUsersInGroupPaged(me.group_id, page),
         store.getGroup(me.group_id),
-        store.countUsersInGroup(me.group_id),
       ]);
       setPageHeaders(res, page, total);
       res.json(users.map((u) => userOut(u, u.id === me.id, group)));
@@ -381,10 +356,7 @@ export function createRouter() {
       // This endpoint is public and uncredentialed, so it must not become a way
       // to enumerate an entire board.
       const page = { limit: 12, offset: 0 };
-      const [members, total] = await Promise.all([
-        store.listUsersInGroup(group.id, page),
-        store.countUsersInGroup(group.id),
-      ]);
+      const { rows: members, total } = await store.listUsersInGroupPaged(group.id, page);
       res.set("Cache-Control", "public, max-age=30, s-maxage=30");
       res.json({
         members: members.map((u) => ({ name: u.name, color: u.color })),
@@ -533,10 +505,7 @@ export function createRouter() {
       if (!me) return res.json([]);
       const today = dayFrom(req.query.today);
       const page = pageParams(req.query);
-      const [users, total] = await Promise.all([
-        store.listUsersInGroup(me.group_id, page),
-        store.countUsersInGroup(me.group_id),
-      ]);
+      const { rows: users, total } = await store.listUsersInGroupPaged(me.group_id, page);
       setPageHeaders(res, page, total);
       res.json(await boardFor(store, users, today));
     })
@@ -835,7 +804,7 @@ export function createApp() {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "64kb" }));
-  app.use(createRateLimit());
+  app.use(createRateLimit(clientIp));
 
   // Everything here is either personal or mutable, so nothing may sit in a
   // shared cache by default. The two public read-only endpoints opt back in
