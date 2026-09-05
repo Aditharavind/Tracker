@@ -1,6 +1,7 @@
 import express from "express";
 
 import { compute, dayDetail } from "./engine.js";
+import { neglectedTasks } from "./insights.js";
 import { hashSecret, newShareToken, verifySecret } from "./security.js";
 import { getStore } from "./store/index.js";
 import { isValidZone, zoneToday } from "./time.js";
@@ -574,6 +575,24 @@ export function createRouter() {
       if (!ISO_DAY.test(req.params.day)) throw new HttpError(400, "bad day");
       const user = await loadUser(store, req.params.id);
       res.json(await dayFor(store, user, req.params.day));
+    })
+  );
+
+  // Tasks the user has been quietly skipping -- a deterministic streak/rate
+  // check over their own completions (see server/insights.js), recomputed on
+  // every call. Never stored, never guessed: a task is only ever flagged
+  // because the ticks (or lack of them) say so.
+  r.get(
+    "/users/:id/insights",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const user = await loadUser(store, req.params.id);
+      const today = userToday(user, req.query.today);
+      const [tasks, completions] = await Promise.all([
+        store.listTasks(user.id),
+        store.listCompletions(user.id),
+      ]);
+      res.json({ neglected: neglectedTasks({ user, tasks, completions }, today) });
     })
   );
 

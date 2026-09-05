@@ -3180,6 +3180,7 @@ h3 {
   }
 }
 
+
 .panda-running {
   animation: panda-run 0.35s ease-in-out infinite;
 }
@@ -3955,6 +3956,40 @@ h3 {
 
 .habit-row:last-child {
   border-bottom: none;
+}
+
+/* "You've been skipping X" nudge -- rows are pre-computed facts (see
+   server/insights.js); this is just their layout. */
+.neglected-card {
+  border: 1px solid rgba(214, 69, 69, 0.35);
+  background: rgba(214, 69, 69, 0.06);
+}
+
+.neglected-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.neglected-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.neglected-list li:last-child {
+  border-bottom: none;
+}
+
+.neglected-title {
+  font-weight: 600;
+}
+
+.neglected-note {
+  font-size: 12px;
+  color: var(--bad, #d64545);
 }
 
 .habit-row .title {
