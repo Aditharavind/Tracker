@@ -77,8 +77,18 @@ export type DayDetail = {
   note: string;
 };
 
-export type Insight = {
-  text: string;
-  generated_at: string;
-  cached: boolean;
+// A task the user has been quietly skipping -- see server/insights.js.
+// Deterministic (miss-streak / completion-rate over real ticks), recomputed
+// on every fetch. `missStreak` and `rate` are never both zero/1 -- a task
+// only appears here because one of them crossed its threshold.
+export type NeglectedTask = {
+  taskId: number;
+  title: string;
+  isCore: boolean;
+  /** consecutive days, up to yesterday, this task was eligible and not done */
+  missStreak: number;
+  /** completion rate over the last (up to) 14 eligible days, 0..1 */
+  rate: number;
+  /** most recent day it was completed, or null if never */
+  lastDone: string | null;
 };

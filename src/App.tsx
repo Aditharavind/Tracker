@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
 import * as outbox from "./outbox";
-import type { DayDetail, Progress, TaskItem, User } from "./types";
+import type { DayDetail, NeglectedTask, Progress, TaskItem, User } from "./types";
 import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
 import Checklist from "./components/Checklist";
@@ -9,6 +9,7 @@ import Calendar75 from "./components/Calendar75";
 import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
 import DashLeaderboard from "./components/DashLeaderboard";
+import NeglectedTasks from "./components/NeglectedTasks";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
@@ -528,6 +529,7 @@ export default function App() {
   const [dashBoard, setDashBoard] = useState<
     { name: string; color: string; coins: number; distance: number }[]
   >([]);
+  const [neglected, setNeglected] = useState<NeglectedTask[]>([]);
   // Set whenever a write (tick / note / restart) is rejected, so the UI can
   // stop pretending the optimistic change was committed. Cleared by the next
   // clean write or a successful refetch.
@@ -1296,6 +1298,39 @@ export default function App() {
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
     setOpenPanel((cur) => (cur === p ? null : p));
 
+  // Esc closes whatever drawer / picker is open (the minigame handles its own).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpenPanel(null);
+      setCharacterPanelOpen(false);
+      setShareUrl(null);
+      setInviteUrl(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Global Forest Dash leaderboard -- pulled when the board opens or the
+  // minigame closes (a fresh score may have landed).
+  useEffect(() => {
+    if (openPanel === "leaderboard" || !runnerOpen) {
+      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
+    }
+  }, [openPanel, runnerOpen]);
+
+  // Which tasks the user has been quietly skipping -- recomputed server-side
+  // from real completions each time the Habits panel opens (see
+  // server/insights.js). Only ever looks at days before today, so it can't
+  // change from ticking today's boxes -- no need to refetch on every tap.
+  useEffect(() => {
+    if (openPanel !== "habits" || meId == null) return;
+    api
+      .insights(meId)
+      .then((r) => setNeglected(r.neglected))
+      .catch(() => setNeglected([]));
+  }, [openPanel, meId]);
+
   return (
     <div className="game-shell" style={{ ["--u" as string]: me.color }}>
       {waving && <SnoozePanda minutes={SNOOZE_MIN} />}
@@ -1582,6 +1617,7 @@ export default function App() {
                   <IconClose />
                 </button>
               </div>
+              <NeglectedTasks tasks={neglected} />
               <div className="card panel-section">
                 <div className="card-head">
                   <h2>Manage tasks</h2>

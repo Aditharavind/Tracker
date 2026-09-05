@@ -1,4 +1,4 @@
-import type { DayDetail, InvitePreview, Progress, TaskItem, User } from "./types";
+import type { DayDetail, InvitePreview, NeglectedTask, Progress, TaskItem, User } from "./types";
 
 /**
  * A request that reached the server and came back refused, as opposed to one
@@ -125,6 +125,9 @@ export const api = {
     }),
 
   day: (userId: number, day: string) => req<DayDetail>(`/users/${userId}/day/${day}`),
+
+  insights: (userId: number) =>
+    req<{ neglected: NeglectedTask[] }>(`/users/${userId}/insights?today=${todayISO()}`),
 
   toggle: (userId: number, taskId: number, day: string, done: boolean, pin?: string) =>
     req<{ day: DayDetail; progress: Progress }>(`/users/${userId}/toggle`, {
