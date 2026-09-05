@@ -89,7 +89,6 @@ async function loadUser(store, id) {
  * signing in as you -- so re-enabling this is a one-line change if the sharing
  * model ever needs it.
  */
-// eslint-disable-next-line no-unused-vars
 function requirePin(_user, _pin) {}
 
 /**
@@ -878,7 +877,6 @@ export function createApp() {
 
   app.use((_req, res) => res.status(404).json({ error: "not found" }));
 
-  // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     const status = err.status ?? 500;
     if (status >= 500) {
