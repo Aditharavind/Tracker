@@ -124,14 +124,6 @@ export function createMemoryStore() {
       return users.filter((u) => u.name.toLowerCase() === name.toLowerCase()).map(clone);
     },
 
-    async getUserByNameInGroup(groupId, name) {
-      return clone(
-        users.find(
-          (u) => u.group_id === Number(groupId) && u.name.toLowerCase() === name.toLowerCase()
-        )
-      );
-    },
-
     async createUser({
       name,
       color,
