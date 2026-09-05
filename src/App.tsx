@@ -1244,6 +1244,18 @@ export default function App() {
     }
   }, [openPanel, runnerOpen, shellVisible]);
 
+  // Which tasks the user has been quietly skipping -- recomputed server-side
+  // from real completions each time the Habits panel opens (see
+  // server/insights.js). Only ever looks at days before today, so it can't
+  // change from ticking today's boxes -- no need to refetch on every tap.
+  useEffect(() => {
+    if (!shellVisible || openPanel !== "habits" || meId == null) return;
+    api
+      .insights(meId)
+      .then((r) => setNeglected(r.neglected))
+      .catch(() => setNeglected([]));
+  }, [shellVisible, openPanel, meId]);
+
   if (users === null) return <Skeleton />;
 
   if (users.length === 0) {
@@ -1297,39 +1309,6 @@ export default function App() {
 
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
     setOpenPanel((cur) => (cur === p ? null : p));
-
-  // Esc closes whatever drawer / picker is open (the minigame handles its own).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpenPanel(null);
-      setCharacterPanelOpen(false);
-      setShareUrl(null);
-      setInviteUrl(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // Global Forest Dash leaderboard -- pulled when the board opens or the
-  // minigame closes (a fresh score may have landed).
-  useEffect(() => {
-    if (openPanel === "leaderboard" || !runnerOpen) {
-      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
-    }
-  }, [openPanel, runnerOpen]);
-
-  // Which tasks the user has been quietly skipping -- recomputed server-side
-  // from real completions each time the Habits panel opens (see
-  // server/insights.js). Only ever looks at days before today, so it can't
-  // change from ticking today's boxes -- no need to refetch on every tap.
-  useEffect(() => {
-    if (openPanel !== "habits" || meId == null) return;
-    api
-      .insights(meId)
-      .then((r) => setNeglected(r.neglected))
-      .catch(() => setNeglected([]));
-  }, [openPanel, meId]);
 
   return (
     <div className="game-shell" style={{ ["--u" as string]: me.color }}>
