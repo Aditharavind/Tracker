@@ -8,7 +8,8 @@ import test, { after, before } from "node:test";
 
 import { createApp } from "../server/app.js";
 import { createMemoryStore } from "../server/store/memory.js";
-import { setStore } from "../server/store/index.js";
+import { getStore, setStore } from "../server/store/index.js";
+import { hashSecret } from "../server/security.js";
 import { todayISO } from "./helpers.js";
 
 let base;
@@ -61,18 +62,31 @@ test("a PIN is required, and must be 4-6 digits", async () => {
   assert.equal((await call("POST", "/users", { name: "Wordy", pin: "abcd" })).status, 400);
 });
 
-test("names clash only with people who can see you", async () => {
-  // same name, its own board -> fine, these two can never see each other
-  const elsewhere = await call("POST", "/users", { name: "Adith", pin: "7777" });
-  assert.equal(elsewhere.status, 201);
+test("a name is unique across the whole app, not just one board", async () => {
+  // Login matches an account by name + PIN alone, with no group in the
+  // picture -- two strangers on different boards sharing a name would make
+  // that lookup ambiguous. So the clash is rejected even for a brand-new,
+  // otherwise-empty board that could never have collided under the old
+  // per-group check.
+  const freshBoard = await call("POST", "/users", { name: "Adith", pin: "7777" });
+  assert.equal(freshBoard.status, 409);
+  assert.match(freshBoard.body.error, /already taken/);
 
-  // same name on the *same* board -> rejected
-  const sameBoard = await call("POST", "/users", {
+  // Case-insensitive, matching how login itself compares names.
+  const shouting = await call("POST", "/users", { name: "ADITH", pin: "7777" });
+  assert.equal(shouting.status, 409);
+
+  // Joining an existing board hits the same global check, not just the
+  // members already on that board.
+  const viaInvite = await call("POST", "/users", {
     name: "Adith",
     pin: "7777",
     invited_by: adith.id,
   });
-  assert.equal(sameBoard.status, 409);
+  assert.equal(viaInvite.status, 409);
+
+  // A genuinely free name still works both ways.
+  assert.equal((await call("POST", "/users", { name: "Priya", pin: "5555" })).status, 201);
 });
 
 test("an invite joins the host's board; no invite starts a separate one", async () => {
@@ -434,9 +448,20 @@ test("you can sign back in with your name and PIN", async () => {
 });
 
 test("an ambiguous name+PIN is refused rather than guessed", async () => {
-  // two boards, same name, same PIN -- nothing can tell them apart
-  await call("POST", "/users", { name: "Twin", pin: "5150" });
-  await call("POST", "/users", { name: "Twin", pin: "5150" });
+  // Signup itself refuses a repeated name now (see "a name is unique across
+  // the whole app"), so two accounts named the same can no longer be created
+  // through the front door -- which is the fix, not a gap in this test. What
+  // is still worth pinning down is login's OWN behaviour if a duplicate ever
+  // exists anyway: a legacy account from before this change, or two signups
+  // that raced each other faster than the uniqueness check and the insert
+  // that follows it (nothing here makes that check-then-insert atomic without
+  // the database-level unique index from the migration). Inserted directly
+  // through the store to construct that state without going through the
+  // now-blocking API.
+  const store = getStore();
+  await store.createUser({ name: "Twin", pin_hash: hashSecret("5150"), group_id: (await store.createGroup()).id });
+  await store.createUser({ name: "Twin", pin_hash: hashSecret("5150"), group_id: (await store.createGroup()).id });
+
   const res = await call("POST", "/login", { name: "Twin", pin: "5150" });
   assert.equal(res.status, 403, "must not silently pick one");
 });
