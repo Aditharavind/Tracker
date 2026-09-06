@@ -53,9 +53,12 @@ export const CHARACTER_EYES: Record<
   CharacterId,
   { lx: number; rx: number; y: number; w: number; h: number }
 > = {
-  panda: { lx: 40, rx: 57, y: 43, w: 19, h: 21 },
-  koala: { lx: 41, rx: 55, y: 46, w: 15, h: 17 },
-  redpanda: { lx: 40, rx: 58, y: 42, w: 18, h: 20 },
+  // Positioned off each sprite with a dot-on-pupil overlay probe.
+  panda: { lx: 40, rx: 61, y: 39, w: 17, h: 19 },
+  koala: { lx: 38, rx: 59, y: 47, w: 15, h: 14 },
+  // the long tail pulls the art bounding box right, so the head -- and eyes --
+  // sit well left of the box centre.
+  redpanda: { lx: 34, rx: 52, y: 44, w: 17, h: 17 },
 };
 
 export type CharacterAnim = "Idle" | "Run" | "Hop" | "Dance";
