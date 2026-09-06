@@ -1,4 +1,12 @@
-import type { DayDetail, InvitePreview, NeglectedTask, Progress, TaskItem, User } from "./types";
+import type {
+  CoachReport,
+  DayDetail,
+  InvitePreview,
+  NeglectedTask,
+  Progress,
+  TaskItem,
+  User,
+} from "./types";
 
 /**
  * A request that reached the server and came back refused, as opposed to one
@@ -128,6 +136,11 @@ export const api = {
 
   insights: (userId: number) =>
     req<{ neglected: NeglectedTask[] }>(`/users/${userId}/insights?today=${todayISO()}`),
+
+  coach: (userId: number, refresh = false) =>
+    req<CoachReport>(
+      `/users/${userId}/coach?today=${todayISO()}${refresh ? "&refresh=1" : ""}`
+    ),
 
   toggle: (userId: number, taskId: number, day: string, done: boolean, pin?: string) =>
     req<{ day: DayDetail; progress: Progress }>(`/users/${userId}/toggle`, {
