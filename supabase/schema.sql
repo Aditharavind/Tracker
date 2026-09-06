@@ -117,8 +117,16 @@ create index if not exists users_group_idx
 create index if not exists users_name_lower_idx
   on public.users (name_lower);
 
--- Names only need to be unique among people who can see each other, and the
--- app compares them case-insensitively, so the index has to as well.
+-- Names are unique across the whole app (see migration-08) -- login matches
+-- an account by name + PIN alone, with no group in the picture, so two
+-- strangers sharing a name would make that lookup ambiguous. The app checks
+-- this itself before creating an account; this is the backstop for anything
+-- that bypasses the API (a row inserted by hand from the table editor).
+create unique index if not exists users_name_lower_key
+  on public.users (name_lower);
+
+-- Superseded by the global index above, kept only so a database that still
+-- has it does not need a migration just to drop it.
 create unique index if not exists users_group_name_lower_key
   on public.users (group_id, name_lower);
 

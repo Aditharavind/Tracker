@@ -248,12 +248,6 @@ export function createSupabaseStore({ url, key }) {
       return unwrap(await db.from("users").select("*").ilike("name", name));
     },
 
-    async getUserByNameInGroup(groupId, name) {
-      return unwrap(
-        await db.from("users").select("*").eq("group_id", groupId).ilike("name", name).maybeSingle()
-      );
-    },
-
     async createUser(row) {
       // the seed_core_tasks trigger fills in the seven rules for us
       const { data, error } = await db.from("users").insert(row).select().single();
