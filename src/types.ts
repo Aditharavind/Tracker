@@ -92,3 +92,15 @@ export type NeglectedTask = {
   /** most recent day it was completed, or null if never */
   lastDone: string | null;
 };
+
+export type CoachReport = {
+  /** 1-3 sentences on the user's pattern -- when they show up, when they slip */
+  persona: string;
+  /** short phrases naming what's slipping, each grounded in a real number */
+  focus: string[];
+  /** concrete, ordered steps */
+  plan: { title: string; detail: string }[];
+  /** "ai" when written by the model, "rule" for the deterministic fallback */
+  source: "ai" | "rule";
+  generatedAt: string;
+};

@@ -423,6 +423,18 @@ test("GET insights flags a task only after a real gap in its own completions", a
   assert.deepEqual(stillFresh.body.neglected, []);
 });
 
+test("GET coach returns a usable report with no API key (rule fallback)", async () => {
+  const u = (await call("POST", "/users", { name: "Coachee", pin: "2323" })).body;
+  const res = await call("GET", `/users/${u.id}/coach`);
+  assert.equal(res.status, 200);
+  if (!process.env.OPENAI_API_KEY) assert.equal(res.body.source, "rule");
+  assert.ok(["ai", "rule"].includes(res.body.source));
+  assert.equal(typeof res.body.persona, "string");
+  assert.ok(Array.isArray(res.body.focus));
+  assert.ok(Array.isArray(res.body.plan));
+  assert.ok(res.body.plan.every((p) => "title" in p && "detail" in p));
+});
+
 test("missing things 404 rather than 500", async () => {
   assert.equal((await call("GET", "/users/9999/progress")).status, 404);
   assert.equal((await call("GET", `/users/9999/day/${TODAY}`)).status, 404);
