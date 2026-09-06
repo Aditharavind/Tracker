@@ -1245,6 +1245,33 @@ export default function App() {
     }
   }, [openPanel, runnerOpen, shellVisible]);
 
+  // The habit coach -- persona, what's slipping, and a plan, built server-side
+  // from real completions (see server/coach.js). Cached per day on the server,
+  // so opening the panel repeatedly is cheap; the refresh button forces a new
+  // read. Only looks at days before today, so ticking today's boxes can't
+  // change it -- no refetch on every tap.
+  useEffect(() => {
+    if (!shellVisible || openPanel !== "habits" || meId == null) return;
+    let live = true;
+    api
+      .coach(meId)
+      .then((r) => live && setCoach(r))
+      .catch(() => live && setCoach(null));
+    return () => {
+      live = false;
+    };
+  }, [shellVisible, openPanel, meId]);
+
+  const refreshCoach = useCallback(() => {
+    if (meId == null || coachLoading) return;
+    setCoachLoading(true);
+    api
+      .coach(meId, true)
+      .then(setCoach)
+      .catch(() => {})
+      .finally(() => setCoachLoading(false));
+  }, [meId, coachLoading]);
+
   if (users === null) return <Skeleton />;
 
   if (users.length === 0) {
@@ -1298,54 +1325,6 @@ export default function App() {
 
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
     setOpenPanel((cur) => (cur === p ? null : p));
-
-  // Esc closes whatever drawer / picker is open (the minigame handles its own).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpenPanel(null);
-      setCharacterPanelOpen(false);
-      setShareUrl(null);
-      setInviteUrl(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // Global Forest Dash leaderboard -- pulled when the board opens or the
-  // minigame closes (a fresh score may have landed).
-  useEffect(() => {
-    if (openPanel === "leaderboard" || !runnerOpen) {
-      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
-    }
-  }, [openPanel, runnerOpen]);
-
-  // The habit coach -- persona, what's slipping, and a plan, built server-side
-  // from real completions (see server/coach.js). Cached per day on the server,
-  // so opening the panel repeatedly is cheap; the refresh button forces a new
-  // read. Only looks at days before today, so ticking today's boxes can't
-  // change it -- no refetch on every tap.
-  useEffect(() => {
-    if (openPanel !== "habits" || meId == null) return;
-    let live = true;
-    api
-      .coach(meId)
-      .then((r) => live && setCoach(r))
-      .catch(() => live && setCoach(null));
-    return () => {
-      live = false;
-    };
-  }, [openPanel, meId]);
-
-  const refreshCoach = useCallback(() => {
-    if (meId == null || coachLoading) return;
-    setCoachLoading(true);
-    api
-      .coach(meId, true)
-      .then(setCoach)
-      .catch(() => {})
-      .finally(() => setCoachLoading(false));
-  }, [meId, coachLoading]);
 
   return (
     <div className="game-shell" style={{ ["--u" as string]: me.color }}>

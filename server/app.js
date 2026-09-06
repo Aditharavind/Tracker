@@ -90,7 +90,6 @@ async function loadUser(store, id) {
  * signing in as you -- so re-enabling this is a one-line change if the sharing
  * model ever needs it.
  */
-// eslint-disable-next-line no-unused-vars
 function requirePin(_user, _pin) {}
 
 /**
@@ -395,8 +394,9 @@ export function createRouter() {
       if (!Number.isInteger(repsTarget) || repsTarget < 1 || repsTarget > 999) {
         throw new HttpError(400, "bad reps_target");
       }
-      if (await store.getUserByNameInGroup(group.id, name)) {
-        throw new HttpError(409, "someone on this board already has that name");
+      // Global, not board-scoped -- see the matching check in POST /users.
+      if ((await store.listUsersByName(name)).length > 0) {
+        throw new HttpError(409, "that name is already taken");
       }
 
       const user = await store.createUser({
@@ -437,16 +437,18 @@ export function createRouter() {
       if (!Number.isInteger(repsTarget) || repsTarget < 1 || repsTarget > 999) {
         throw new HttpError(400, "bad reps_target");
       }
-      // Names only have to be unique among people who can see each other, so
-      // the board has to be settled before the clash check means anything.
+      // Names are unique across the whole app, not just within one board --
+      // login matches an account by name+PIN alone (see POST /login), so two
+      // strangers sharing a name would make that lookup ambiguous. Checked
+      // before the group is even decided, since it applies either way.
+      if ((await store.listUsersByName(name)).length > 0) {
+        throw new HttpError(409, "that name is already taken");
+      }
       let groupId;
       if (invitedBy != null) {
         const host = await store.getUser(invitedBy);
         if (!host) throw new HttpError(404, "that invite is no longer valid");
         groupId = host.group_id;
-        if (await store.getUserByNameInGroup(groupId, name)) {
-          throw new HttpError(409, "someone on this board already has that name");
-        }
       } else {
         groupId = (await store.createGroup()).id;
       }
@@ -911,7 +913,6 @@ export function createApp() {
 
   app.use((_req, res) => res.status(404).json({ error: "not found" }));
 
-  // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     const status = err.status ?? 500;
     if (status >= 500) {
