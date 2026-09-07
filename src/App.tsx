@@ -1282,6 +1282,11 @@ export default function App() {
         avatar={pendingAvatar}
         onAvatar={setPendingAvatar}
         existing={[]}
+        // The only reason this screen has an audience of exactly one signed-
+        // out browser is a deliberate Sign Out -- open on the sign-in side,
+        // not the create-a-new-account default, so a returning user typing
+        // their real credentials doesn't land on the tab that rejects them.
+        initialMode={localStorage.getItem(SIGNED_OUT_KEY) ? "back" : "new"}
         onSignIn={async (name, pin) => {
           const u = await api.login(name, pin);
           setMeId(u.id);

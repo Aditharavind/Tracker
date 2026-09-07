@@ -89,6 +89,34 @@ test("a name is unique across the whole app, not just one board", async () => {
   assert.equal((await call("POST", "/users", { name: "Priya", pin: "5555" })).status, 201);
 });
 
+/**
+ * Regression: this exact case locked a real, reported user out of their own
+ * account. Onboard.tsx's "create a new account" side is the default view --
+ * still is, right after signing out too, unless the app is on the fix from
+ * the same commit as this test -- so a returning user typing their own real
+ * name and PIN into it, without noticing the "I already have an account"
+ * toggle, submitted a signup for a name that (correctly) already existed.
+ * The 409 that followed read as "your account is broken", not "you're on
+ * the wrong tab". Since they demonstrably knew the real PIN, there is a far
+ * better response available than rejecting them: sign them in.
+ */
+test("signing up with your own existing name AND your own real PIN signs you in, not 409", async () => {
+  const signIn = await call("POST", "/users", { name: "Adith", pin: PIN, color: "#000000" });
+  assert.equal(signIn.status, 200, "not 201 -- nothing was created");
+  assert.equal(signIn.body.id, adith.id, "it's the SAME account, not a new one");
+  assert.equal(signIn.body.color, adith.color, "and unmodified by the signup fields sent");
+
+  // The wrong-PIN case is untouched: same name, still refused, no hint given
+  // about whether the name itself was the problem.
+  const wrongPin = await call("POST", "/users", { name: "Adith", pin: "0000" });
+  assert.equal(wrongPin.status, 409);
+  assert.match(wrongPin.body.error, /already taken/);
+
+  // The account still logs in normally afterwards -- this path is not a
+  // side door that disturbs the real one.
+  assert.equal((await call("POST", "/login", { name: "Adith", pin: PIN })).status, 200);
+});
+
 test("an invite joins the host's board; no invite starts a separate one", async () => {
   rahul = (
     await call("POST", "/users", { name: "Rahul", pin: "1111", invited_by: adith.id })
