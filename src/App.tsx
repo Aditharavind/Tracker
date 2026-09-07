@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
 import * as outbox from "./outbox";
-import type { DayDetail, NeglectedTask, Progress, TaskItem, User } from "./types";
+import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
 import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
 import Checklist from "./components/Checklist";
@@ -9,7 +9,7 @@ import Calendar75 from "./components/Calendar75";
 import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
 import DashLeaderboard from "./components/DashLeaderboard";
-import NeglectedTasks from "./components/NeglectedTasks";
+import Coach from "./components/Coach";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
@@ -529,7 +529,8 @@ export default function App() {
   const [dashBoard, setDashBoard] = useState<
     { name: string; color: string; coins: number; distance: number }[]
   >([]);
-  const [neglected, setNeglected] = useState<NeglectedTask[]>([]);
+  const [coach, setCoach] = useState<CoachReport | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
   // Set whenever a write (tick / note / restart) is rejected, so the UI can
   // stop pretending the optimistic change was committed. Cleared by the next
   // clean write or a successful refetch.
@@ -1244,17 +1245,32 @@ export default function App() {
     }
   }, [openPanel, runnerOpen, shellVisible]);
 
-  // Which tasks the user has been quietly skipping -- recomputed server-side
-  // from real completions each time the Habits panel opens (see
-  // server/insights.js). Only ever looks at days before today, so it can't
-  // change from ticking today's boxes -- no need to refetch on every tap.
+  // The habit coach -- persona, what's slipping, and a plan, built server-side
+  // from real completions (see server/coach.js). Cached per day on the server,
+  // so opening the panel repeatedly is cheap; the refresh button forces a new
+  // read. Only looks at days before today, so ticking today's boxes can't
+  // change it -- no refetch on every tap.
   useEffect(() => {
     if (!shellVisible || openPanel !== "habits" || meId == null) return;
+    let live = true;
     api
-      .insights(meId)
-      .then((r) => setNeglected(r.neglected))
-      .catch(() => setNeglected([]));
+      .coach(meId)
+      .then((r) => live && setCoach(r))
+      .catch(() => live && setCoach(null));
+    return () => {
+      live = false;
+    };
   }, [shellVisible, openPanel, meId]);
+
+  const refreshCoach = useCallback(() => {
+    if (meId == null || coachLoading) return;
+    setCoachLoading(true);
+    api
+      .coach(meId, true)
+      .then(setCoach)
+      .catch(() => {})
+      .finally(() => setCoachLoading(false));
+  }, [meId, coachLoading]);
 
   if (users === null) return <Skeleton />;
 
@@ -1596,7 +1612,7 @@ export default function App() {
                   <IconClose />
                 </button>
               </div>
-              <NeglectedTasks tasks={neglected} />
+              <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
               <div className="card panel-section">
                 <div className="card-head">
                   <h2>Manage tasks</h2>
