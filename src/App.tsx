@@ -19,6 +19,7 @@ import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
 import { isAlarmDue, toMinutes } from "./game/alarm";
+import { useInstallPrompt } from "./installPrompt";
 import CharacterSelect from "./components/CharacterSelect";
 import { CHARACTER_SPRITE, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
@@ -515,6 +516,7 @@ export default function App() {
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [runnerOpen, setRunnerOpen] = useState(false);
   const [muted, setMuted] = useState(isMuted);
+  const installState = useInstallPrompt();
   // Wake-up alarm settings. Until now the only way to set these was the signup
   // form, whose checkbox defaults to off -- so anyone who skipped it could
   // never turn the alarm on afterwards, and anyone who took it could never
@@ -1816,6 +1818,35 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {(installState.kind === "promptable" || installState.kind === "ios-manual") && (
+                <div className="card panel-section">
+                  <div className="card-head">
+                    <h2>Install the app</h2>
+                  </div>
+                  <p className="install-note">
+                    Add 75 Hard to your home screen -- opens full-screen, no browser bar, just like
+                    any other app.
+                  </p>
+                  {installState.kind === "promptable" ? (
+                    <button
+                      className="btn wide"
+                      onClick={async () => {
+                        const accepted = await installState.install();
+                        flash(accepted ? "Installed -- check your home screen" : "Maybe next time");
+                      }}
+                    >
+                      Add to Home Screen
+                    </button>
+                  ) : (
+                    // iOS has no install API at all -- Safari's Share sheet is
+                    // the only way in, and nothing on the page can open it.
+                    <p className="install-note">
+                      In Safari, tap the Share button, then "Add to Home Screen".
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div
                 className="card panel-section"
