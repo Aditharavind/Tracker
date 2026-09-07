@@ -3958,38 +3958,105 @@ h3 {
   border-bottom: none;
 }
 
-/* "You've been skipping X" nudge -- rows are pre-computed facts (see
-   server/insights.js); this is just their layout. */
-.neglected-card {
-  border: 1px solid rgba(214, 69, 69, 0.35);
-  background: rgba(214, 69, 69, 0.06);
+/* Habit coach -- persona + what's slipping + a plan. Every line is built from
+   pre-computed facts (see server/coach.js); this is just their layout. */
+.coach-card {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
-.neglected-list {
+.coach-src {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  color: var(--dim);
+}
+
+.coach-src-ai {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.coach-refresh {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--dim);
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+}
+
+.coach-refresh:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--raised);
+}
+
+.coach-refresh:disabled {
+  opacity: 0.5;
+}
+
+.coach-persona {
+  margin: 8px 0 4px;
+  line-height: 1.5;
+}
+
+.coach-sub {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.coach-focus {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.neglected-list li {
+.coach-focus li {
+  padding: 6px 0 6px 16px;
+  position: relative;
+  font-size: 13px;
+}
+
+.coach-focus li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.coach-plan {
+  margin: 0;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px 4px;
-  border-bottom: 1px solid var(--line-soft);
+  gap: 10px;
 }
 
-.neglected-list li:last-child {
-  border-bottom: none;
+.coach-plan li {
+  line-height: 1.45;
 }
 
-.neglected-title {
+.coach-plan-title {
+  display: block;
   font-weight: 600;
 }
 
-.neglected-note {
+.coach-plan-detail {
+  display: block;
   font-size: 12px;
-  color: var(--bad, #d64545);
+  color: var(--dim);
+  margin-top: 2px;
 }
 
 .habit-row .title {

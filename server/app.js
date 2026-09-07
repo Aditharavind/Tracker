@@ -2,6 +2,7 @@ import express from "express";
 
 import { compute, dayDetail } from "./engine.js";
 import { neglectedTasks } from "./insights.js";
+import { buildSignals, coachFingerprint, coachReport } from "./coach.js";
 import { hashSecret, newShareToken, verifySecret } from "./security.js";
 import { getStore } from "./store/index.js";
 import { isValidZone, zoneToday } from "./time.js";
@@ -592,6 +593,41 @@ export function createRouter() {
         store.listCompletions(user.id),
       ]);
       res.json({ neglected: neglectedTasks({ user, tasks, completions }, today) });
+    })
+  );
+
+  /**
+   * The AI habit coach: a persona read, what the user is slipping on, and a
+   * concrete plan -- built from a deterministic snapshot of their real
+   * completions (server/coach.js). With OPENAI_API_KEY set the phrasing comes
+   * from the model; without it, from rules. Either way the numbers are counted
+   * here, never invented.
+   *
+   * Cached per user per day (and re-derived early if the underlying stats
+   * move) so a normal session makes at most one model call. `?refresh=1`
+   * forces a fresh one.
+   */
+  r.get(
+    "/users/:id/coach",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const user = await loadUser(store, req.params.id);
+      const today = userToday(user, req.query.today);
+      const [tasks, completions] = await Promise.all([
+        store.listTasks(user.id),
+        store.listCompletions(user.id),
+      ]);
+      const progress = compute({ user, tasks, completions }, today);
+      const signals = buildSignals({ user, tasks, completions, progress }, today);
+
+      const key = `coach:${coachFingerprint(user.id, today, signals)}`;
+      if (req.query.refresh !== "1") {
+        const cached = await cacheGet(key);
+        if (cached) return res.json(cached);
+      }
+      const report = await coachReport(signals);
+      cacheSet(key, report, 12 * 60 * 60 * 1000);
+      res.json(report);
     })
   );
 
