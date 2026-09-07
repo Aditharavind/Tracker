@@ -5045,6 +5045,21 @@ h3 {
   opacity: 0.7;
 }
 
+/* Star-power countdown -- toggled via [hidden] every frame from the game
+   loop (see PandaRunner.tsx), not conditional rendering, so it costs no
+   re-render. Slow color cycle echoes the panda's own hue-rotate while
+   starred, without needing the same per-frame precision the canvas gets. */
+.runner-hud-star {
+  color: #ffe066;
+  text-shadow: 0 0 6px rgba(255, 224, 102, 0.7);
+  animation: runner-star-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes runner-star-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
 .runner-hud .runner-exit {
   margin-left: auto;
   padding: 5px 10px;

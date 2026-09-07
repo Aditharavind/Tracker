@@ -45,6 +45,39 @@ function drawCoin(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numb
 }
 
 /**
+ * The star power-up (see runnerEngine.ts's Star type / STAR_MS) -- a Mario-
+ * style invincibility pickup. Slow spin and a soft glow make it read as
+ * clearly rarer/more special than a coin at a glance, same hand-drawn-canvas
+ * style as drawCoin() above.
+ */
+function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, spin: number) {
+  ctx.save();
+  ctx.shadowColor = "rgba(255, 224, 102, 0.85)";
+  ctx.shadowBlur = r * 1.4;
+  ctx.translate(cx, cy);
+  ctx.rotate(spin);
+  ctx.beginPath();
+  const spikes = 5;
+  const outer = r;
+  const inner = r * 0.44;
+  for (let i = 0; i < spikes * 2; i++) {
+    const rad = i % 2 === 0 ? outer : inner;
+    const ang = (Math.PI / spikes) * i - Math.PI / 2;
+    const x = Math.cos(ang) * rad;
+    const y = Math.sin(ang) * rad;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#ffe066";
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, r * 0.16);
+  ctx.strokeStyle = "#a9720f";
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
  * Forest Dash -- optional endless platformer, unlocked once the day is cleared.
  *
  * Rendered on a single <canvas> with the game's own flat sprites and forest
@@ -70,6 +103,7 @@ export default function PandaRunner({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const distRef = useRef<HTMLSpanElement | null>(null);
   const coinRef = useRef<HTMLSpanElement | null>(null);
+  const starRef = useRef<HTMLSpanElement | null>(null);
 
   const stateRef = useRef<RunnerState>(createRunner(String(key)));
   const rafRef = useRef<number | null>(null);
@@ -188,6 +222,13 @@ export default function PandaRunner({
       drawCoin(ctx, c.x * sx, yPx(c.y), coinR);
     }
 
+    // --- stars: the invincibility power-up ---
+    const starR = Math.max(8, H * 0.023);
+    for (const star of st.stars) {
+      if (star.taken) continue;
+      drawStar(ctx, star.x * sx, yPx(star.y), starR, (st.t / 1000) * 2.4);
+    }
+
     // --- hazards: sized to about the character, sitting flush on the ledge ---
     const charH = H * 0.13;
     for (const h of st.hazards) {
@@ -233,12 +274,35 @@ export default function PandaRunner({
     // character stands ON the ledge with only a hair of daylight under it.
     const feet = yPx(st.y) + bob + ph * 0.08;
     const py = feet - ph;
+
+    // Star power: a soft rainbow-cycling glow behind the panda and a hue-cycle
+    // over the sprite itself -- the same ctx.filter hue-rotate technique the
+    // hazards below already use for their recolours, so no new rendering path.
+    // Never invisible for long: even at the tail end of the window it keeps
+    // flashing so a hazard nearby doesn't look identical to "not invincible".
+    const invincible = st.invincibleMs > 0;
+    if (invincible) {
+      const flashing = st.invincibleMs < 1500 && Math.floor(tSec * 8) % 2 === 0;
+      if (!flashing) {
+        const glowHue = (tSec * 220) % 360;
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.filter = `blur(${Math.max(2, pw * 0.18)}px)`;
+        ctx.fillStyle = `hsl(${glowHue}, 90%, 62%)`;
+        ctx.beginPath();
+        ctx.ellipse(px + pw / 2, py + ph / 2, pw * 0.75, ph * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     ctx.save();
     if (!st.grounded) {
       ctx.translate(px + pw / 2, py + ph / 2);
       ctx.rotate(st.vy > 0 ? -0.16 : 0.12);
       ctx.translate(-(px + pw / 2), -(py + ph / 2));
     }
+    if (invincible) ctx.filter = `hue-rotate(${(tSec * 220) % 360}deg) saturate(1.6)`;
     if (pImg && pImg.complete && pImg.naturalWidth) {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(pImg, px, py, pw, ph);
@@ -246,6 +310,7 @@ export default function PandaRunner({
       ctx.fillStyle = "#f2f2f2";
       ctx.fillRect(px, py, pw, ph);
     }
+    ctx.filter = "none";
     if (blinking) {
       // fur-toned lids over the eyes + a dark crease so it reads as "eyes shut"
       const e = CHARACTER_EYES[character];
@@ -281,6 +346,14 @@ export default function PandaRunner({
         bgShift.current += (st.speed * dt) / 1000;
         if (distRef.current) distRef.current.textContent = `${metres(st)}`;
         if (coinRef.current) coinRef.current.textContent = `${st.coinsTaken}`;
+        if (starRef.current) {
+          // Toggled via the hidden attribute, not conditional rendering --
+          // this updates every frame the same way DIST/coins do, and a state
+          // update per frame would re-render the whole component 60x/sec for
+          // no visible benefit.
+          starRef.current.hidden = st.invincibleMs <= 0;
+          starRef.current.textContent = `★ ${(st.invincibleMs / 1000).toFixed(1)}s`;
+        }
         if (st.over) {
           runningRef.current = false;
           const d = metres(st);
@@ -414,6 +487,9 @@ export default function PandaRunner({
           </span>
           <span>
             🪙 <span ref={coinRef}>0</span>
+          </span>
+          <span ref={starRef} className="runner-hud-star" hidden>
+            ★ 0.0s
           </span>
           <span className="runner-hud-best">
             BEST {best.dist}m · {best.coins}🪙

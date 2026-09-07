@@ -31,6 +31,22 @@ export const HAZARD_W = 6;
 // would be nearly unjumpable. A normal jump sails well over this.
 export const HAZARD_H = 5;
 export const COIN_R = 3;
+export const STAR_R = 3.4;
+
+/**
+ * How much of each box's own size is trimmed off, per side, before hazard
+ * collision is tested -- see hitsHazard. HAZARD_W/HAZARD_H themselves stay
+ * untouched: addLedge() still uses their full size for gap and runway math,
+ * so level layout is exactly what it always was. Only what counts as a hit
+ * changes.
+ */
+export const HAZARD_HIT_INSET_X = HAZARD_W * 0.16;
+export const HAZARD_HIT_INSET_Y = HAZARD_H * 0.16;
+export const PANDA_HIT_INSET_X = PANDA_W * 0.16;
+export const PANDA_HIT_INSET_Y = PANDA_H * 0.1;
+
+/** How long a star's invincibility lasts once picked up, in ms. */
+export const STAR_MS = 7000;
 
 // Below this world-y there is nothing to land on -- the panda has fallen.
 export const KILL_Y = -14;
@@ -53,6 +69,7 @@ export type HazardKind = "plant" | "mine";
 export type Hazard = { id: number; x: number; y: number; kind: HazardKind; hue: number };
 export type Platform = { id: number; x: number; y: number; w: number };
 export type Coin = { id: number; x: number; y: number; taken: boolean };
+export type Star = { id: number; x: number; y: number; taken: boolean };
 
 export type RunnerState = {
   rng: () => number;
@@ -68,6 +85,12 @@ export type RunnerState = {
   hazards: Hazard[];
   coins: Coin[];
   coinsTaken: number;
+  stars: Star[];
+  starsTaken: number;
+  // Remaining ms of star power -- a Mario-style invincibility star. >0 means a
+  // hazard touched this frame is defeated instead of ending the run. Counts
+  // down to 0 in step(); never negative.
+  invincibleMs: number;
   over: boolean;
   edgeX: number; // world-x of the right end of the last placed platform
   lastY: number; // world-y of the last placed platform
@@ -152,6 +175,18 @@ function addLedge(state: RunnerState) {
     });
   }
 
+  // A star -- Mario-style invincibility power-up -- shows up rarely, strewn on
+  // the ledge the same way a bonus coin is. Deliberately much rarer than
+  // coins: it is a moment worth noticing, not a routine pickup.
+  if (state.rng() < 0.07) {
+    state.stars.push({
+      id: state.ids++,
+      x: x + PANDA_W + state.rng() * Math.max(1, w - PANDA_W * 2),
+      y: y + PANDA_H * (0.6 + state.rng() * 0.5),
+      taken: false,
+    });
+  }
+
   // Place the hazard in the ledge's front half so a hop off it always has
   // `runwayAfter` of solid ledge to land back on -- never a hop into the void.
   if (wantHazard) {
@@ -185,6 +220,9 @@ export function createRunner(seed: string): RunnerState {
     hazards: [],
     coins: [],
     coinsTaken: 0,
+    stars: [],
+    starsTaken: 0,
+    invincibleMs: 0,
     over: false,
     edgeX: 68, // -10 + 78
     lastY: startY,
@@ -193,11 +231,20 @@ export function createRunner(seed: string): RunnerState {
   return state;
 }
 
+/**
+ * A full bounding-box test against pixel art with transparent padding reads
+ * as unfair -- a hop that visibly clears a plant or mine on screen can still
+ * overlap in raw AABB terms and end the run. Both boxes are inset toward
+ * their own centre before testing (see the *_HIT_INSET_* constants above),
+ * which requires genuine visual overlap without touching HAZARD_W/HAZARD_H
+ * themselves -- addLedge()'s gap and runway math still sees them at full
+ * size, so level layout is unaffected.
+ */
 const hitsHazard = (state: RunnerState, h: Hazard) =>
-  PANDA_X < h.x + HAZARD_W &&
-  PANDA_X + PANDA_W > h.x &&
-  state.y < h.y + HAZARD_H &&
-  state.y + PANDA_H > h.y;
+  PANDA_X + PANDA_HIT_INSET_X < h.x + HAZARD_W - HAZARD_HIT_INSET_X &&
+  PANDA_X + PANDA_W - PANDA_HIT_INSET_X > h.x + HAZARD_HIT_INSET_X &&
+  state.y + PANDA_HIT_INSET_Y < h.y + HAZARD_H - HAZARD_HIT_INSET_Y &&
+  state.y + PANDA_H - PANDA_HIT_INSET_Y > h.y + HAZARD_HIT_INSET_Y;
 
 const hitsCoin = (state: RunnerState, c: Coin) =>
   !c.taken &&
@@ -205,6 +252,13 @@ const hitsCoin = (state: RunnerState, c: Coin) =>
   PANDA_X + PANDA_W > c.x - COIN_R &&
   state.y + PANDA_H > c.y - COIN_R &&
   state.y < c.y + COIN_R;
+
+const hitsStar = (state: RunnerState, st: Star) =>
+  !st.taken &&
+  PANDA_X < st.x + STAR_R &&
+  PANDA_X + PANDA_W > st.x - STAR_R &&
+  state.y + PANDA_H > st.y - STAR_R &&
+  state.y < st.y + STAR_R;
 
 /**
  * @param jumps number of jump-press edges this frame. One press = a normal hop.
@@ -219,14 +273,18 @@ export function step(state: RunnerState, dtMs: number, jumps: number | boolean):
   state.speed = Math.min(MAX_SPEED, BASE_SPEED + state.distance * SPEED_RAMP);
   state.distance += state.speed * dt;
 
+  state.invincibleMs = Math.max(0, state.invincibleMs - dtMs);
+
   const shift = state.speed * dt;
   for (const p of state.platforms) p.x -= shift;
   for (const h of state.hazards) h.x -= shift;
   for (const c of state.coins) c.x -= shift;
+  for (const st of state.stars) st.x -= shift;
   state.edgeX -= shift;
   state.platforms = state.platforms.filter((p) => p.x + p.w > -12);
   state.hazards = state.hazards.filter((h) => h.x > -HAZARD_W * 2);
   state.coins = state.coins.filter((c) => c.x > -COIN_R * 2 && !c.taken);
+  state.stars = state.stars.filter((st) => st.x > -STAR_R * 2 && !st.taken);
   while (state.edgeX < LANE * 1.7) addLedge(state);
 
   let presses = jumps === true ? 1 : jumps === false ? 0 : Math.max(0, Math.trunc(jumps));
@@ -287,10 +345,32 @@ export function step(state: RunnerState, dtMs: number, jumps: number | boolean):
       state.coinsTaken += 1;
     }
   }
-  for (const h of state.hazards) {
-    if (hitsHazard(state, h)) {
-      state.over = true;
-      break;
+  for (const st of state.stars) {
+    if (hitsStar(state, st)) {
+      st.taken = true;
+      state.starsTaken += 1;
+      // Grabbing a second star mid-glow refreshes the window rather than
+      // stacking it -- simple to reason about, and it rewards a well-timed
+      // pickup without ever making the run un-endable.
+      state.invincibleMs = STAR_MS;
+    }
+  }
+  if (state.invincibleMs > 0) {
+    // Mario rules: touching a hazard while starred defeats it instead of
+    // ending the run. A small coin reward makes plowing through one feel
+    // like a deliberate win, not just a close call survived.
+    const defeated = state.hazards.filter((h) => hitsHazard(state, h));
+    if (defeated.length) {
+      const defeatedIds = new Set(defeated.map((h) => h.id));
+      state.hazards = state.hazards.filter((h) => !defeatedIds.has(h.id));
+      state.coinsTaken += defeated.length;
+    }
+  } else {
+    for (const h of state.hazards) {
+      if (hitsHazard(state, h)) {
+        state.over = true;
+        break;
+      }
     }
   }
 
