@@ -5109,9 +5109,42 @@ h3 {
   width: 64px;
 }
 .runner-board .dashlb-rest {
-  max-height: 96px;
+  /* Room for ~2-3 wrapped rows of chips before it needs to scroll, up from
+     96px -- with a real leaderboard (more than ~4-5 players past the top 3)
+     the old value made the list look like it just stopped after a couple of
+     names, with no visible sign there was more below. Still capped, not
+     unbounded: the card is centred and absolutely positioned with no height
+     limit of its own, and this sits inside a stage that can be genuinely
+     short (a rotated-landscape phone, see .runner-rotate-wrap), so letting
+     it grow with the player count would eventually push the card taller
+     than the viewport. */
+  max-height: 136px;
   overflow-y: auto;
   justify-content: center;
+}
+
+/* Same treatment as .day-card-float's scrollbar (see its own comment) --
+   reused here rather than left to the platform default, which on most
+   browsers hides itself until scrolled/hovered and gave no hint at all that
+   this box could hold more than what first renders. */
+.runner-board .dashlb-rest {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(210, 177, 103, 0.42) transparent;
+}
+
+.runner-board .dashlb-rest::-webkit-scrollbar {
+  width: 6px;
+}
+
+.runner-board .dashlb-rest::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.runner-board .dashlb-rest::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(210, 177, 103, 0.55), rgba(124, 195, 106, 0.55));
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 
 .runner-board ol {
@@ -5162,6 +5195,21 @@ h3 {
   top: 50%;
   transform: translate(-50%, -50%);
   width: min(88vw, 380px);
+  /* Found while widening the leaderboard's own inner scrollbox below: on a
+     short viewport -- a rotated-landscape phone is the realistic worst case,
+     see .runner-rotate-wrap -- this card's UNCONSTRAINED content (title,
+     score line, buttons, then the full leaderboard) is taller than the stage
+     itself. .runner-stage's overflow: hidden meant the excess was not
+     scrollable anywhere -- it was simply gone, top and bottom both, with no
+     way to reach it. This almost certainly explains a report of the
+     leaderboard "only showing 3 people": the crop landed mid-podium.
+     max-height caps it against .runner-stage (the nearest positioned
+     ancestor, so % resolves against its real height) and overflow-y makes
+     the card scroll AS A WHOLE when it still doesn't fit -- title and
+     buttons included, not just the leaderboard -- so everything stays
+     reachable regardless of screen height. */
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
   padding: 20px;
   text-align: center;
   color: #f3e6c8;
@@ -5169,6 +5217,23 @@ h3 {
   border: 2px solid rgba(210, 177, 103, 0.5);
   border-radius: 14px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(210, 177, 103, 0.42) transparent;
+}
+
+.runner-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.runner-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.runner-card::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(210, 177, 103, 0.55), rgba(124, 195, 106, 0.55));
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 
 .runner-card p {
