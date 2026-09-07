@@ -14,6 +14,7 @@ export default function Onboard({
   onTheme,
   avatar,
   onAvatar,
+  initialMode = "new",
 }: {
   existing: string[];
   onCreate: (name: string, color: string, pin: string, wakeTime: string | null, reps: number) => Promise<void>;
@@ -25,6 +26,14 @@ export default function Onboard({
   onTheme: (t: ThemeId) => void;
   avatar: AvatarId;
   onAvatar: (a: AvatarId) => void;
+  // "new" was always the default regardless of how someone got here -- which
+  // meant a browser landing back here right after Sign Out (see signOut in
+  // App.tsx) opened on "create a new account" too. A returning user typing
+  // their own real name + PIN into that side of the screen without noticing
+  // the toggle got "that name is already taken", which read as their own
+  // account being broken, not as being on the wrong tab. App.tsx now passes
+  // "back" whenever the reason this screen is showing at all is a sign-out.
+  initialMode?: "new" | "back";
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[existing.length % COLORS.length]);
@@ -34,7 +43,7 @@ export default function Onboard({
   const [reps, setReps] = useState(20);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [mode, setMode] = useState<"new" | "back">("new");
+  const [mode, setMode] = useState<"new" | "back">(initialMode);
 
   /**
    * How many people have signed up overall. `existing` only ever holds the

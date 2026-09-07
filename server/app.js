@@ -441,7 +441,33 @@ export function createRouter() {
       // login matches an account by name+PIN alone (see POST /login), so two
       // strangers sharing a name would make that lookup ambiguous. Checked
       // before the group is even decided, since it applies either way.
-      if ((await store.listUsersByName(name)).length > 0) {
+      //
+      // A name that already exists is not automatically a rejection: if the
+      // PIN given also matches that account, this almost certainly isn't a
+      // clash with someone else at all -- it's a returning user on the
+      // "create a new account" side of the sign-in screen, which is the
+      // default view (see Onboard.tsx's mode state) even right after signing
+      // out. Refusing them here with "that name is already taken" was real
+      // and reported: a correct name + correct PIN, entered on the wrong tab
+      // of the same screen, locked them out of their own account. Signing
+      // them into it instead is strictly safer than the alternative, and it
+      // leaks nothing a guess couldn't already learn from POST /login: a
+      // mismatched PIN still gets the same plain 409 as any other clash.
+      const existing = await store.listUsersByName(name);
+      if (existing.length > 0) {
+        const match = existing.find((u) => u.pin_hash && verifySecret(pin, u.pin_hash));
+        if (match) {
+          let me = match;
+          if (timezone && timezone !== me.timezone) {
+            try {
+              me = (await store.updateUser(me.id, { timezone })) ?? { ...me, timezone };
+            } catch {
+              /* column not migrated yet -- ignore, client keeps sending its day */
+            }
+          }
+          res.json(userOut(me, true, await store.getGroup(me.group_id)));
+          return;
+        }
         throw new HttpError(409, "that name is already taken");
       }
       let groupId;
@@ -473,10 +499,12 @@ export function createRouter() {
   );
 
   /**
-   * Sign back in on a new device, or after signing out. Names are only unique
-   * per board, so the PIN is what actually picks the account out; if two
-   * people on different boards share both a name and a PIN we refuse rather
-   * than guess which one you meant.
+   * Sign back in on a new device, or after signing out. Names are unique
+   * app-wide (see the matching check in POST /users), so this almost always
+   * resolves to at most one account -- the PIN filter below is really a
+   * safety net for anything that predates that: a legacy duplicate from
+   * before migration-08, or a row inserted by hand. If it still finds more
+   * than one match, we refuse rather than guess which one was meant.
    */
   r.post(
     "/login",
