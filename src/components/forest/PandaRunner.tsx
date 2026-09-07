@@ -307,16 +307,37 @@ export default function PandaRunner({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // Mirrors the media query in styles.css that rotates .runner-rotate-wrap
+    // -- see the CSS comment there for why the CSS-transform fallback exists.
+    const rotatedFallback = window.matchMedia("(max-width: 820px) and (orientation: portrait)");
     const resize = () => {
-      const rect = canvas.getBoundingClientRect();
+      // getBoundingClientRect() reports an element's post-transform, axis-
+      // aligned bounding box -- a CSS transform is purely paint-time and never
+      // touches layout, so a 90deg-rotated landscape box (844x390) reports
+      // back as 390x844, the very shape being rotated AWAY from. Trusting it
+      // here would size the canvas's drawing buffer portrait-shaped and let
+      // the CSS transform merely stretch that image across a landscape-shaped
+      // area on screen -- visually rotated, but the game world itself would
+      // still be laid out squeezed into a tall, narrow strip; the exact
+      // problem this whole rotation exists to solve. When the fallback is
+      // active, use the real viewport dimensions (swapped, matching the CSS's
+      // own 100vh/100vw swap) instead of asking the rotated element about
+      // itself.
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.max(1, Math.round(rect.width * dpr));
-      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      const { width, height } = rotatedFallback.matches
+        ? { width: window.innerHeight, height: window.innerWidth }
+        : canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.round(width * dpr));
+      canvas.height = Math.max(1, Math.round(height * dpr));
       draw();
     };
     resize();
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    rotatedFallback.addEventListener("change", resize);
+    return () => {
+      window.removeEventListener("resize", resize);
+      rotatedFallback.removeEventListener("change", resize);
+    };
   }, [draw]);
 
   useEffect(() => {
@@ -378,74 +399,84 @@ export default function PandaRunner({
       aria-label="Forest Dash minigame"
       tabIndex={-1}
     >
-      <div className="runner-hud pixel-font">
-        <span>
-          DIST <span ref={distRef}>0</span>m
-        </span>
-        <span>
-          🪙 <span ref={coinRef}>0</span>
-        </span>
-        <span className="runner-hud-best">
-          BEST {best.dist}m · {best.coins}🪙
-        </span>
-        <button type="button" className="runner-exit pixel-font" onClick={onClose}>
-          ‹ EXIT
-        </button>
-      </div>
+      {/* Stays upright even while runner-rotate-wrap below is rotated -- see
+          the CSS for why: it lives outside the rotated box on purpose, and
+          the media query that shows it is the same one that triggers the
+          rotation, so it only ever appears while the fallback is active. */}
+      <p className="runner-rotate-hint pixel-font" aria-hidden="true">
+        ↻ turn your phone sideways
+      </p>
 
-      <div
-        className="runner-stage"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onJumpInput();
-        }}
-      >
-        <canvas ref={canvasRef} className="runner-canvas" />
+      <div className="runner-rotate-wrap">
+        <div className="runner-hud pixel-font">
+          <span>
+            DIST <span ref={distRef}>0</span>m
+          </span>
+          <span>
+            🪙 <span ref={coinRef}>0</span>
+          </span>
+          <span className="runner-hud-best">
+            BEST {best.dist}m · {best.coins}🪙
+          </span>
+          <button type="button" className="runner-exit pixel-font" onClick={onClose}>
+            ‹ EXIT
+          </button>
+        </div>
 
-        {phase === "ready" && (
-          <div className="runner-card">
-            <p className="pixel-font runner-card-title">FOREST DASH</p>
-            <p>
-              Floating ledges, no ground. <kbd>↑</kbd> / <kbd>Space</kbd> / tap to hop every gap — and
-              the plants and mines on the ledges. <b>Double-tap</b> for a big jump. Grab coins. Miss
-              once and you start over.
-            </p>
-            <p className="runner-card-note">Optional bonus — nothing here affects your challenge.</p>
-            <button type="button" className="pixel-font runner-btn" onClick={onJumpInput} autoFocus>
-              START
-            </button>
-          </div>
-        )}
+        <div
+          className="runner-stage"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            onJumpInput();
+          }}
+        >
+          <canvas ref={canvasRef} className="runner-canvas" />
 
-        {phase === "over" && (
-          <div className="runner-card" role="alert">
-            <p className="pixel-font runner-card-title">
-              {result.dist < 3 ? "OOPS" : "DOWN YOU GO"}
-            </p>
-            <p aria-live="assertive">
-              {result.dist}m · {result.coins} coins
-              <br />
-              <span className="runner-card-note">
-                best {Math.max(best.dist, result.dist)}m · {Math.max(best.coins, result.coins)} coins
-              </span>
-            </p>
-            <div className="runner-card-actions">
+          {phase === "ready" && (
+            <div className="runner-card">
+              <p className="pixel-font runner-card-title">FOREST DASH</p>
+              <p>
+                Floating ledges, no ground. <kbd>↑</kbd> / <kbd>Space</kbd> / tap to hop every gap —
+                and the plants and mines on the ledges. <b>Double-tap</b> for a big jump. Grab coins.
+                Miss once and you start over.
+              </p>
+              <p className="runner-card-note">Optional bonus — nothing here affects your challenge.</p>
               <button type="button" className="pixel-font runner-btn" onClick={onJumpInput} autoFocus>
-                PLAY AGAIN
-              </button>
-              <button type="button" className="pixel-font runner-btn ghost" onClick={onClose}>
-                EXIT
+                START
               </button>
             </div>
+          )}
 
-            {board.length > 0 && (
-              <div className="runner-board">
-                <p className="pixel-font runner-board-title">GLOBAL — MOST COINS</p>
-                <DashLeaderboard rows={board} />
+          {phase === "over" && (
+            <div className="runner-card" role="alert">
+              <p className="pixel-font runner-card-title">
+                {result.dist < 3 ? "OOPS" : "DOWN YOU GO"}
+              </p>
+              <p aria-live="assertive">
+                {result.dist}m · {result.coins} coins
+                <br />
+                <span className="runner-card-note">
+                  best {Math.max(best.dist, result.dist)}m · {Math.max(best.coins, result.coins)} coins
+                </span>
+              </p>
+              <div className="runner-card-actions">
+                <button type="button" className="pixel-font runner-btn" onClick={onJumpInput} autoFocus>
+                  PLAY AGAIN
+                </button>
+                <button type="button" className="pixel-font runner-btn ghost" onClick={onClose}>
+                  EXIT
+                </button>
               </div>
-            )}
-          </div>
-        )}
+
+              {board.length > 0 && (
+                <div className="runner-board">
+                  <p className="pixel-font runner-board-title">GLOBAL — MOST COINS</p>
+                  <DashLeaderboard rows={board} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
