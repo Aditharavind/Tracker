@@ -17,7 +17,7 @@ export default defineConfig({
         // standalone is what makes it open without browser chrome once it has
         // been added to the home screen
         display: "standalone",
-        orientation: "portrait",
+        orientation: "any",
         background_color: "#0b0b0c",
         theme_color: "#0b0b0c",
         icons: [
@@ -58,6 +58,9 @@ export default defineConfig({
           "**/avatars/*.glb",
           "**/draco_*.js",
           "**/basis_transcoder-*.js",
+          "**/Adventure-*.js",
+          "**/Adventure-*.css",
+          "**/assets/story/**",
         ],
         // Sized to admit the ~1.05MB model-viewer runtime. Anything genuinely
         // huge is excluded by name above rather than by slipping under a cap.
@@ -67,6 +70,14 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/(?:Adventure-[^/]+\.(?:js|css)|story\/[^/]+\.webp)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "panda-adventure-assets",
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
+          },
           {
             urlPattern: /^\/api\//,
             handler: "NetworkOnly",
