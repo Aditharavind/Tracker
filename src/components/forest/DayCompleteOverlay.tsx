@@ -107,7 +107,7 @@ export default function DayCompleteOverlay({
               className="daycomplete-play pixel-font"
               onClick={onPlayRunner}
             >
-              ▶ FOREST DASH
+              ▶ MINIGAMES
             </button>
           )}
         </div>

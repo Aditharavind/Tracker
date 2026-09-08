@@ -14,7 +14,7 @@ import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
-import PandaRunner from "./components/forest/PandaRunner";
+import Minigames from "./components/Minigames";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
@@ -1387,7 +1387,8 @@ export default function App() {
         <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
       )}
       {runnerOpen && myCharacter && (
-        <PandaRunner
+        <Minigames
+          key={meId}
           character={myCharacter}
           userId={meId}
           onClose={() => setRunnerOpen(false)}
@@ -1451,7 +1452,7 @@ export default function App() {
               type="button"
               className="dash-launch pixel-font"
               onClick={() => setRunnerOpen(true)}
-              title="Forest Dash minigame — bonus, no effect on your challenge"
+              title="Choose Forest Dash or Story Mode"
             >
               ▶ MINIGAME
             </button>
