@@ -12,3 +12,4 @@ dev-dist/
 # while porting. It has its own .git, so committing it would create a nested
 # repo (git would store it as an unusable gitlink, not the files).
 Tracker/
+readme_codex.md
