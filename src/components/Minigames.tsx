@@ -1,8 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import type { CharacterId } from "../game/characters";
 import PandaRunner from "./forest/PandaRunner";
-import StoryMode from "./forest/StoryMode";
 import "../story.css";
+const StoryMode = lazy(() => import("./forest/Adventure"));
+
+class StoryBoundary extends Component<{ children: ReactNode; onClose: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return <div className="minigame-picker" role="alert"><div className="minigame-menu"><h2>The trail couldn't open.</h2><p>Check your connection and reload to try again.</p><button className="story-button" onClick={this.props.onClose}>← Minigames</button></div></div>;
+  }
+}
 
 export default function Minigames({ character, userId, onClose }: { character: CharacterId; userId: number | null; onClose: () => void }) {
   const [mode, setMode] = useState<"choose" | "dash" | "story">("choose");
@@ -19,13 +28,13 @@ export default function Minigames({ character, userId, onClose }: { character: C
   return <div ref={root} onKeyDown={e => {
     if (e.key === "Escape" && mode === "choose") { e.stopPropagation(); onClose(); }
     if (e.key !== "Tab") return;
-    const buttons = [...(root.current?.querySelectorAll<HTMLElement>('button:not(:disabled), [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length);
+    const buttons = [...(root.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length);
     const first = buttons[0]; const last = buttons[buttons.length - 1];
     if (e.shiftKey && (document.activeElement === first || !root.current?.contains(document.activeElement))) { e.preventDefault(); last?.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
   }}>
     {mode === "dash" ? <PandaRunner character={character} userId={userId} onClose={() => setMode("choose")} />
-      : mode === "story" ? <StoryMode character={character} userId={userId} onClose={() => setMode("choose")} />
+      : mode === "story" ? <StoryBoundary onClose={() => setMode("choose")}><Suspense fallback={<div className="minigame-picker" role="status">Finding the trail…</div>}><StoryMode key={userId} character={character} userId={userId} onClose={() => setMode("choose")} /></Suspense></StoryBoundary>
         : <div className="minigame-picker" role="dialog" aria-modal="true" aria-labelledby="minigame-title">
           <div className="minigame-menu">
             <button className="story-text-button minigame-close" onClick={onClose}>✕ Close</button>
@@ -40,8 +49,8 @@ export default function Minigames({ character, userId, onClose }: { character: C
               </button>
               <button className="minigame-option story-option" onClick={() => setMode("story")}>
                 <span className="minigame-mode-art" aria-hidden="true">✦</span>
-                <span className="story-eyebrow">3 CHAPTER ADVENTURE</span><strong>Story Mode</strong>
-                <span>Restore the forest’s light. Explore, dodge traps, and follow Wisp home.</span><b>Explore →</b>
+                <span className="story-eyebrow">8 WORLDS · ONE JOURNEY</span><strong>Story Mode</strong>
+                <span>Find the path again. Face your fears, earn new powers, and grow with Panda.</span><b>Explore →</b>
               </button>
             </div>
             <p className="story-footnote">Play for fun. Your 75-day challenge stays separate.</p>

@@ -144,25 +144,28 @@ over to a new day at their own midnight.
 
 ## Minigames
 
-The **MINIGAME** button opens a choice of Forest Dash (the endless runner) or
-Story Mode, **The Lost Light**. Story Mode is a three-chapter adventure with
-opening and closing cutscenes, a star fragment in each level, thorn traps,
-collapsing platforms, and checkpoint lanterns. Recover each fragment and reach
-the exit lantern to unlock the next chapter; the third chapter concludes the story.
+The **MINIGAME** button opens **Forest Dash** (the endless runner) or Panda
+Story Mode, **Find the path again**. The campaign has eight emotional worlds,
+24 levels, eight bosses, seven earned powers, animated cutscenes, checkpoint
+lanterns, traps, optional memories, and three postgame mastery trails.
 
-Move with **← / →** or **A / D**, and jump with **Space / ↑ / W**. A second
-press performs a double jump. Touch controls support moving and jumping together.
-**Escape** pauses; switching away also pauses the game. The pause menu can retry
-from the current checkpoint and restore collapsed platforms.
+Move with **A / D** or **← / →**, hold **Space / ↑** to jump higher, and use
+**J** for Panda Smash. **Control** walks and **S / ↓** crouches. After earning
+them, **Shift** dashes, **E** activates a selected power, and **Q** cycles powers.
+Double jump unlocks after World 2. **Escape** pauses; switching away also pauses.
+Touch controls and standard gamepads are supported, with remapping and graphics
+options in Settings. Landscape offers more room; portrait remains playable.
 
-Chapter completions and best coin counts save per player in this browser's
-local storage; they do not sync between devices. Checkpoints last for the current
-chapter attempt, including retries. Completed chapters can be replayed with any
-selected character. Story progress has no effect on challenge tasks, XP, or lives.
+Checkpoints, cutscene pages, unique coins and memories, boss victories, powers,
+upgrades, best times, and settings save per player in **localStorage**, including
+across page reloads. Continue resumes at the last lantern with restored health
+and a paused game. Progress stays in this browser and is lost if its site data
+is cleared. The new campaign uses a separate save from the earlier three-chapter
+story. Story progress does not affect challenge tasks, XP, or lives.
 
-The level definitions and cutscene dialogue live in `src/game/storyEngine.ts`.
-`npm run test:game` includes checks for level completion, jump reach, traps,
-checkpoints, collectibles, and saved-progress recovery.
+Story code and art load when Story Mode opens and are cached after that visit.
+See [Panda Story Mode development notes](docs/panda-story-mode.md) for the world
+progression, implementation, art provenance, sources, and verification limits.
 
 ## Themes
 
