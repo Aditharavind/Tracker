@@ -30,7 +30,7 @@ unlocks Extended Dash, Air Dash, Reflect, and Wall Jump respectively.
   and three mastery variants. Levels combine authored platform and hazard sections.
 - `src/game/adventure/engine.ts`: 120 Hz physics, buffered/coyote jumps, collisions,
   combat, enemies, boss phases, checkpoints, projectiles, and reusable particles.
-- `src/game/adventure/render.ts`: articulated Panda animation, world grading,
+- `src/game/adventure/render.ts`: original Panda sprite animation, world grading,
   parallax, environmental details, boss tells, particles, and camera smoothing.
 - `src/game/adventure/audio.ts`: original procedural world melodies and effects,
   boss/low-health/peaceful arrangements, and Focus filtering. Global mute applies.
@@ -93,8 +93,9 @@ The generated PNG was saved as
 `01a07fc6-d00d-7803-b608-67d952907690/exec-2da61385-9079-4bae-b477-781ef1349019.png`
 under Codex's generated-images directory; the deployed copy is in this repository.
 
-The map reuses the existing Panda sprite. Gameplay and cutscenes animate an
-articulated canvas Panda. Worlds share the forest illustration and section
+The map, gameplay, and cutscenes use the same existing Panda sprite as Forest
+Dash. Movement uses sprite bobbing, tilting, squash, and the shared eye-blink
+coordinates. The Old Panda is a darkened version of that same artwork. Worlds share the forest illustration and section
 templates, with different palettes, weather, hazards, and boss patterns. Music
 and effects are synthesized from original note sequences, with no sampled
 commercial-game audio.
