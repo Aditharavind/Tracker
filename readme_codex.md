@@ -73,3 +73,24 @@ forest artwork and level-section templates with different themes and mechanics.
 
 See [Panda Story Mode development notes](docs/panda-story-mode.md) for source
 files, art provenance, reflection sources, and further implementation details.
+
+## Boss artwork and combat animation update
+
+- Replaced the seven repeated boss designs with Craftpix's Battle Turtle,
+  Medusa, Jinn, Dragon, Lizard, Centipede, and Demon sprites.
+- Kept the original Panda as the player and the dark Panda as the final boss.
+- Connected idle, windup, attack, hurt, and death frames to combat state.
+- Added imported impact, magic, poison, dust, and burst effects for attacks,
+  projectiles, teleports, and powers.
+- Saved victories before playing the brief defeat animation.
+- Added compact WebP atlases, per-world boss loading, and animation metadata.
+- Recorded the official pack sources and Craftpix Freebie Products license in
+  `public/assets/story/CRAFTPIX-LICENSE.txt`. These assets are free to use in the
+  game under that license; they are not open-source or CC0 assets.
+
+See `docs/panda-story-mode.md` for the boss mapping and asset build instructions.
+
+Verification for the boss update: 113 frontend/game tests passed, along with
+build, lint, and atlas-bound checks. Browser checks verified eight distinct
+appearances, attack-frame progression, correct world-specific artwork, portrait
+layout, and saved victory/power restoration after reloading during defeat.

@@ -1,0 +1,307 @@
+{
+  "bosses": [
+    {
+      "name": "turtle",
+      "src": "/assets/story/boss-turtle-f13b4b222c.webp",
+      "w": 67,
+      "h": 50,
+      "anchorX": 37.0,
+      "anchorY": 50,
+      "scale": 2.717948717948718,
+      "height": 106,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": 4
+        },
+        "windup": {
+          "row": 1,
+          "frames": 6
+        },
+        "walk": {
+          "row": 2,
+          "frames": 4
+        },
+        "attack": {
+          "row": 3,
+          "frames": 4
+        },
+        "attack2": {
+          "row": 4,
+          "frames": 4
+        },
+        "attack3": {
+          "row": 5,
+          "frames": 4
+        },
+        "attack4": {
+          "row": 6,
+          "frames": 4
+        },
+        "hurt": {
+          "row": 7,
+          "frames": 2
+        },
+        "death": {
+          "row": 8,
+          "frames": 4
+        }
+      }
+    },
+    {
+      "name": "serpent",
+      "src": "/assets/story/boss-serpent-f5089ad099.webp",
+      "w": 96,
+      "h": 74,
+      "anchorX": 35.0,
+      "anchorY": 71,
+      "scale": 2.0,
+      "height": 120,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": 3
+        },
+        "walk": {
+          "row": 1,
+          "frames": 4
+        },
+        "attack": {
+          "row": 2,
+          "frames": 6
+        },
+        "hurt": {
+          "row": 3,
+          "frames": 2
+        },
+        "death": {
+          "row": 4,
+          "frames": 6
+        },
+        "windup": {
+          "row": 5,
+          "frames": 3
+        }
+      }
+    },
+    {
+      "name": "spirit",
+      "src": "/assets/story/boss-spirit-27d5c934ed.webp",
+      "w": 105,
+      "h": 105,
+      "anchorX": 34.5,
+      "anchorY": 101,
+      "scale": 1.6153846153846154,
+      "height": 126,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": 3
+        },
+        "walk": {
+          "row": 1,
+          "frames": 4
+        },
+        "attack": {
+          "row": 2,
+          "frames": 4
+        },
+        "hurt": {
+          "row": 3,
+          "frames": 2
+        },
+        "death": {
+          "row": 4,
+          "frames": 6
+        },
+        "windup": {
+          "row": 5,
+          "frames": 3
+        }
+      }
+    },
+    {
+      "name": "dragon",
+      "src": "/assets/story/boss-dragon-4189f451f9.webp",
+      "w": 171,
+      "h": 130,
+      "anchorX": 96.5,
+      "anchorY": 129,
+      "scale": 1.5942028985507246,
+      "height": 110,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": 3
+        },
+        "walk": {
+          "row": 1,
+          "frames": 5
+        },
+        "attack": {
+          "row": 2,
+          "frames": 4
+        },
+        "hurt": {
+          "row": 3,
+          "frames": 2
+        },
+        "death": {
+          "row": 4,
+          "frames": 5
+        },
+        "windup": {
+          "row": 5,
+          "frames": 3
+        }
+      }
+    },
+    {
+      "name": "lizard",
+      "src": "/assets/story/boss-lizard-8c1b1bd2ec.webp",
+      "w": 141,
+      "h": 61,
+      "anchorX": 67.5,
+      "anchorY": 60,
+      "scale": 2.0833333333333335,
+      "height": 100,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": 3
+        },
+        "walk": {
+          "row": 1,
+          "frames": 6
+        },
+        "attack": {
+          "row": 2,
+          "frames": 5
+        },
+        "hurt": {
+          "row": 3,
+          "frames": 2
+        },
+        "death": {
+          "row": 4,
+          "frames": 6
+        },
+        "windup": {
+          "row": 5,
+          "frames": 3
+        }
+      }
+    },
+    {
+      "name": "centipede",
+      "src": "/assets/story/boss-centipede-631b979ef2.webp",
+      "w": 71,
+      "h": 40,
+      "anchorX": 46.5,
+      "anchorY": 40,
+      "scale": 3.2857142857142856,
+      "height": 115,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": 4
+        },
+        "windup": {
+          "row": 1,
+          "frames": 6
+        },
+        "walk": {
+          "row": 2,
+          "frames": 4
+        },
+        "attack": {
+          "row": 3,
+          "frames": 4
+        },
+        "attack2": {
+          "row": 4,
+          "frames": 6
+        },
+        "attack3": {
+          "row": 5,
+          "frames": 6
+        },
+        "attack4": {
+          "row": 6,
+          "frames": 4
+        },
+        "hurt": {
+          "row": 7,
+          "frames": 2
+        },
+        "death": {
+          "row": 8,
+          "frames": 4
+        }
+      }
+    },
+    {
+      "name": "warrior",
+      "src": "/assets/story/boss-warrior-b003dd40d7.webp",
+      "w": 131,
+      "h": 121,
+      "anchorX": 42.0,
+      "anchorY": 120,
+      "scale": 1.425531914893617,
+      "height": 134,
+      "clips": {
+        "idle": {
+          "row": 0,
+          "frames": 3
+        },
+        "walk": {
+          "row": 1,
+          "frames": 6
+        },
+        "attack": {
+          "row": 2,
+          "frames": 4
+        },
+        "hurt": {
+          "row": 3,
+          "frames": 2
+        },
+        "death": {
+          "row": 4,
+          "frames": 6
+        },
+        "windup": {
+          "row": 5,
+          "frames": 3
+        }
+      }
+    }
+  ],
+  "effects": {
+    "src": "/assets/story/combat-effects-6d53ab0dff.webp",
+    "w": 96,
+    "h": 96,
+    "clips": {
+      "impact": {
+        "row": 0,
+        "frames": 10
+      },
+      "dust": {
+        "row": 1,
+        "frames": 10
+      },
+      "magic": {
+        "row": 2,
+        "frames": 10
+      },
+      "poison": {
+        "row": 3,
+        "frames": 10
+      },
+      "burst": {
+        "row": 4,
+        "frames": 10
+      }
+    }
+  }
+}

@@ -75,7 +75,7 @@ export default defineConfig({
             handler: "CacheFirst",
             options: {
               cacheName: "panda-adventure-assets",
-              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 60 },
             },
           },
           {

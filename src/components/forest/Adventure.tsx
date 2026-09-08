@@ -35,6 +35,7 @@ export default function Adventure({ userId, onClose }: { character: CharacterId;
   const [journal, setJournal] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null); const root = useRef<HTMLDivElement>(null);
   const previousPhase = useRef<Phase>("map"); const art = useRef<ReturnType<typeof loadArt> | null>(null);
+  const artWorld = useRef<number | undefined>(undefined);
   const active = useRef(false); const revision = useRef(0);
   const governor = useRef(new PerformanceGovernor()); const camera = useRef(newCamera());
   const settings = save.settings;
@@ -49,6 +50,7 @@ export default function Adventure({ userId, onClose }: { character: CharacterId;
   }, [key]);
   const storeAttempt = useCallback((scene?: Attempt["scene"], nextPage?: number) => {
     if (!active.current) return;
+    if (state.current.status === "won" && (scene ?? asScene(phaseRef.current)) === "play") return;
     if (!scene && ["map", "settings"].includes(phaseRef.current)) return;
     return persist(recordAttempt(saved.current, idRef.current, snapshot(state.current, scene ?? asScene(phaseRef.current), nextPage ?? pageRef.current)));
   }, [persist]);
@@ -126,8 +128,8 @@ export default function Adventure({ userId, onClose }: { character: CharacterId;
   useEffect(() => {
     if (!["play", "paused", "dead"].includes(phase)) return;
     const el = canvas.current; const ctx = el?.getContext("2d"); if (!el || !ctx) return;
-    if (!art.current) art.current = loadArt();
-    let raf = 0; let last = 0; let accumulator = 0; let lastHud = 0; let lastSave = 0; let ended = false; let viewWidth = WIDTH;
+    if (!art.current || artWorld.current !== level.world) { art.current = loadArt(level.world); artWorld.current = level.world; }
+    let raf = 0; let last = 0; let accumulator = 0; let lastHud = 0; let lastSave = 0; let ended = false; let victoryAt: number | null = null; let viewWidth = WIDTH;
     const systemMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const resize = () => {
       const config = saved.current.settings;
@@ -155,7 +157,13 @@ export default function Adventure({ userId, onClose }: { character: CharacterId;
       const s = state.current;
       audio.current.tick(level.world, s.health <= 1 ? "low" : s.boss?.active ? "boss" : "explore", s.focus > 0, saved.current.settings);
       if (now - lastHud > 120) { refreshHud(rawDt > 0 ? Math.min(120, Math.round(1 / rawDt)) : 60); setInputMethod(controls.current.method); lastHud = now; if (now > toastUntil.current) setToast(""); }
-      if (s.status === "won") { ended = true; persist(completeLevel(saved.current, level.id, snapshot(s))); refreshHud(); moveTo(level.id === 23 ? "ending" : "reflection"); }
+      if (s.status === "won") {
+        if (victoryAt === null) { victoryAt = now; persist(completeLevel(saved.current, level.id, snapshot(s))); refreshHud(); controls.current.clear(); }
+        if (s.boss) s.boss.animationTime += Math.min(.1, rawDt);
+        if (!s.boss || saved.current.settings.reducedMotion || systemMotion.matches || now - victoryAt >= 850) {
+          ended = true; moveTo(level.id === 23 ? "ending" : "reflection");
+        }
+      }
       else { if (s.revision !== revision.current || now - lastSave > 2000) { storeAttempt("play"); revision.current = s.revision; lastSave = now; } if (s.status === "dead") { ended = true; moveTo("dead"); } }
       draw(Math.min(.1, rawDt || 1 / 60)); if (!ended) raf = requestAnimationFrame(frame);
     };
