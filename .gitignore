@@ -13,3 +13,6 @@ dev-dist/
 # repo (git would store it as an unusable gitlink, not the files).
 Tracker/
 readme_codex.md
+
+# Downloaded source archives; only packed game assets are distributed.
+.cache/craftpix/

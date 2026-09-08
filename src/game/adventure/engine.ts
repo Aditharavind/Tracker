@@ -7,7 +7,7 @@ export const idleInput = (): Input => ({ move: 0, jump: false, jumpHeld: false, 
 export type Particle = { active: boolean; x: number; y: number; vx: number; vy: number; life: number; color: string; size: number };
 export type Projectile = { active: boolean; x: number; y: number; vx: number; vy: number; life: number; delay: number; radius: number; friendly: boolean; kind: "wave" | "rock" | "orb" };
 export type Enemy = { id: number; x: number; y: number; hp: number; direction: number; hit: number };
-export type Boss = { x: number; y: number; hp: number; maxHp: number; phase: number; stage: "waiting" | "windup" | "attack" | "recover" | "sleep" | "defeated"; timer: number; cycle: number; pattern: number; direction: number; hit: number; targetX: number; active: boolean };
+export type Boss = { x: number; y: number; hp: number; maxHp: number; phase: number; stage: "waiting" | "windup" | "attack" | "recover" | "sleep" | "defeated"; timer: number; animationTime: number; cycle: number; pattern: number; direction: number; hit: number; targetX: number; active: boolean };
 export type Event = { kind: "jump" | "land" | "attack" | "hit" | "dash" | "coin" | "checkpoint" | "power" | "boss" | "win" | "block" | "lore" | "break"; text?: string };
 export type State = {
   x: number; y: number; vx: number; vy: number; facing: number; grounded: boolean; groundId: number; jumps: number;
@@ -40,7 +40,7 @@ export function createState(level: Level, save: Pick<Save, "powers" | "upgrades"
     t: 0, worldTime: 0, elapsed: attempt?.elapsed ?? 0, checkpoint, status: "playing", reason: "",
     coins: new Set(attempt?.coins), lore: new Set(attempt?.lore), defeated: new Set(attempt?.defeated), opened: new Set(attempt?.opened), crumbling: new Map(), bell: 0,
     enemies: level.enemies.map(e => ({ id: e.id, x: e.x, y: e.y, hp: attempt?.defeated.includes(e.id) ? 0 : e.kind === "armored" ? 3 : 2, direction: -1, hit: 0 })),
-    boss: level.boss ? { x: level.arena + 680, y: 430, hp: maxHp, maxHp, phase: 1, stage: "waiting", timer: 1, cycle: 0, pattern: 0, direction: -1, hit: 0, targetX: x, active: false } : null,
+    boss: level.boss ? { x: level.arena + 680, y: 430, hp: maxHp, maxHp, phase: 1, stage: "waiting", timer: 1, animationTime: 0, cycle: 0, pattern: bossPattern(level.world, 1, 0), direction: -1, hit: 0, targetX: x, active: false } : null,
     particles: Array.from({ length: 96 }, () => ({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, color: "", size: 0 })),
     projectiles: Array.from({ length: 36 }, () => ({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, delay: 0, radius: 0, friendly: false, kind: "orb" as const })),
     events: [], revision: 0, powers: new Set(save.powers), upgrades: new Set(save.upgrades),
@@ -82,7 +82,7 @@ function hitBoss(s: State, amount: number) {
   if (!b || b.hp <= 0 || b.hit > 0 || !bossVulnerable(b)) return;
   b.hp = Math.max(0, b.hp - amount); b.hit = .32; rewardAction(s, 10); s.shake = 4;
   particles(s, b.x, b.y - 60, "#f6dca0", 14); emit(s, "attack");
-  if (b.hp <= 0) { b.stage = "defeated"; s.projectiles.forEach(p => p.active = false); s.status = "won"; emit(s, "win", "You found your opening. The path is clear."); s.revision++; }
+  if (b.hp <= 0) { b.stage = "defeated"; b.animationTime = 0; s.projectiles.forEach(p => p.active = false); s.status = "won"; emit(s, "win", "You found your opening. The path is clear."); s.revision++; }
 }
 export function bossPattern(world: number, phase: number, cycle: number) {
   if (world === 7) return phase === 1 ? cycle % 2 : phase === 2 ? 2 : phase === 3 ? 3 : phase === 4 ? 4 : cycle % 5;
@@ -97,11 +97,11 @@ function stepBoss(s: State, level: Level, dt: number, move: number) {
   // Keep the fight on its checkpoint platform; the entrance remains safe before activation.
   s.x = Math.max(level.arena + 10, Math.min(level.arena + 980, s.x));
   b.phase = Math.min(level.world === 7 ? 5 : 3, 1 + Math.floor((1 - b.hp / b.maxHp) * (level.world === 7 ? 5 : 3)));
-  b.hit = Math.max(0, b.hit - dt); b.timer -= dt;
+  b.hit = Math.max(0, b.hit - dt); b.timer -= dt; b.animationTime += dt;
   if (b.stage === "windup") {
     if (b.pattern === 2) b.x = Math.max(level.arena + 290, Math.min(level.arena + 850, b.x - move * 60 * dt));
     if (b.timer <= 0) {
-      b.stage = "attack"; b.timer = b.pattern === 1 ? .7 : .45; b.direction = s.x < b.x ? -1 : 1;
+      b.stage = "attack"; b.animationTime = 0; b.timer = b.pattern === 1 ? .7 : .45; b.direction = s.x < b.x ? -1 : 1;
       emit(s, "boss"); s.shake = 5;
       if (b.pattern === 0) {
         projectile(s, b.x, 417, -220 - b.phase * 15, 0, "wave"); projectile(s, b.x, 417, 220 + b.phase * 15, 0, "wave");
@@ -116,13 +116,13 @@ function stepBoss(s: State, level: Level, dt: number, move: number) {
     if (b.pattern === 1) b.x = Math.max(level.arena + 120, Math.min(level.arena + 900, b.x + b.direction * (290 + b.phase * 30) * dt));
     if (b.timer <= 0) {
       b.stage = level.world === 0 && b.phase >= 2 && b.cycle % 2 === 0 ? "sleep" : "recover";
-      b.timer = b.stage === "sleep" ? 4.8 : level.world === 4 ? 2 : 2.5;
+      b.animationTime = 0; b.timer = b.stage === "sleep" ? 4.8 : level.world === 4 ? 2 : 2.5;
       emit(s, "boss", b.stage === "sleep" ? "He's asleep! Smash the bell to drop a seed pod." : "Opening! Panda Smash now.");
     }
   } else if (b.stage === "recover" || b.stage === "sleep") {
     if (level.world === 4 && b.hit > 0) b.x = Math.max(level.arena + 170, Math.min(level.arena + 850, b.x - b.direction * 85 * dt));
     if (b.timer <= 0) {
-      b.cycle++; b.pattern = bossPattern(level.world, b.phase, b.cycle); b.stage = "windup";
+      b.animationTime = 0; b.cycle++; b.pattern = bossPattern(level.world, b.phase, b.cycle); b.stage = "windup";
       b.timer = Math.max(.8, 1.5 - b.phase * .1); b.targetX = s.x + HERO_W / 2;
       if (level.world === 4 && s.t - s.lastAction > 4) b.hp = Math.min(b.maxHp, b.hp + 1);
       if (level.world === 5 || level.world === 6) projectile(s, level.arena + 220 + (b.cycle % 3) * 260, 70, 0, 160, "rock", 1.2);

@@ -117,3 +117,51 @@ Real Android/iPhone hardware, Safari, physical gamepads, installed-PWA rotation,
 long-session battery use, and subjective difficulty/audio balance still need
 hands-on playtesting. Frame-rate adaptation is tested; sustained device-specific
 frame-rate targets are not certified.
+
+## Distinct boss sprites and combat effects
+
+The first seven bosses now use different animated creatures from Craftpix's
+free packs, downloaded through the publisher's official itch.io listings:
+
+| World | Creature |
+| --- | --- |
+| Laziness | Battle Turtle: broad shell and heavy ground attacks |
+| Self-doubt | Medusa: serpent silhouette and mirrored movement |
+| Distraction | Jinn: floating spirit, ghost copies, and teleport effects |
+| Fear | Dragon: wings, claws, and falling-stone attacks |
+| Inconsistency | Lizard: spear thrusts and charging attacks |
+| Frustration | Centipede: segmented body and mixed attack patterns |
+| Discipline | Demon: horned warrior and weapon attacks |
+| Hope | Original Panda sprite, darkened as the Old Panda |
+
+The new art includes idle, windup, attack, hurt, and death frames. Boss animation
+clocks reset at combat transitions, so attacks play once during the damaging
+window. The initial pattern also matches each world's mechanic. Warning marks,
+projectile cores, and vulnerability labels remain visible; reduced motion keeps
+static readable poses and suppresses animated impact effects.
+
+Smash and boss hits use imported impact frames. Teleports, projectiles,
+shockwaves, and power activations use a shared sheet of magic, poison, dust,
+and burst effects. A short defeat animation plays after victory is already
+saved, so leaving or reloading during the animation retains the unlock.
+
+`src/game/adventure/sprites.ts` renders the animation clips described in
+`sprite-manifest.json`. `scripts/pack-story-sprites.py ARCHIVE_DIR` rebuilds the
+atlases from locally downloaded `swamp.zip`, `monsters.zip`, and `effects.zip`
+with Pillow. Atlas filenames include content hashes; the runtime cache retains
+up to 24 story resources. Only the current world's boss sheet loads for gameplay.
+
+These are free-to-use assets under the **Craftpix Freebie Products license**,
+not open-source or CC0 art. See the bundled
+[asset notice](../public/assets/story/CRAFTPIX-LICENSE.txt) for attribution,
+original pack URLs, license reference, and the exact resources used. Original
+ZIPs and unused characters are excluded from the distributed project.
+
+Verification for this update: 110 existing frontend/game tests plus three new
+sprite-timing tests passed. Production build and lint passed. Atlas bounds were
+checked against decoded WebP dimensions. Chrome checks loaded all eight boss
+appearances, advanced attack frames, switched world artwork in the real story
+component, and reloaded during a boss defeat to verify immediate completion and
+power persistence. Portrait rendering was also checked. The victory check used
+a near-defeat fixture in an isolated browser harness; the normal-input boss
+simulations remain covered by the game tests. Real-device playtesting remains.

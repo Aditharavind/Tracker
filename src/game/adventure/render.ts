@@ -1,12 +1,13 @@
 import { WIDTH, HEIGHT, HERO_H, HERO_W, bossVulnerable, hazardPhase, platformAt, platformSolid, type State } from "./engine";
 import { WORLDS, type Level } from "./content";
 import type { Settings } from "./save";
+import { BOSS_SPRITES, EFFECT_SPRITES, drawBossSprite, drawEffect, type EffectName } from "./sprites";
 import { CHARACTER_EYES, CHARACTER_FUR, CHARACTER_SPRITE } from "../characters";
 
-export type Art = { forest: HTMLImageElement; panda: HTMLImageElement; bush: HTMLImageElement; plant: HTMLImageElement };
-export function loadArt(): Art {
+export type Art = { forest: HTMLImageElement; panda: HTMLImageElement; bush: HTMLImageElement; plant: HTMLImageElement; boss: HTMLImageElement; effects: HTMLImageElement };
+export function loadArt(world?: number): Art {
   const load = (path: string) => { const image = new Image(); image.src = path; return image; };
-  return { forest: load("/assets/story/forest-journey.webp"), panda: load(CHARACTER_SPRITE.panda), bush: load("/assets/bush.webp"), plant: load("/assets/zombie-plant.webp") };
+  return { forest: load("/assets/story/forest-journey.webp"), panda: load(CHARACTER_SPRITE.panda), bush: load("/assets/bush.webp"), plant: load("/assets/zombie-plant.webp"), boss: load(world !== undefined && world < 7 ? BOSS_SPRITES[world].src : CHARACTER_SPRITE.panda), effects: load(EFFECT_SPRITES.src) };
 }
 export type Camera = { x: number; zoom: number };
 export const newCamera = (): Camera => ({ x: 0, zoom: 1 });
@@ -46,34 +47,42 @@ export function drawPanda(ctx: CanvasRenderingContext2D, sprite: HTMLImageElemen
   }
   ctx.restore();
 }
-function bossArt(ctx: CanvasRenderingContext2D, s: State, level: Level, low: boolean, sprite: HTMLImageElement) {
+function bossArt(ctx: CanvasRenderingContext2D, s: State, level: Level, reduced: boolean, art: Art) {
   const b = s.boss; if (!b || b.stage === "waiting") return;
-  const world = WORLDS[level.world];
+  const spec = BOSS_SPRITES[level.world]; const height = spec?.height ?? 112;
   ctx.save(); ctx.translate(b.x, b.y);
-  if (b.stage === "defeated") ctx.globalAlpha = .2;
-  if (b.hit > 0) ctx.globalAlpha = .65;
+  oval(ctx, 0, -3, level.world === 3 ? 76 : 48, 9, "#06171a88");
+  const creature = () => {
+    if (level.world === 7) {
+      drawPanda(ctx, art.panda, 0, -40, reduced ? 0 : s.t, b.stage === "attack" ? "attack" : b.stage === "windup" ? "crouch" : "idle", b.direction, 2, true);
+    } else if (!drawBossSprite(ctx, art.boss, spec, b, reduced)) {
+      // Visible collision silhouette until the local sprite finishes loading.
+      ctx.fillStyle = WORLDS[level.world].color; ctx.globalAlpha *= .5;
+      ctx.fillRect(-35, -height, 70, height);
+    }
+  };
   if (b.pattern === 4 && b.stage === "windup") {
-    ctx.globalAlpha = .2;
-    for (const offset of [-200, 200]) drawPanda(ctx, sprite, offset, -35, s.t, "idle", 1, 1.8, true);
-    ctx.globalAlpha = 1;
+    for (const offset of [-200, 200]) {
+      ctx.save(); ctx.translate(offset, 0); ctx.globalAlpha = s.focus > 0 ? .08 : .24; creature(); ctx.restore();
+    }
   }
-  if (level.world === 7) drawPanda(ctx, sprite, 0, -44, s.t, b.stage === "attack" ? "attack" : b.stage === "windup" ? "crouch" : "idle", b.direction, 2, true);
-  else {
-    const asleep = b.stage === "sleep";
-    const sway = low ? 0 : Math.sin(s.worldTime * (b.stage === "attack" ? 14 : 2)) * 3;
-    const color = level.world === 0 ? "#697c54" : world.tint;
-    oval(ctx, 0, -8, 57, 10, "#06171a88");
-    oval(ctx, -30, -12, 23, 14, "#293b35"); oval(ctx, 33, -12, 23, 14, "#293b35");
-    oval(ctx, 0, -63 + sway, 57, asleep ? 44 : 63, color);
-    oval(ctx, -44, -54, 18, 35, "#374b43"); oval(ctx, 44, b.stage === "windup" ? -115 : -50, 18, 35, "#374b43");
-    oval(ctx, 0, -102 + sway, 42, 33, level.world === 0 ? "#8a9972" : "#849092");
-    for (let i = 0; i < 6; i++) oval(ctx, -35 + i * 14, -130 - i % 2 * 5, 10, 6, world.color);
-    oval(ctx, -15, -104 + sway, 5, asleep ? 1 : 6, "#182c31"); oval(ctx, 15, -104 + sway, 5, asleep ? 1 : 6, "#182c31");
-    if (asleep) { ctx.fillStyle = world.color; ctx.font = "24px Georgia"; ctx.fillText("z Z", 50, -140); }
-    for (let i = 0; i < 6; i++) { ctx.fillStyle = "#ced6a230"; ctx.fillRect(-35 + i * 13, -65 + i % 3 * 12, 7, 5); }
+  ctx.save();
+  if (b.stage === "defeated") ctx.globalAlpha = reduced ? .3 : Math.max(0, 1 - b.animationTime / .85);
+  if (b.hit > 0) ctx.globalAlpha *= .72;
+  creature(); ctx.restore();
+  if (!reduced && b.hit > 0) drawEffect(ctx, art.effects, "impact", -b.direction * 30, -height * .45, 88, .32 - b.hit, .32);
+  if (!reduced && b.stage === "attack") {
+    if (b.pattern === 0) drawEffect(ctx, art.effects, "dust", 0, -10, 160, b.animationTime, .45);
+    else if (b.pattern === 4) drawEffect(ctx, art.effects, "magic", 0, -height / 2, 175, b.animationTime, .45);
+    else if (b.pattern === 2) drawEffect(ctx, art.effects, "poison", b.direction * 54, -45, 78, b.animationTime, .45);
+    else if (b.pattern === 1) drawEffect(ctx, art.effects, "dust", -b.direction * 65, -6, 90, b.animationTime, .7);
   }
-  if (b.stage === "windup") { ctx.strokeStyle = "#f9c76f"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -70, 82, Math.PI, 2 * Math.PI); ctx.stroke(); ctx.font = "bold 24px monospace"; ctx.fillStyle = "#ffe2a0"; ctx.fillText("!", -7, -162); }
-  if (bossVulnerable(b)) { ctx.fillStyle = "#b8f4c8"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText(b.stage === "sleep" ? "RING THE BELL" : "OPENING", 0, -160); }
+  if (b.stage === "sleep") { ctx.fillStyle = "#e7dfb1"; ctx.font = "22px Georgia"; ctx.fillText("z Z", 50, -height - 15); }
+  if (b.stage === "windup") {
+    ctx.strokeStyle = "#f9c76f"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -height * .5, height * .64, Math.PI, 2 * Math.PI); ctx.stroke();
+    ctx.font = "bold 24px monospace"; ctx.fillStyle = "#ffe2a0"; ctx.fillText("!", -7, -height - 28);
+  }
+  if (bossVulnerable(b)) { ctx.fillStyle = "#b8f4c8"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText(b.stage === "sleep" ? "RING THE BELL" : "OPENING", 0, -height - 28); }
   ctx.restore();
 }
 export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, art: Art, camera: Camera, settings: Settings, viewWidth = WIDTH, quality = 2, dt = 1 / 60) {
@@ -169,9 +178,15 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
   }
   for (const p of s.projectiles) if (p.active && onscreen(p.x)) {
     if (p.delay > 0) { oval(ctx, p.x, 429, p.radius * 1.5, 5, "#f2c68699"); ctx.fillStyle = "#ffe6a0"; ctx.font = "20px monospace"; ctx.fillText("!", p.x - 4, 391); }
-    else { oval(ctx, p.x, p.y, p.radius, p.radius, p.friendly ? "#b2ffcd" : p.kind === "rock" ? "#a29183" : "#e6b0ba"); }
+    else {
+      oval(ctx, p.x, p.y, p.radius, p.radius, p.friendly ? "#b2ffcd" : p.kind === "rock" ? "#a29183" : "#e6b0ba");
+      if (!reduced && quality > 0 && p.kind !== "rock") {
+        const effect: EffectName = p.kind === "wave" ? "dust" : p.friendly || level.world === 1 ? "poison" : "magic";
+        drawEffect(ctx, art.effects, effect, p.x, p.y, p.radius * (p.kind === "wave" ? 3.8 : 3.1), s.worldTime, .55, true);
+      }
+    }
   }
-  bossArt(ctx, s, level, quality === 0, art.panda);
+  bossArt(ctx, s, level, reduced, art);
   if (!s.boss) { ctx.fillStyle = "#b7c8a0"; ctx.fillRect(level.length - 80, 345, 4, 85); ctx.fillStyle = "#f2d38c"; ctx.beginPath(); ctx.moveTo(level.length - 76, 345); ctx.lineTo(level.length - 35, 359); ctx.lineTo(level.length - 76, 374); ctx.fill(); }
   const px = s.x + HERO_W / 2, py = s.y + HERO_H - 20;
   oval(ctx, px, s.y + HERO_H + 1, 19, 5, "#071a2060");
@@ -179,6 +194,8 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
   if (s.dash > 0 && !reduced) { ctx.save(); ctx.globalAlpha = .18; drawPanda(ctx, art.panda, px - s.facing * 25, py, s.t, "dash", s.facing); ctx.restore(); }
   const pose = s.health <= 0 ? "hurt" : s.dash > 0 ? "dash" : s.attack > 0 ? "attack" : s.landing > 0 ? "land" : s.crouched ? "crouch" : !s.grounded ? s.vy > 0 ? "fall" : "jump" : Math.abs(s.vx) > 160 ? "run" : Math.abs(s.vx) > 12 ? "walk" : "idle";
   ctx.save(); if (s.immune > 0 && !reduced) ctx.globalAlpha = .65 + Math.sin(s.t * 20) * .25; drawPanda(ctx, art.panda, px, py, reduced ? 0 : s.t, pose, s.facing); ctx.restore();
+  if (s.attack > 0 && !reduced) drawEffect(ctx, art.effects, "impact", px + s.facing * 39, py - 7, 65, .22 - s.attack, .22);
+  if (s.power > 0 && !reduced) drawEffect(ctx, art.effects, "burst", px, py, 170, 5 - s.power, .7);
   if (s.attack > 0) { ctx.strokeStyle = "#fff0c9"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px + s.facing * 22, py - 9, 32, s.facing > 0 ? -.9 : 2.2, s.facing > 0 ? .9 : 4.1); ctx.stroke(); }
   if (s.shield > 0) { ctx.strokeStyle = "#a3ede6"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(px, py - 8, 34, 42, 0, 0, Math.PI * 2); ctx.stroke(); }
   let drawn = 0;

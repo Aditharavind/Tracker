@@ -1,0 +1,28 @@
+Craftpix creature and combat effects assets
+Copyright: Craftpix.net / Free Game Assets (GUI, Sprite, Tilesets)
+
+These assets are used as part of Panda Story Mode under the Craftpix Freebie
+Products license. They are free-to-use game assets, not open-source or CC0 art.
+The original ZIPs include this license reference:
+https://craftpix.net/file-licenses/
+
+The license permits use and modification in personal and commercial games.
+It does not grant permission to resell the artwork or distribute it as an
+asset collection or an artwork export tool. Consult the full license above.
+This notice does not relicense the artwork under the application's code license.
+
+Official sources (free downloads via the publisher's itch.io store):
+https://craftpix.net/freebies/free-swamp-bosses-pixel-art-character-pack/
+https://free-game-assets.itch.io/swamp-bosses-pixel-art-pack
+Used: Battle Turtle, Centipede.
+
+https://craftpix.net/freebies/free-rpg-monster-sprites-pixel-art/
+https://free-game-assets.itch.io/free-monster-sprites-pixel-art
+Used: Medusa, Jinn, Dragon, Lizard, Demon.
+
+https://free-game-assets.itch.io/free-animated-explosion-sprite-pack
+Used: Explosion_1, Explosion_3, Explosion_5, Explosion_6, Explosion_9.
+
+Runtime processing: selected animation frames packed into WebP atlases;
+transparent margins trimmed consistently; effects resized for canvas rendering.
+Only runtime assets are included. Source ZIPs and unused characters are excluded.
