@@ -1,43 +1,52 @@
 import { WIDTH, HEIGHT, HERO_H, HERO_W, bossVulnerable, hazardPhase, platformAt, platformSolid, type State } from "./engine";
 import { WORLDS, type Level } from "./content";
 import type { Settings } from "./save";
+import { CHARACTER_EYES, CHARACTER_FUR, CHARACTER_SPRITE } from "../characters";
 
 export type Art = { forest: HTMLImageElement; panda: HTMLImageElement; bush: HTMLImageElement; plant: HTMLImageElement };
 export function loadArt(): Art {
   const load = (path: string) => { const image = new Image(); image.src = path; return image; };
-  return { forest: load("/assets/story/forest-journey.webp"), panda: load("/assets/panda-sprite.webp"), bush: load("/assets/bush.webp"), plant: load("/assets/zombie-plant.webp") };
+  return { forest: load("/assets/story/forest-journey.webp"), panda: load(CHARACTER_SPRITE.panda), bush: load("/assets/bush.webp"), plant: load("/assets/zombie-plant.webp") };
 }
 export type Camera = { x: number; zoom: number };
 export const newCamera = (): Camera => ({ x: 0, zoom: 1 });
 const oval = (ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, color: string) => { ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); };
 const ready = (image: HTMLImageElement) => image.complete && image.naturalWidth > 0;
 
-/** Articulated canvas puppet: separate feet, arms, torso and face react to game state. */
-export function drawPanda(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, pose: string, facing = 1, scale = 1, dark = false) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(facing * scale, scale);
-  const run = pose === "run"; const walk = pose === "walk"; const moving = run || walk;
-  const swing = moving ? Math.sin(t * (run ? 19 : 10)) : 0;
-  const breathe = pose === "idle" || pose === "peace" ? Math.sin(t * 2.6) * .6 : 0;
-  const body = dark ? "#667584" : "#eee9d9"; const white = dark ? "#839099" : "#fff5e2"; const black = dark ? "#152333" : "#263638";
-  if (pose === "dash") ctx.rotate(.23);
-  if (pose === "land") ctx.scale(1.14, .88);
-  if (pose === "crouch") { ctx.translate(0, 10); ctx.scale(1.1, .72); }
-  if (pose === "fall") ctx.rotate(-.07);
-  oval(ctx, -8 + swing * 5, 18 - Math.abs(swing) * 2, 7, 6, black); oval(ctx, 9 - swing * 5, 18 + Math.abs(swing) * 2, 7, 6, black);
-  oval(ctx, 0, 3 + breathe, 16, 19, black); oval(ctx, 1, 6 + breathe, 12, 14, body);
-  oval(ctx, -16, 1 - swing * 6, 6, 10, black);
-  ctx.save(); ctx.translate(13, -1); ctx.rotate(pose === "attack" ? -1.3 : swing * .6); oval(ctx, 3, 6, 6, 11, black); ctx.restore();
-  oval(ctx, -13, -28, 8, 8, black); oval(ctx, 13, -28, 8, 8, black);
-  oval(ctx, 0, -17 + breathe, 21, 19, body); oval(ctx, -4, -21 + breathe, 15, 13, white);
-  oval(ctx, -8, -18, 6, 7, black); oval(ctx, 9, -18, 6, 7, black);
-  const blink = pose === "hurt" || (t % 5 > 4.8); const eyeH = blink ? .8 : 2.8;
-  oval(ctx, -6 + (pose === "peace" ? -1 : 0), -18, 2, eyeH, "#fffdf1"); oval(ctx, 11, -18, 2, eyeH, "#fffdf1");
-  oval(ctx, 2, -9, 3.2, 2.2, black);
-  ctx.strokeStyle = black; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(2, -7, 4, 0, Math.PI * .85); ctx.stroke();
-  oval(ctx, -14, -9, 3.4, 1.6, dark ? "#6b6477" : "#e8b0a0"); oval(ctx, 15, -9, 3.4, 1.6, dark ? "#6b6477" : "#e8b0a0");
+/** Animate the original Forest Dash sprite, keeping its face and proportions intact. */
+export function drawPanda(ctx: CanvasRenderingContext2D, sprite: HTMLImageElement, x: number, y: number, t: number, pose: string, facing = 1, scale = 1, dark = false) {
+  if (!ready(sprite)) return;
+  ctx.save(); ctx.translate(x, y + 20 * scale); ctx.scale(facing * scale, scale);
+  const moving = pose === "run" || pose === "walk";
+  const stride = moving ? Math.sin(t * (pose === "run" ? 19 : 10)) : 0;
+  const breathing = pose === "idle" || pose === "peace" ? Math.sin(t * 2.6) * .6 : 0;
+  ctx.translate(0, -Math.abs(stride) * 1.8 - Math.abs(breathing));
+  if (moving) ctx.rotate(stride * .025);
+  if (pose === "dash") { ctx.rotate(.18); ctx.scale(1.12, .9); }
+  if (pose === "land") ctx.scale(1.1, .9);
+  if (pose === "crouch") ctx.scale(1.08, .7);
+  if (pose === "jump") ctx.rotate(-.12);
+  if (pose === "fall") ctx.rotate(.1);
+  if (pose === "attack") { ctx.translate(4, 0); ctx.rotate(.12); }
+  if (pose === "hurt") ctx.rotate(-.14);
+  // Match Forest Dash's sprite aspect and compensate for transparent space below its feet.
+  const height = 64, width = height * .92, left = -width / 2, top = -height * .9;
+  ctx.imageSmoothingEnabled = false;
+  if (dark) ctx.filter = "brightness(.5) saturate(.45)";
+  ctx.drawImage(sprite, left, top, width, height);
+  const blinking = t % 4.2 > 4.2 * .935 && t % 4.2 < 4.2 * .96;
+  if (blinking) {
+    const eye = CHARACTER_EYES.panda; const ew = width * eye.w / 100, eh = height * eye.h / 100;
+    const ey = top + height * eye.y / 100 - eh / 2;
+    for (const center of [eye.lx, eye.rx]) {
+      const ex = left + width * center / 100 - ew / 2;
+      ctx.fillStyle = CHARACTER_FUR.panda; ctx.fillRect(ex, ey, ew, eh);
+      ctx.fillStyle = "rgba(0,0,0,.42)"; ctx.fillRect(ex + ew * .1, ey + eh * .82, ew * .8, eh * .16);
+    }
+  }
   ctx.restore();
 }
-function bossArt(ctx: CanvasRenderingContext2D, s: State, level: Level, low: boolean) {
+function bossArt(ctx: CanvasRenderingContext2D, s: State, level: Level, low: boolean, sprite: HTMLImageElement) {
   const b = s.boss; if (!b || b.stage === "waiting") return;
   const world = WORLDS[level.world];
   ctx.save(); ctx.translate(b.x, b.y);
@@ -45,10 +54,10 @@ function bossArt(ctx: CanvasRenderingContext2D, s: State, level: Level, low: boo
   if (b.hit > 0) ctx.globalAlpha = .65;
   if (b.pattern === 4 && b.stage === "windup") {
     ctx.globalAlpha = .2;
-    for (const offset of [-200, 200]) drawPanda(ctx, offset, -35, s.t, "idle", 1, 1.8, true);
+    for (const offset of [-200, 200]) drawPanda(ctx, sprite, offset, -35, s.t, "idle", 1, 1.8, true);
     ctx.globalAlpha = 1;
   }
-  if (level.world === 7) drawPanda(ctx, 0, -44, s.t, b.stage === "attack" ? "attack" : b.stage === "windup" ? "crouch" : "idle", b.direction, 2, true);
+  if (level.world === 7) drawPanda(ctx, sprite, 0, -44, s.t, b.stage === "attack" ? "attack" : b.stage === "windup" ? "crouch" : "idle", b.direction, 2, true);
   else {
     const asleep = b.stage === "sleep";
     const sway = low ? 0 : Math.sin(s.worldTime * (b.stage === "attack" ? 14 : 2)) * 3;
@@ -162,14 +171,14 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
     if (p.delay > 0) { oval(ctx, p.x, 429, p.radius * 1.5, 5, "#f2c68699"); ctx.fillStyle = "#ffe6a0"; ctx.font = "20px monospace"; ctx.fillText("!", p.x - 4, 391); }
     else { oval(ctx, p.x, p.y, p.radius, p.radius, p.friendly ? "#b2ffcd" : p.kind === "rock" ? "#a29183" : "#e6b0ba"); }
   }
-  bossArt(ctx, s, level, quality === 0);
+  bossArt(ctx, s, level, quality === 0, art.panda);
   if (!s.boss) { ctx.fillStyle = "#b7c8a0"; ctx.fillRect(level.length - 80, 345, 4, 85); ctx.fillStyle = "#f2d38c"; ctx.beginPath(); ctx.moveTo(level.length - 76, 345); ctx.lineTo(level.length - 35, 359); ctx.lineTo(level.length - 76, 374); ctx.fill(); }
   const px = s.x + HERO_W / 2, py = s.y + HERO_H - 20;
   oval(ctx, px, s.y + HERO_H + 1, 19, 5, "#071a2060");
   if (s.hope > 0 || s.rush > 0 || s.power > 0) { ctx.save(); ctx.globalAlpha = .17; oval(ctx, px, py - 6, 35, 48, "#ffe0a3"); ctx.restore(); }
-  if (s.dash > 0 && !reduced) { ctx.save(); ctx.globalAlpha = .18; drawPanda(ctx, px - s.facing * 25, py, s.t, "dash", s.facing); ctx.restore(); }
+  if (s.dash > 0 && !reduced) { ctx.save(); ctx.globalAlpha = .18; drawPanda(ctx, art.panda, px - s.facing * 25, py, s.t, "dash", s.facing); ctx.restore(); }
   const pose = s.health <= 0 ? "hurt" : s.dash > 0 ? "dash" : s.attack > 0 ? "attack" : s.landing > 0 ? "land" : s.crouched ? "crouch" : !s.grounded ? s.vy > 0 ? "fall" : "jump" : Math.abs(s.vx) > 160 ? "run" : Math.abs(s.vx) > 12 ? "walk" : "idle";
-  ctx.save(); if (s.immune > 0 && !reduced) ctx.globalAlpha = .65 + Math.sin(s.t * 20) * .25; drawPanda(ctx, px, py, reduced ? 0 : s.t, pose, s.facing); ctx.restore();
+  ctx.save(); if (s.immune > 0 && !reduced) ctx.globalAlpha = .65 + Math.sin(s.t * 20) * .25; drawPanda(ctx, art.panda, px, py, reduced ? 0 : s.t, pose, s.facing); ctx.restore();
   if (s.attack > 0) { ctx.strokeStyle = "#fff0c9"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px + s.facing * 22, py - 9, 32, s.facing > 0 ? -.9 : 2.2, s.facing > 0 ? .9 : 4.1); ctx.stroke(); }
   if (s.shield > 0) { ctx.strokeStyle = "#a3ede6"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(px, py - 8, 34, 42, 0, 0, Math.PI * 2); ctx.stroke(); }
   let drawn = 0;
