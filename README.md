@@ -142,6 +142,28 @@ ever* streak — a reset never takes one back.
 anything that depends on what day it is. Two people in different timezones roll
 over to a new day at their own midnight.
 
+## Minigames
+
+The **MINIGAME** button opens a choice of Forest Dash (the endless runner) or
+Story Mode, **The Lost Light**. Story Mode is a three-chapter adventure with
+opening and closing cutscenes, a star fragment in each level, thorn traps,
+collapsing platforms, and checkpoint lanterns. Recover each fragment and reach
+the exit lantern to unlock the next chapter; the third chapter concludes the story.
+
+Move with **← / →** or **A / D**, and jump with **Space / ↑ / W**. A second
+press performs a double jump. Touch controls support moving and jumping together.
+**Escape** pauses; switching away also pauses the game. The pause menu can retry
+from the current checkpoint and restore collapsed platforms.
+
+Chapter completions and best coin counts save per player in this browser's
+local storage; they do not sync between devices. Checkpoints last for the current
+chapter attempt, including retries. Completed chapters can be replayed with any
+selected character. Story progress has no effect on challenge tasks, XP, or lives.
+
+The level definitions and cutscene dialogue live in `src/game/storyEngine.ts`.
+`npm run test:game` includes checks for level completion, jump reach, traps,
+checkpoints, collectibles, and saved-progress recovery.
+
 ## Themes
 
 Four, switchable from the top bar and remembered in `localStorage`: **Dark**,
