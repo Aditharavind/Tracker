@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MAIN_LEVELS, WORLDS, makeLevel } from "./content";
+import { MAIN_LEVELS, STORY_WORLD_UNLOCK_DAYS, WORLDS, makeLevel, storyWorldUnlockDay, unlockedStoryWorldCount } from "./content";
 import { bossVulnerable, createState, damage, HERO_H, HERO_W, idleInput, platformAt, platformSolid, snapshot, step, type State } from "./engine";
 import { canPlay, completeLevel, emptySave, parseSave, recordAttempt, saveKey, type Save } from "./save";
 import { Controls, PerformanceGovernor } from "./controls";
@@ -66,6 +66,35 @@ describe("campaign progression and saves", () => {
     save.attempts[2].scene = "ending";
     const loaded = parseSave(JSON.stringify(save));
     expect(loaded.attempts[0]).toBeUndefined(); expect(loaded.attempts[2]).toBeUndefined();
+  });
+});
+
+describe("story worlds unlock with the 75-day challenge, not a separate minigame", () => {
+  it("World 1 opens on Day 1, then a new world every 7 days", () => {
+    expect(STORY_WORLD_UNLOCK_DAYS).toEqual([1, 8, 15, 22, 29, 36, 43, 50]);
+    for (let w = 0; w < WORLDS.length; w++) expect(storyWorldUnlockDay(w)).toBe(1 + w * 7);
+  });
+  it("clamps to the first and last world for out-of-range indices", () => {
+    expect(storyWorldUnlockDay(-1)).toBe(storyWorldUnlockDay(0));
+    expect(storyWorldUnlockDay(99)).toBe(storyWorldUnlockDay(WORLDS.length - 1));
+  });
+  it("counts how many worlds a given day has opened", () => {
+    expect(unlockedStoryWorldCount(1)).toBe(1);
+    expect(unlockedStoryWorldCount(7)).toBe(1);
+    expect(unlockedStoryWorldCount(8)).toBe(2);
+    expect(unlockedStoryWorldCount(50)).toBe(8);
+    expect(unlockedStoryWorldCount(75)).toBe(8);
+  });
+  it("canPlay refuses a level whose world the day hasn't reached yet, even mid-save", () => {
+    const save = through(3); // world 0 (Laziness) fully cleared, world 1 (Self-doubt) unlocked by save
+    expect(canPlay(save, 3)).toBe(true); // no dayNumber given -- unlimited, as every existing caller expects
+    expect(canPlay(save, 3, 1)).toBe(false); // Day 1: only World 1 is open
+    expect(canPlay(save, 3, 7)).toBe(false); // still Day <8
+    expect(canPlay(save, 3, 8)).toBe(true); // Day 8: World 2 opens
+  });
+  it("the day ceiling never grants a level the save itself hasn't earned", () => {
+    const save = emptySave();
+    expect(canPlay(save, 3, 999)).toBe(false); // world 2 is day-unlocked, but world 1's boss isn't beaten
   });
 });
 

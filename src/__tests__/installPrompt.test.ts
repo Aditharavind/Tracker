@@ -31,8 +31,16 @@ type GlobalSlot = "window" | "navigator";
 // browser code), which would let a bare reference compile clean and then
 // throw ReferenceError the moment the test actually runs.
 const getGlobal = (slot: GlobalSlot): unknown => (globalThis as Record<string, unknown>)[slot];
+// Plain assignment throws under newer Node, which now defines `navigator`
+// itself as a getter-only global (no setter) -- redefine the property outright
+// instead of writing through the accessor.
 const setGlobal = (slot: GlobalSlot, value: unknown) => {
-  (globalThis as Record<string, unknown>)[slot] = value;
+  Object.defineProperty(globalThis, slot, {
+    value,
+    configurable: true,
+    writable: true,
+    enumerable: true,
+  });
 };
 
 const original = { window: getGlobal("window"), navigator: getGlobal("navigator") };
