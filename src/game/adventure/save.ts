@@ -1,4 +1,4 @@
-import { LEVEL_COUNT, MAIN_LEVELS, makeLevel, WORLDS, type Power } from "./content";
+import { LEVEL_COUNT, MAIN_LEVELS, makeLevel, storyWorldUnlockDay, WORLDS, type Power } from "./content";
 
 export type Action = "left" | "right" | "jump" | "attack" | "dash" | "ability" | "cycle" | "crouch" | "walk";
 export type Settings = {
@@ -26,7 +26,12 @@ export const emptySave = (): Save => ({ version: 2, completed: [], bosses: [], p
 const object = (v: unknown): Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
 const numbers = (v: unknown, allowed: number[]) => Array.isArray(v) ? [...new Set(v.filter((n): n is number => typeof n === "number" && allowed.includes(n)))] : [];
 const bounded = (v: unknown, min: number, max: number, fallback: number) => typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
-export const canPlay = (save: Save, id: number) => id >= 0 && id < LEVEL_COUNT && Number.isInteger(id) && (id >= MAIN_LEVELS ? save.completed.includes(MAIN_LEVELS - 1) : id === 0 || save.completed.includes(id - 1));
+// dayNumber is the habit challenge's own day count -- an additional ceiling on
+// top of the sequential completion gate below, not a replacement for it. It
+// defaults to Infinity (no ceiling) so every existing caller/test that only
+// ever cared about save progression is unaffected; only the real gameplay
+// entry point (Adventure.tsx) passes the actual day number.
+export const canPlay = (save: Save, id: number, dayNumber = Infinity) => id >= 0 && id < LEVEL_COUNT && Number.isInteger(id) && (id >= MAIN_LEVELS ? save.completed.includes(MAIN_LEVELS - 1) : id === 0 || save.completed.includes(id - 1)) && dayNumber >= storyWorldUnlockDay(makeLevel(id).world);
 export function earnedPowers(bosses: number[]): Power[] {
   return WORLDS.flatMap((w, i) => w.reward && bosses.includes(i) ? [w.reward] : []);
 }

@@ -125,3 +125,18 @@ export function makeLevel(id: number): Level {
 }
 export const LEVEL_COUNT = 27;
 export const MAIN_LEVELS = 24;
+
+// Story Mode is a chapter of the same 75-day run, not a separate minigame --
+// each world opens as the challenge itself progresses, one every 7 days,
+// starting with World 1 on Day 1 so there's something to play immediately.
+// A world unlocking is still gated by its previous world's boss (see
+// save.ts's canPlay) so the powers a level assumes are always already
+// earned; this only adds the day-based ceiling on top of that.
+export const STORY_WORLD_UNLOCK_DAYS: number[] = WORLDS.map((_, i) => 1 + i * 7);
+export function storyWorldUnlockDay(world: number): number {
+  const clamped = Math.max(0, Math.min(WORLDS.length - 1, world));
+  return STORY_WORLD_UNLOCK_DAYS[clamped];
+}
+export function unlockedStoryWorldCount(dayNumber: number): number {
+  return STORY_WORLD_UNLOCK_DAYS.filter((day) => dayNumber >= day).length;
+}

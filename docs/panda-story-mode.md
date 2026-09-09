@@ -1,8 +1,21 @@
 # Panda: Find the path again
 
-Open **MINIGAME → Story Mode**. The young panda returns to an abandoned trail,
-learning movement and emotional resilience together. Every world has two
-traversal levels and a boss encounter; completing a boss unlocks the next world.
+Open the **STORY** signpost in the main forest game (top-right of the
+gameplay area) -- it is a chapter of the same 75-day run, not a separate
+minigame, so it lives outside the Minigames picker (Forest Dash only there
+now). The young panda returns to an abandoned trail, learning movement and
+emotional resilience together. Every world has two traversal levels and a
+boss encounter; completing a boss unlocks the next world.
+
+Each world also carries its own day-number floor, tied to the habit
+challenge's own progress rather than the story's: World 1 opens on Day 1,
+then a new world unlocks every 7 days (Day 8, 15, 22, 29, 36, 43, 50 for
+Worlds 2-8). A world still additionally requires the previous world's boss
+defeated -- the day floor is a ceiling on top of that, not a replacement for
+it, so a level's route never assumes a power the player couldn't have earned
+yet. See `storyWorldUnlockDay` / `STORY_WORLD_UNLOCK_DAYS` in
+`src/game/adventure/content.ts`, and `canPlay`'s `dayNumber` parameter in
+`src/game/adventure/save.ts`.
 
 | World | Boss | Reward |
 | --- | --- | --- |

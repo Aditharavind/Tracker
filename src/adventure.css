@@ -26,6 +26,7 @@
 .adventure-world-path button.selected span { color: #203a2a; background: var(--node-color); box-shadow: 0 0 0 6px #c0d2a512; border-color: #f0edc5; }
 .adventure-world-path button.healed span { color: var(--node-color); box-shadow: 0 0 18px #aace9155; }
 .adventure-world-path button.selected b { color: #ecedcb; }
+.adventure-world-path button small { font-size: 8px; color: #c3c994; font-weight: 400; }
 .adventure-world-detail { background: #172b25eb; border: 1px solid #b0c19a2e; border-radius: 15px; padding: 25px; }
 .adventure-world-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 23px; }
 .adventure-world-heading h2 { margin: 8px 0; font-size: 33px; color: #f4e5c8; }

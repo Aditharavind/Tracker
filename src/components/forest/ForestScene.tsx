@@ -3,6 +3,7 @@ import type { DayDetail } from "../../types";
 import { generatePlatforms, goalPoint, startPoint, type Point } from "../../game/platformGenerator";
 import { getStage } from "../../game/stageSystem";
 import { pandaPlatformIndex } from "../../game/progress";
+import { unlockedStoryWorldCount } from "../../game/adventure/content";
 import Panda, { type PandaAnim } from "./Panda";
 import Platform from "./Platform";
 import Coin from "./Coin";
@@ -12,6 +13,7 @@ import VictorySign from "./VictorySign";
 import ZombiePlant from "./ZombiePlant";
 import Clouds from "./Clouds";
 import Scenery from "./Scenery";
+import StoryPortal from "./StoryPortal";
 import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 import { playJump } from "../../sound";
 
@@ -54,6 +56,7 @@ export default function ForestScene({
   resets,
   character = DEFAULT_CHARACTER,
   onDayCleared,
+  onOpenStory,
 }: {
   detail: DayDetail;
   dayNumber: number;
@@ -67,6 +70,8 @@ export default function ForestScene({
    * is ticked.
    */
   onDayCleared?: () => void;
+  /** Opens Story Mode -- a chapter of this same run, not a separate minigame. */
+  onOpenStory?: () => void;
 }) {
   const tasks = detail.tasks;
   const total = tasks.length;
@@ -461,6 +466,8 @@ export default function ForestScene({
       </div>
 
       <div className="forest-fg" aria-hidden="true" />
+
+      {onOpenStory && <StoryPortal unlockedWorlds={unlockedStoryWorldCount(dayNumber)} onOpen={onOpenStory} />}
     </div>
   );
 }

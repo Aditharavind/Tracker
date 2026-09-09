@@ -10,9 +10,10 @@ export type CharacterInfo = {
 };
 
 export const CHARACTERS: CharacterInfo[] = [
-  { id: "panda", name: "Panda", sprite: "/assets/panda-sprite.webp" },
-  { id: "koala", name: "Koala", sprite: "/assets/koala-sprite.webp" },
-  { id: "redpanda", name: "Red Panda", sprite: "/assets/redpanda-sprite.webp" },
+  { id: "panda", name: "Chibbi", sprite: "/assets/panda-sprite.webp" },
+  { id: "koala", name: "Kiki", sprite: "/assets/koala-sprite.webp" },
+  // The mischievous one.
+  { id: "redpanda", name: "Mochi", sprite: "/assets/redpanda-sprite.webp" },
 ];
 
 export const CHARACTER_SPRITE: Record<CharacterId, string> = {
@@ -49,16 +50,24 @@ export const CHARACTER_FUR: Record<CharacterId, string> = {
 // render can be the flat sprite OR the billboard .glb (a 3D quad with its own
 // camera framing that a CSS overlay can't measure directly), so the lids need
 // slack to still land on the eye even if that render is a few % off.
+//
+// Measured by thresholding each 256x256 sprite for near-black pixels,
+// flood-filling into connected blobs, and keeping the pair of roughly-round
+// blobs above the muzzle (which excludes the nose/mouth and the ear/outline
+// strokes) -- not eyeballed. A prior hand-measured pass had koala's and
+// red panda's boxes landing on the NOSE instead of the eyes, and red panda's
+// two lids nearly touching in the middle instead of sitting apart over each
+// eye; this table is each character's actual eye bounding box padded ~15%
+// for full coverage when the lid animates shut.
 export const CHARACTER_EYES: Record<
   CharacterId,
   { lx: number; rx: number; y: number; w: number; h: number }
 > = {
-  // Positioned off each sprite with a dot-on-pupil overlay probe.
-  panda: { lx: 40, rx: 61, y: 39, w: 17, h: 19 },
-  koala: { lx: 38, rx: 59, y: 47, w: 15, h: 14 },
+  panda: { lx: 41, rx: 67, y: 41, w: 17, h: 19 },
+  koala: { lx: 35, rx: 65, y: 46, w: 13, h: 15 },
   // the long tail pulls the art bounding box right, so the head -- and eyes --
   // sit well left of the box centre.
-  redpanda: { lx: 34, rx: 52, y: 44, w: 17, h: 17 },
+  redpanda: { lx: 27, rx: 55, y: 44, w: 13, h: 16 },
 };
 
 export type CharacterAnim = "Idle" | "Run" | "Hop" | "Dance";

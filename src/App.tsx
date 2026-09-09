@@ -15,13 +15,14 @@ import ForestScene from "./components/forest/ForestScene";
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
 import Minigames from "./components/Minigames";
+import StoryLauncher from "./components/forest/StoryLauncher";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { useInstallPrompt } from "./installPrompt";
 import CharacterSelect from "./components/CharacterSelect";
-import { CHARACTER_SPRITE, isCharacterId, type CharacterId } from "./game/characters";
+import { CHARACTER_SPRITE, CHARACTERS, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
 import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
 import SnoozePanda from "./components/SnoozePanda";
@@ -515,6 +516,9 @@ export default function App() {
   const [dayCompleteOpen, setDayCompleteOpen] = useState(false);
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [runnerOpen, setRunnerOpen] = useState(false);
+  // Story Mode's own overlay -- opened from the portal in ForestScene, not
+  // bundled into the Minigames picker (which is Forest Dash only now).
+  const [storyOpen, setStoryOpen] = useState(false);
   const [muted, setMuted] = useState(isMuted);
   const installState = useInstallPrompt();
   // Wake-up alarm settings. Until now the only way to set these was the signup
@@ -1317,6 +1321,10 @@ export default function App() {
     return <CharacterSelect mode="gate" onSelect={(c) => setCharacterFor(meId!, c)} />;
   }
 
+  // Display name for the topbar badge/aria-label -- CHARACTERS is the single
+  // source for these (Chibbi/Kiki/Mochi), never the raw CharacterId.
+  const myCharacterName = CHARACTERS.find((c) => c.id === myCharacter)?.name ?? myCharacter;
+
   const isToday = day === todayISO();
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
   const overallProgressPct = Math.round((bankedDays / 75) * 100);
@@ -1394,6 +1402,15 @@ export default function App() {
           onClose={() => setRunnerOpen(false)}
         />
       )}
+      {storyOpen && myCharacter && (
+        <StoryLauncher
+          key={meId}
+          character={myCharacter}
+          userId={meId}
+          dayNumber={me.day_number}
+          onClose={() => setStoryOpen(false)}
+        />
+      )}
 
       <div className="game-shell-inner">
         <header className="game-topbar">
@@ -1409,10 +1426,10 @@ export default function App() {
             type="button"
             className="topbar-character"
             onClick={() => setCharacterPanelOpen(true)}
-            aria-label={`Character: ${myCharacter}. Change character.`}
+            aria-label={`Character: ${myCharacterName}. Change character.`}
           >
             <img src={CHARACTER_SPRITE[myCharacter]} alt="" aria-hidden="true" className="topbar-character-sprite" />
-            <span className="topbar-character-name pixel-font">{myCharacter.toUpperCase()}</span>
+            <span className="topbar-character-name pixel-font">{myCharacterName.toUpperCase()}</span>
           </button>
           <div className="game-title pixel-font">75 DAY HARD CHALLENGE</div>
           <div className="topbar-coins" aria-label={`${coinsEarned} coins earned`}>
@@ -1447,14 +1464,14 @@ export default function App() {
           >
             {muted ? <IconSoundOff /> : <IconSoundOn />}
           </button>
-          {openPanel === null && !characterPanelOpen && !runnerOpen && (
+          {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && (
             <button
               type="button"
               className="dash-launch pixel-font"
               onClick={() => setRunnerOpen(true)}
-              title="Choose Forest Dash or Story Mode"
+              title="Play Forest Dash"
             >
-              ▶ MINIGAME
+              ▶ FOREST DASH
             </button>
           )}
         </header>
@@ -1467,6 +1484,7 @@ export default function App() {
             resets={me.resets}
             character={myCharacter}
             onDayCleared={day === todayISO() ? handleDayCleared : undefined}
+            onOpenStory={() => setStoryOpen(true)}
           />
 
           <div className="day-card-float">
