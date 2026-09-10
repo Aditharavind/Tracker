@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import type { DayDetail } from "../../types";
 import { generatePlatforms, goalPoint, startPoint, type Point } from "../../game/platformGenerator";
 import { getStage } from "../../game/stageSystem";
 import { pandaPlatformIndex } from "../../game/progress";
-import { unlockedStoryWorldCount } from "../../game/adventure/content";
 import Panda, { type PandaAnim } from "./Panda";
 import Platform from "./Platform";
 import Coin from "./Coin";
@@ -15,7 +14,31 @@ import Clouds from "./Clouds";
 import Scenery from "./Scenery";
 import StoryPortal from "./StoryPortal";
 import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
-import { playJump } from "../../sound";
+import { playCompanionGiggle, playJump } from "../../sound";
+
+const COMPANION_IDLE_MS = 45_000;
+
+/**
+ * Width of the forest viewport, in px. Platform spacing is defined as a
+ * fraction of a fixed REFERENCE width, then divided by however wide the
+ * scene actually is -- so the gap between two platforms stays the SAME
+ * number of pixels on a phone as on a desktop (the follow-cam just scrolls
+ * more of the level into view). Without this the spacing is a % of the
+ * container and the stairs bunch together on narrow screens.
+ */
+function useSceneWidth(ref: RefObject<HTMLElement>): number {
+  const [w, setW] = useState(1040);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setW(el.clientWidth || 1040);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return w;
+}
 
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
@@ -57,6 +80,7 @@ export default function ForestScene({
   character = DEFAULT_CHARACTER,
   onDayCleared,
   onOpenStory,
+  unlockedWeeks = 1,
 }: {
   detail: DayDetail;
   dayNumber: number;
@@ -70,8 +94,10 @@ export default function ForestScene({
    * is ticked.
    */
   onDayCleared?: () => void;
-  /** Opens Story Mode -- a chapter of this same run, not a separate minigame. */
+  /** Opens the weekly trail map -- the gate in front of Story Mode. */
   onOpenStory?: () => void;
+  /** How many week-stones real consistency has unlocked (see game/weekSystem) -- shown on the corner portal's badge. */
+  unlockedWeeks?: number;
 }) {
   const tasks = detail.tasks;
   const total = tasks.length;
@@ -80,21 +106,33 @@ export default function ForestScene({
   const reducedMotion = usePrefersReducedMotion();
   const stage = getStage(dayNumber);
 
+  const sceneRef = useRef<HTMLDivElement>(null);
+  // Spacing is authored against a 1040px-wide reference viewport. Dividing by
+  // the real width turns those game-space fractions into a FIXED pixel gap on
+  // any screen -- on a phone the level just runs off the sides and the
+  // follow-cam scrolls it, instead of the stairs squashing together.
+  const sceneW = useSceneWidth(sceneRef);
+  const spread = 1040 / Math.max(320, sceneW);
+
   const start = startPoint();
   const pandaIndex = pandaPlatformIndex(doneCount, total);
 
   // Deterministic layout, then remapped so (a) the first platform sits a fat
-  // run-up past the START sign (~300px on desktop) and (b) platforms keep a
-  // consistent gap regardless of task count. The level is wider than the
-  // viewport -- the follow-cam scrolls it -- so relative spacing + jitter are
-  // preserved rather than squashed to fit.
+  // run-up past the START sign (~300px, any screen) and (b) platforms keep a
+  // consistent px gap regardless of task count or viewport. The level is wider
+  // than the viewport -- the follow-cam scrolls it -- so relative spacing +
+  // jitter are preserved rather than squashed to fit.
   const rawPlatforms = generatePlatforms(dayNumber, total, seed);
-  const LEAD_X = 0.26; // START sign -> first platform (~300px)
-  const SPACING_X = 0.12; // platform -> platform
+  const LEAD_X = 0.34 * spread; // START sign -> first platform
+  // Centre-to-centre gap between platforms. ~230px at any viewport (spread
+  // keeps it a fixed pixel distance) -- so even after a WIDE ledge and the
+  // layout jitter there is always at least half a large platform of clear
+  // air between two stairs, never a squashed cluster.
+  const SPACING_X = 0.26 * spread;
   const runLo = start.x + LEAD_X;
   const runHi = runLo + Math.max(1, total - 1) * SPACING_X;
   const platforms = remapPlatformRun(rawPlatforms, runLo, runHi);
-  const goal = { ...goalPoint(total), x: runHi + 0.13 };
+  const goal = { ...goalPoint(total), x: runHi + 0.16 * spread };
   const reachedGoal = total > 0 && doneCount === total;
   // Ground-level "victory lane": from under the last platform out to an exit
   // past the goal board. The panda drops here after the final hop and runs it.
@@ -103,10 +141,14 @@ export default function ForestScene({
   // between the last platform and it. After the last task the panda drops off
   // the final platform and runs that ground to the bush at the right edge of
   // the screen; then the stage-clear popup appears.
-  const exitPoint: Point = { x: goal.x + 0.34, y: 0 };
+  const exitPoint: Point = { x: goal.x + 0.34 * spread, y: 0 };
   const pathPoints = [start, ...platforms, goal];
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
+  const [companionSleeping, setCompanionSleeping] = useState(false);
+  const [companionDelighted, setCompanionDelighted] = useState(false);
+  const companionSleepTimer = useRef<number | undefined>(undefined);
+  const companionDelightTimer = useRef<number | undefined>(undefined);
   // Mount flourish (skill §0 / CLAUDE.md §9): the character is parked AT the
   // START sign, then runs to its ready spot next to the first platform. This
   // is the only scripted travel -- everything after is task-driven hops.
@@ -189,6 +231,39 @@ export default function ForestScene({
   const clearQueue = () => {
     timers.current.forEach((id) => window.clearTimeout(id));
     timers.current = [];
+  };
+
+  // The character's rest state listens to genuine user activity rather than
+  // task state: reading, checking a box, or tapping the companion all count
+  // as company. A quiet scene for a while lets them doze off.
+  useEffect(() => {
+    const keepAwake = () => {
+      setCompanionSleeping(false);
+      if (companionSleepTimer.current) window.clearTimeout(companionSleepTimer.current);
+      companionSleepTimer.current = window.setTimeout(
+        () => setCompanionSleeping(true),
+        COMPANION_IDLE_MS,
+      );
+    };
+    keepAwake();
+    window.addEventListener("pointerdown", keepAwake, { passive: true });
+    window.addEventListener("keydown", keepAwake);
+    window.addEventListener("focusin", keepAwake);
+    return () => {
+      window.removeEventListener("pointerdown", keepAwake);
+      window.removeEventListener("keydown", keepAwake);
+      window.removeEventListener("focusin", keepAwake);
+      if (companionSleepTimer.current) window.clearTimeout(companionSleepTimer.current);
+      if (companionDelightTimer.current) window.clearTimeout(companionDelightTimer.current);
+    };
+  }, []);
+
+  const greetCompanion = () => {
+    setCompanionSleeping(false);
+    setCompanionDelighted(true);
+    playCompanionGiggle();
+    if (companionDelightTimer.current) window.clearTimeout(companionDelightTimer.current);
+    companionDelightTimer.current = window.setTimeout(() => setCompanionDelighted(false), 900);
   };
 
   const fireCleared = () => {
@@ -349,8 +424,11 @@ export default function ForestScene({
 
   if (total === 0) return null;
 
+  const companionAtRest = anim === "idle" && victoryPhase === "none" && runInPhase === null;
+
   return (
     <div
+      ref={sceneRef}
       className="forest-scene"
       data-stage={stage.id}
       data-reduced-motion={reducedMotion || undefined}
@@ -442,12 +520,18 @@ export default function ForestScene({
         />
 
         <div
-          className="panda-anchor"
+          className={`panda-anchor${companionAtRest ? " panda-anchor-companion" : ""}`}
           data-runin={runInPhase && atStartRest ? runInPhase : undefined}
           data-victory={victoryPhase === "none" ? undefined : victoryPhase}
           style={{ left: `${pct(displayPoint).left}%`, bottom: `${pct(displayPoint).bottom}%` }}
         >
-          <Panda anim={anim} character={character} />
+          <Panda
+            anim={anim}
+            character={character}
+            sleeping={companionAtRest && companionSleeping}
+            delighted={companionAtRest && companionDelighted}
+            onCompanionTap={companionAtRest ? greetCompanion : undefined}
+          />
         </div>
 
         {/* Exit set piece at the very end of the lane: a big bush the character
@@ -467,7 +551,7 @@ export default function ForestScene({
 
       <div className="forest-fg" aria-hidden="true" />
 
-      {onOpenStory && <StoryPortal unlockedWorlds={unlockedStoryWorldCount(dayNumber)} onOpen={onOpenStory} />}
+      {onOpenStory && <StoryPortal unlockedWorlds={unlockedWeeks} onOpen={onOpenStory} />}
     </div>
   );
 }

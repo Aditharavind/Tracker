@@ -71,7 +71,7 @@ export function Avatar3D({
 }
 
 export function Sprite({ avatar, running }: { avatar: AvatarId; running: boolean }) {
-  // Same hand-drawn-path style as the Check icon and ThemePicker icons --
+  // Same hand-drawn-path style as the Check icon --
   // no image assets, colours resolve through --u/--accent like everything else.
   return (
     <svg

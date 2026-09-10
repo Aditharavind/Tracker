@@ -61,6 +61,11 @@ export default defineConfig({
           "**/Adventure-*.js",
           "**/Adventure-*.css",
           "**/assets/story/**",
+          // The week map's background art is a 2.6MB PNG (no lossy re-encode
+          // tooling available when it was added) -- same reasoning as the
+          // Adventure chunk above: it sits behind a tap, not on the critical
+          // path, so it is cached at runtime instead of during SW install.
+          "**/assets/weekmap-bg.png",
         ],
         // Sized to admit the ~1.05MB model-viewer runtime. Anything genuinely
         // huge is excluded by name above rather than by slipping under a cap.
@@ -76,6 +81,14 @@ export default defineConfig({
             options: {
               cacheName: "panda-adventure-assets",
               expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
+          },
+          {
+            urlPattern: /\/assets\/weekmap-bg\.png$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "weekmap-assets",
+              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 60 },
             },
           },
           {
