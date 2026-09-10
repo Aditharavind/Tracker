@@ -14,35 +14,35 @@ export type World = {
   titles: [string, string, string]; notes: number[];
 };
 export const WORLDS: World[] = [
-  { name: "The Sleeping Forest", emotion: "Laziness", motto: "Just start.", color: "#c6d78b", sky: "#183a32", tint: "#cfb864",
+  { name: "The Sleeping Forest", emotion: "Laziness", motto: "Just start.", color: "#a8d93c", sky: "#183a32", tint: "#cfb864",
     boss: "The Lazy Giant", reward: "dash", mechanic: "Smash fallen wood. Jump roots. Strike the hanging bell when the giant sleeps.",
     intro: ["I used to have a dream. Then tomorrow became my favorite word. The path disappeared under all the days I didn't begin.", "Today I found the old trail. I don't feel ready. Will you take the first step with me?", "We can already walk, run, jump, crouch, and use Panda Smash. Let's clear the fallen wood before we face what's sleeping here."],
     reflection: ["You don't have to finish the whole journey today. You just have to take the first step.", "You know what I learned? Waiting for motivation doesn't get us anywhere.", "That first step was ours. Let's see what we can do with the next one."], titles: ["The Unopened Gate", "One Small Promise", "Wake the Giant"], notes: [48, 52, 55, 59, 62, 55, 52, 55] },
-  { name: "Self-Doubt Caves", emotion: "Self-doubt", motto: "Maybe I can.", color: "#b4bbec", sky: "#21243e", tint: "#7b77bd",
+  { name: "Self-Doubt Caves", emotion: "Self-doubt", motto: "Maybe I can.", color: "#8b93e8", sky: "#21243e", tint: "#7b77bd",
     boss: "The Doubt", reward: "second", mechanic: "Watch solid edges in the fog. Moving stones carry you. The shadow mirrors your direction before it strikes.",
     intro: ["I found an old sketch in these caves. I drew myself reaching the summit. When did I decide that drawing was impossible?", "The shadow knows my old doubts. It doesn't know what we've learned. We have our dash now; we don't need a second jump to defeat it."],
     reflection: ["You can't control how the journey ends. You can control whether you keep walking.", "Falling doesn't erase the path behind you. Get up and take the next step.", "You gave me another try. Now I can give myself one, too."], titles: ["A Sketch in the Mist", "Uncertain Ground", "Face the Doubt"], notes: [45, 52, 57, 60, 64, 60, 57, 52] },
-  { name: "Distraction Grove", emotion: "Distraction", motto: "Stay focused.", color: "#e4a7ce", sky: "#2d2444", tint: "#b85399",
+  { name: "Distraction Grove", emotion: "Distraction", motto: "Stay focused.", color: "#e668ab", sky: "#2d2444", tint: "#b85399",
     boss: "The Distractor", reward: "focus", mechanic: "Hollow coins are decoys. Follow carved arrows. The real boss casts a shadow; its copies don't.",
     intro: ["Every branch promises something brighter. I used to chase every one and forget where I was going.", "Look closely with me. Hollow coins and flickering doors aren't our goal. A steady path can be quiet."],
     reflection: ["The world will always give you something to chase. Choose what deserves your attention.", "You didn't miss out by choosing a path. You finally gave it your attention.", "The noise is still here. But it doesn't have to lead us."], titles: ["All That Glitters", "The Quiet Branch", "Behind the Illusion"], notes: [53, 60, 64, 67, 62, 69, 64, 60] },
-  { name: "Fear Mountains", emotion: "Fear", motto: "Move forward anyway.", color: "#9bbddf", sky: "#131f33", tint: "#38527d",
+  { name: "Fear Mountains", emotion: "Fear", motto: "Move forward anyway.", color: "#4f9fe0", sky: "#131f33", tint: "#38527d",
     boss: "The Beast of Fear", reward: "shield", mechanic: "Rock shadows warn of falling stones. Focus slows danger. Jump the beast's low shockwaves.",
     intro: ["I can hear the storm before I see the mountain. Part of me wants to turn around.", "You don't have to pretend you're unafraid. Watch the shadows, slow the noise, and take the next safe step with me."],
     reflection: ["Courage isn't knowing that you'll win. It's choosing to act even when you don't know.", "We waited for an opening. Being careful is a kind of courage, too.", "My paws still shake. But they aren't stopping me anymore."], titles: ["Before the Thunder", "Across the Exposed Ridge", "A Name for Fear"], notes: [38, 45, 50, 53, 57, 53, 50, 45] },
-  { name: "Inconsistency Valley", emotion: "Inconsistency", motto: "Finish what you start.", color: "#edba83", sky: "#3e2d29", tint: "#b76c43",
+  { name: "Inconsistency Valley", emotion: "Inconsistency", motto: "Finish what you start.", color: "#e8912e", sky: "#3e2d29", tint: "#b76c43",
     boss: "The Quitter", reward: "momentum", mechanic: "Bell gates stay open briefly. The Quitter retreats between ledges; keep closing the distance during recovery.",
     intro: ["I used to begin everything with a burst of energy. Then I'd disappear as soon as it got ordinary.", "This valley is longer. There are lanterns along the way. We can rest without giving up the journey."],
     reflection: ["A single great day won't change your path. Keep showing up.", "Resting at a lantern isn't quitting. It's how we make the next stretch possible.", "We stayed with it. Can you feel how one good step leads into another?"], titles: ["Return to the Promise", "Keep the Bell Ringing", "Don't Walk Away"], notes: [48, 55, 57, 60, 55, 64, 60, 57] },
-  { name: "Frustration Lands", emotion: "Frustration", motto: "Control yourself.", color: "#e39d8f", sky: "#35232e", tint: "#9e4e4c",
+  { name: "Frustration Lands", emotion: "Frustration", motto: "Control yourself.", color: "#dd5940", sky: "#35232e", tint: "#9e4e4c",
     boss: "Chaos", reward: "strength", mechanic: "Cracked stone falls away. Chaos changes the arena; follow the safe markings instead of rushing blindly.",
     intro: ["When the trail broke, I used to blame the trail. Then I'd hit harder, hurry faster, and fall again.", "Let's try something different. Breathe. Watch what changes. Strength doesn't have to be anger."],
     reflection: ["You cannot control everything that happens. You can control what you do next.", "That pause before you moved? That was you choosing, instead of reacting.", "We didn't overpower the chaos. We stopped letting it control us."], titles: ["A Breath Before the Fall", "What Still Stands", "The Shape of Chaos"], notes: [41, 48, 51, 55, 58, 55, 51, 48] },
-  { name: "Discipline Temple", emotion: "Discipline", motto: "Do it even when you don't feel like it.", color: "#a4d2c2", sky: "#162e32", tint: "#62978a",
+  { name: "Discipline Temple", emotion: "Discipline", motto: "Do it even when you don't feel like it.", color: "#3fbf98", sky: "#162e32", tint: "#62978a",
     boss: "The Old Habit", reward: "hope", mechanic: "Combine the powers you've earned. The Old Habit cycles familiar attacks; recognize them before reacting.",
     intro: ["No storm today. No applause either. Just the steps I promised myself I'd take.", "This temple asks us to use everything we've practiced. The old habit will offer the easy way back. We know where that leads."],
     reflection: ["The strongest person isn't the one who controls the world. It's the one who can control himself.", "You showed up even when the feeling didn't. That matters.", "I didn't become someone else. You helped me become myself again."], titles: ["The Daily Steps", "A Promise Kept", "Break the Old Habit"], notes: [50, 57, 62, 64, 69, 64, 62, 57] },
-  { name: "Hope Summit", emotion: "Hope", motto: "Find your way again.", color: "#f4d59a", sky: "#546858", tint: "#e6b966",
+  { name: "Hope Summit", emotion: "Hope", motto: "Find your way again.", color: "#e8b62e", sky: "#546858", tint: "#e6b966",
     boss: "The Old Panda", reward: null, mechanic: "Your old self remembers every obstacle. Read the pattern, use your full moveset, and find a way forward.",
     intro: ["It's the same trail. The same trees. But now I can see the space between them.", "Someone is waiting at the summit. He looks like me on the day I gave up. We don't have to hate him. We just don't have to follow him anymore."],
     reflection: ["You may not see the whole road yet. Keep walking.", "Hope isn't a promise that nothing will hurt. It's a reason to take the next step.", "Thank you for walking with me. The path is yours, too."], titles: ["The Trail We Remember", "Light Through the Leaves", "The Old Panda"], notes: [48, 55, 60, 64, 67, 72, 67, 64] },
@@ -64,6 +64,15 @@ export type Platform = { id: number; x: number; y: number; w: number; kind: "sto
 export type Thing = { id: number; x: number; y: number; kind: "coin" | "lore" | "heart" | "decoy"; text?: string; power?: Power };
 export type Hazard = { id: number; x: number; y: number; w: number; kind: "thorn" | "pulse" | "rock" | "beam"; phase: number };
 export type EnemySpec = { id: number; x: number; y: number; min: number; max: number; kind: "rootling" | "shade" | "moth" | "armored" };
+export type EnemyKind = EnemySpec["kind"];
+
+// Shared by the weekly trail and runtime level generation. Each chapter keeps
+// every earlier threat and adds one new kind, so its board matches Forest Dash.
+export const CHAPTER_ENEMIES: EnemyKind[][] = [
+  ["rootling"], ["rootling", "shade"], ["rootling", "shade", "moth"], ["rootling", "shade", "moth"],
+  ["rootling", "shade", "moth", "armored"], ["rootling", "shade", "moth", "armored"],
+  ["rootling", "shade", "moth", "armored"], ["rootling", "shade", "moth", "armored"],
+];
 export type Obstacle = { id: number; x: number; y: number; kind: "wood" | "dash" | "strength" | "bell" | "gate"; optional?: boolean };
 export type Level = { id: number; world: number; stage: number; title: string; length: number; platforms: Platform[]; things: Thing[]; hazards: Hazard[]; enemies: EnemySpec[]; objects: Obstacle[]; checkpoints: number[]; boss: boolean; arena: number; mastery?: string; par: number };
 
@@ -90,7 +99,10 @@ export function makeLevel(id: number): Level {
     if (kind === "vanish") platforms.push({ id: nextId++, x: x - 15, y: y + 60, w: w + 30, kind: "stone" });
     for (let c = 0; c < 4; c++) things.push({ id: nextId++, x: x + 85 + c * (w - 160) / 3, y: y - 54, kind: "coin" });
     if (i > 0 && i !== 4) {
-      if ((i + stage) % 2 === 0) enemies.push({ id: nextId++, x: x + w * .6, y, min: x + 45, max: x + w - 45, kind: world === 0 ? "rootling" : world === 2 ? "moth" : world >= 5 ? "armored" : "shade" });
+      if ((i + stage) % 2 === 0) {
+        const roster = CHAPTER_ENEMIES[world];
+        enemies.push({ id: nextId++, x: x + w * .6, y, min: x + 45, max: x + w - 45, kind: roster[(i + stage) % roster.length] });
+      }
       else hazards.push({ id: nextId++, x: x + w * .55, y, w: world > 3 ? 58 : 40, kind: world === 0 ? "thorn" : world === 3 ? "rock" : world >= 6 ? "beam" : "pulse", phase: i * .43 });
     }
     if (i === 0) {

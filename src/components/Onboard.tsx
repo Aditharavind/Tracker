@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import ThemePicker, { type ThemeId } from "./ThemePicker";
 import { Sprite, type AvatarId } from "./Runner";
+import { CHARACTERS } from "../game/characters";
 import { api } from "../api";
 
 const COLORS = ["#e8734a", "#4a9ee8", "#5cbd7e", "#b76ae8", "#e8c14a"];
@@ -10,8 +10,6 @@ export default function Onboard({
   existing,
   onCreate,
   onSignIn,
-  theme,
-  onTheme,
   avatar,
   onAvatar,
   initialMode = "new",
@@ -22,8 +20,6 @@ export default function Onboard({
   // this browser forgets who you are and the same-IP suggestion is suppressed,
   // so "create a new account" would be the only option left.
   onSignIn: (name: string, pin: string) => Promise<void>;
-  theme: ThemeId;
-  onTheme: (t: ThemeId) => void;
   avatar: AvatarId;
   onAvatar: (a: AvatarId) => void;
   // "new" was always the default regardless of how someone got here -- which
@@ -91,6 +87,11 @@ export default function Onboard({
     <div className="onboard" style={{ ["--u" as string]: color }}>
       <div className="onboard-backdrop" aria-hidden="true">
         <div className="onboard-firefly" />
+        <div className="onboard-cast">
+          {CHARACTERS.map((c) => (
+            <img key={c.id} src={c.sprite} alt="" className={`onboard-cast-char onboard-cast-${c.id}`} />
+          ))}
+        </div>
       </div>
       <div className="box2">
         <div className="onboard-panda" aria-hidden="true">
@@ -206,9 +207,6 @@ export default function Onboard({
         >
           {mode === "new" ? "I already have an account" : "Start a new account instead"}
         </button>
-        <div style={{ display: "flex", justifyContent: "center", marginTop: 22 }}>
-          <ThemePicker theme={theme} onPick={onTheme} />
-        </div>
         {err && (
           <p className="muted" style={{ marginTop: 12, color: "var(--bad)" }}>
             {err}

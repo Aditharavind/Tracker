@@ -16,21 +16,21 @@ import LivesHUD from "./components/forest/LivesHUD";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
 import Minigames from "./components/Minigames";
 import StoryLauncher from "./components/forest/StoryLauncher";
+import WeekMap from "./components/forest/WeekMap";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
+import { unlockedWeekCount } from "./game/weekSystem";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { useInstallPrompt } from "./installPrompt";
 import CharacterSelect from "./components/CharacterSelect";
 import { CHARACTER_SPRITE, CHARACTERS, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
-import ThemePicker, { THEMES, type ThemeId } from "./components/ThemePicker";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
 import { isMuted, primeJump, toggleMuted } from "./sound";
 
 const LAST_USER = LAST_USER_KEY;
-const THEME_KEY = "75hard.theme";
 const AVATAR_KEY = "75hard.avatar";
 const CHARACTER_KEY = "75hard.character";
 const SNOOZE_KEY = "75hard.snooze";
@@ -123,11 +123,6 @@ const msUntilTomorrow = () => {
   const d = new Date();
   d.setHours(24, 0, 0, 0);
   return d.getTime() - Date.now();
-};
-
-const storedTheme = (): ThemeId => {
-  const saved = localStorage.getItem(THEME_KEY) as ThemeId | null;
-  return THEMES.some((t) => t.id === saved) ? (saved as ThemeId) : "dark";
 };
 
 function IconMenu() {
@@ -268,16 +263,11 @@ function IconSoundOff() {
   );
 }
 
-function IconGear() {
+function IconDownload() {
   return (
     <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
-      <circle cx="8.5" cy="8.5" r="2.6" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M8.5 1.7v2M8.5 13.3v2M1.7 8.5h2M13.3 8.5h2M3.5 3.5l1.4 1.4M12.1 12.1l1.4 1.4M13.5 3.5l-1.4 1.4M4.9 12.1l-1.4 1.4"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-      />
+      <path d="M8.5 1.8v8.4M5.4 7.1l3.1 3.1 3.1-3.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2.2 12v1.6a1.4 1.4 0 0 0 1.4 1.4h9.8a1.4 1.4 0 0 0 1.4-1.4V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -498,7 +488,6 @@ export default function App() {
   const [note, setNote] = useState("");
   const [noteState, setNoteState] = useState<"idle" | "saving" | "saved">("idle");
   const [toast, setToast] = useState<string | null>(null);
-  const [theme, setTheme] = useState<ThemeId>(storedTheme);
   // Value unused since the Runner-avatar picker was removed; the setter still
   // persists the pick chosen during onboarding.
   const [, setAvatars] = useState<Record<number, AvatarId>>(storedAvatars);
@@ -516,9 +505,15 @@ export default function App() {
   const [dayCompleteOpen, setDayCompleteOpen] = useState(false);
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [runnerOpen, setRunnerOpen] = useState(false);
-  // Story Mode's own overlay -- opened from the portal in ForestScene, not
+  // Story Mode's own overlay -- opened from the weekly trail map, not
   // bundled into the Minigames picker (which is Forest Dash only now).
   const [storyOpen, setStoryOpen] = useState(false);
+  const [storyWorld, setStoryWorld] = useState<number | undefined>(undefined);
+  // The weekly trail map (skill's WeekMap) -- the corner portal in
+  // ForestScene now opens this instead of Story Mode directly; tapping an
+  // unlocked stone here is what actually opens Story Mode, pre-selected on
+  // that world.
+  const [weekMapOpen, setWeekMapOpen] = useState(false);
   const [muted, setMuted] = useState(isMuted);
   const installState = useInstallPrompt();
   // Wake-up alarm settings. Until now the only way to set these was the signup
@@ -728,11 +723,6 @@ export default function App() {
   }, []);
 
   const loadBoard = useCallback(async (asUserId?: number) => setBoard(await api.board(asUserId)), []);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
 
   // The saved id is already in localStorage, so users/board don't need to
   // wait on each other -- chaining them cost a round trip before anything
@@ -1283,8 +1273,6 @@ export default function App() {
   if (users.length === 0) {
     return (
       <Onboard
-        theme={theme}
-        onTheme={setTheme}
         avatar={pendingAvatar}
         onAvatar={setPendingAvatar}
         existing={[]}
@@ -1402,13 +1390,29 @@ export default function App() {
           onClose={() => setRunnerOpen(false)}
         />
       )}
+      {weekMapOpen && myCharacter && (
+        <WeekMap
+          character={myCharacter}
+          calendar={me.calendar}
+          onClose={() => setWeekMapOpen(false)}
+          onOpenWorld={(w) => {
+            setWeekMapOpen(false);
+            setStoryWorld(w);
+            setStoryOpen(true);
+          }}
+        />
+      )}
       {storyOpen && myCharacter && (
         <StoryLauncher
           key={meId}
           character={myCharacter}
           userId={meId}
           dayNumber={me.day_number}
-          onClose={() => setStoryOpen(false)}
+          initialWorld={storyWorld}
+          onClose={() => {
+            setStoryOpen(false);
+            setStoryWorld(undefined);
+          }}
         />
       )}
 
@@ -1464,7 +1468,7 @@ export default function App() {
           >
             {muted ? <IconSoundOff /> : <IconSoundOn />}
           </button>
-          {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && (
+          {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && !weekMapOpen && (
             <button
               type="button"
               className="dash-launch pixel-font"
@@ -1484,7 +1488,8 @@ export default function App() {
             resets={me.resets}
             character={myCharacter}
             onDayCleared={day === todayISO() ? handleDayCleared : undefined}
-            onOpenStory={() => setStoryOpen(true)}
+            onOpenStory={() => setWeekMapOpen(true)}
+            unlockedWeeks={unlockedWeekCount(me.calendar)}
           />
 
           <div className="day-card-float">
@@ -1544,15 +1549,29 @@ export default function App() {
             >
               <IconStats />
             </button>
-            <button
-              className={`rail-btn${openPanel === "profile" ? " on" : ""}`}
-              onClick={() => togglePanel("profile")}
-              aria-label="Settings"
-              aria-pressed={openPanel === "profile"}
-              title="Settings"
-            >
-              <IconGear />
-            </button>
+            {/* Settings is already one tap away on the bottom PROFILE tab --
+                this slot used to duplicate that with a gear icon. Now it's
+                the app install shortcut instead, and only shows up when
+                there's actually something to install (skill's install-prompt
+                contract mirrors the same condition in the Profile drawer's
+                own "Install the app" card). */}
+            {(installState.kind === "promptable" || installState.kind === "ios-manual") && (
+              <button
+                className="rail-btn"
+                onClick={async () => {
+                  if (installState.kind === "promptable") {
+                    const accepted = await installState.install();
+                    flash(accepted ? "Installed -- check your home screen" : "Maybe next time");
+                  } else {
+                    togglePanel("profile");
+                  }
+                }}
+                aria-label="Download the app"
+                title="Download the app"
+              >
+                <IconDownload />
+              </button>
+            )}
           </div>
 
           {openPanel === "leaderboard" && (
@@ -1700,16 +1719,9 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head panel-drawer-head-sticky">
                 <h2>Profile</h2>
-                <div className="panel-close-stack">
-                  <button
-                    className="panel-close panel-close-red pixel-font"
-                    aria-label="Close profile"
-                    onClick={() => setOpenPanel(null)}
-                  >
-                    ✕
-                  </button>
-                  <span className="panel-close-hint pixel-font">press ESC to exit</span>
-                </div>
+                <button className="panel-close" aria-label="Close profile" onClick={() => setOpenPanel(null)}>
+                  <IconClose />
+                </button>
               </div>
 
               <div className="card panel-section">
@@ -1720,9 +1732,6 @@ export default function App() {
                   current={myCharacter}
                   onSelect={(c) => meId != null && setCharacterFor(meId, c)}
                 />
-                <div style={{ marginTop: 14 }}>
-                  <ThemePicker theme={theme} onPick={setTheme} />
-                </div>
               </div>
 
               <div className="card panel-section">
@@ -1878,6 +1887,33 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* A second, more discoverable install entry point than the rail
+            icon above -- pinned to the bottom of the page, right above the
+            nav. Same gate as the Profile drawer's own card: gone once
+            installed, so it never lingers for someone who already has it. */}
+        {(installState.kind === "promptable" || installState.kind === "ios-manual") && (
+          <div className="install-bar">
+            <span className="install-bar-text">
+              <IconDownload />
+              Get the 75 Hard app
+            </span>
+            {installState.kind === "promptable" ? (
+              <button
+                type="button"
+                className="install-bar-btn"
+                onClick={async () => {
+                  const accepted = await installState.install();
+                  flash(accepted ? "Installed — check your home screen" : "Maybe next time");
+                }}
+              >
+                Install
+              </button>
+            ) : (
+              <span className="install-bar-hint">Share ▸ Add to Home Screen</span>
+            )}
+          </div>
+        )}
 
         <nav className="game-bottomnav" role="tablist" aria-label="Sections">
           <button

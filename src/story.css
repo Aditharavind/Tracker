@@ -14,7 +14,9 @@
 .minigame-close { position: absolute; right: 0; top: -10px; }
 .story-eyebrow { display: block; font-size: 10px; font-weight: 700; letter-spacing: .16em; line-height: 1.7; text-transform: uppercase; color: #c4d4c8; }
 .minigame-menu > .story-eyebrow { margin-top: 46px; color: var(--story-gold); }
-.minigame-menu h2, .story-map h1 { font-family: Georgia, serif; font-size: clamp(32px, 5vw, 54px); font-weight: 400; letter-spacing: -.035em; margin: 10px 0 14px; color: #fff3d9; }
+/* --game-font, not a one-off serif -- see styles.css's :root comment: one
+   heading face across the whole app, Story Mode included. */
+.minigame-menu h2, .story-map h1 { font-family: var(--game-font); font-size: clamp(20px, 3vw, 32px); font-weight: 400; letter-spacing: -.035em; margin: 10px 0 14px; color: #fff3d9; }
 .minigame-menu > p { color: #adbdba; line-height: 1.6; }
 .minigame-options { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 30px 0 22px; }
 .minigame-option {
@@ -43,7 +45,7 @@
 .story-chapters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .story-chapter { display: flex; flex-direction: column; align-items: flex-start; gap: 15px; text-align: left; padding: 24px 22px; border-radius: 13px; border: 1px solid #8aa59950; border-top: 3px solid var(--chapter-color); background: #24332fe0; color: #d8e0d6; min-height: 260px; }
 .story-chapter:not(:disabled):hover { background: #2e4038; }
-.story-chapter-number { font-size: 36px; color: var(--chapter-color); font-family: Georgia, serif; }
+.story-chapter-number { font-size: 36px; color: var(--chapter-color); font-family: var(--game-font); }
 .story-chapter strong { font-size: 19px; color: #fff0d9; }
 .story-chapter > span:not(.story-eyebrow):not(.story-chapter-number) { font-size: 12px; line-height: 1.7; }
 .story-chapter b { font-size: 12px; margin-top: auto; color: var(--chapter-color); }
@@ -88,7 +90,7 @@
 .story-control-hint { font-size: 11px; color: #9bb3a6; text-align: center; line-height: 1.7; }
 .story-play-overlay { position: absolute; inset: 0; background: #061014c9; display: grid; place-items: center; padding: 16px; overflow: auto; }
 .story-pause-card { width: min(440px, 100%); max-height: 100%; overflow: auto; text-align: center; padding: 24px; background: #20332d; border: 1px solid #a5ba9266; border-radius: 14px; }
-.story-pause-card h2 { font-family: Georgia, serif; font-size: 29px; color: #fff0d5; margin: 10px 0; }
+.story-pause-card h2 { font-family: var(--game-font); font-size: 29px; color: #fff0d5; margin: 10px 0; }
 .story-pause-card p { line-height: 1.6; font-size: 14px; }
 .story-pause-card > button { display: block; margin: 14px auto 0; }
 @keyframes story-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }

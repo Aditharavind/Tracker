@@ -1,12 +1,19 @@
 .panda-adventure { background: #101c1b; color: #e9ecdf; font-size: calc(14px * var(--adventure-ui, 1)); }
-.panda-adventure h1, .panda-adventure h2 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.035em; }
+/* Headings use the same pixel/retro face as the rest of the app (--game-font,
+   see styles.css's :root comment) instead of a one-off serif -- the game
+   identity has to read consistently from onboarding through Story Mode. */
+.panda-adventure h1, .panda-adventure h2 { font-family: var(--game-font); font-weight: 400; letter-spacing: -.035em; }
 .panda-adventure button, .panda-adventure input, .panda-adventure select, .panda-adventure a { -webkit-tap-highlight-color: transparent; }
 .panda-adventure select { color: #efe8d5; background: #293b33; border: 1px solid #91ad8655; border-radius: 7px; padding: 8px; font: inherit; }
 .adventure-map { min-height: 100%; padding: 0 max(24px, calc((100vw - 1180px) / 2)) 24px; background: linear-gradient(90deg, #091c1bef 5%, #0d262c77 60%, #102b2366), linear-gradient(0deg, #0c1c1a 15%, transparent 75%), url('/assets/story/forest-journey.webp') center top / auto 840px no-repeat; }
 .adventure-map-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 0; }
 .adventure-map-top .story-eyebrow { opacity: .8; }
 .adventure-map-hero { display: grid; grid-template-columns: 1.2fr 1fr; align-items: center; min-height: 370px; gap: 30px; }
-.adventure-map-hero h1 { font-size: clamp(45px, 6.6vw, 86px); line-height: .99; margin: 22px 0; color: #fff2d5; }
+/* Sized down from the old Georgia-tuned clamp(45px, 6.6vw, 86px) -- Press
+   Start 2P's blocky glyphs run much wider per character (see styles.css's
+   .pixel-font comment), so the same pixel size reads far bigger and wraps
+   badly across the hero's 1.2fr column. */
+.adventure-map-hero h1 { font-size: clamp(20px, 3.2vw, 34px); line-height: 1.5; margin: 22px 0; color: #fff2d5; }
 .adventure-map-hero h1 em { color: #d3daa9; font-weight: 400; }
 .adventure-map-hero > div > p:not(.story-eyebrow) { color: #c0cdbb; line-height: 1.8; font-size: 15px; }
 .adventure-map-hero .story-eyebrow { color: #cbd6a5; }
@@ -32,7 +39,7 @@
 .adventure-world-heading h2 { margin: 8px 0; font-size: 33px; color: #f4e5c8; }
 .adventure-world-heading p { color: #acbc9f; margin: 5px 0; }
 .adventure-world-heading .story-eyebrow { color: var(--world-accent); }
-.adventure-levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+.adventure-levels { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
 .adventure-level { display: flex; flex-direction: column; gap: 14px; padding: 23px; background: #0f231e88; border: 1px solid #a9c39c22; border-radius: 10px; }
 .adventure-level h3 { margin: 0; color: #eee8ce; font-size: 18px; }
 .adventure-level p { margin: 0; color: #acbdb1; font-size: 12px; line-height: 1.8; flex: 1; }
@@ -55,7 +62,7 @@
 .adventure-dialogue h2 { font-size: clamp(27px, 4vw, 40px); margin: 12px 0; color: #f6e8c8; }
 .adventure-spoken { font-size: clamp(16px, 2vw, 21px); line-height: 1.8; color: #d8e4d4; }
 .adventure-mechanic { color: #a8bb9e; font-size: 12px; line-height: 1.8; margin: 15px 0 25px; }
-.adventure-verse { font-family: Georgia, serif; color: #f1e1bb; font-size: clamp(18px, 2.4vw, 24px); line-height: 1.6; margin: 16px 0 12px; }
+.adventure-verse { font-family: var(--body-font); color: #f1e1bb; font-size: clamp(18px, 2.4vw, 24px); line-height: 1.6; margin: 16px 0 12px; }
 .adventure-source { color: #a6beae; font-size: 10px; }
 .adventure-panda-label { margin-top: 26px; color: #c9d69e; }
 .moment-ending .adventure-cinema { animation: adventure-dawn 6s ease-out both; }
@@ -96,7 +103,7 @@
 .adventure-touch-actions button { width: var(--touch-size); height: var(--touch-size); flex-shrink: 0; border-radius: 50%; border: 1px solid #acc19766; color: #d9dfc2; background: #324b3855; font-size: 10px; touch-action: none; user-select: none; -webkit-user-select: none; }
 .adventure-touch-actions button:active { background: #728c5277; transform: scale(.95); }
 .adventure-touch-actions .adventure-touch-jump { background: #e2d39e; color: #263726; border-color: #f3e3b5; font-weight: bold; }
-.adventure-touch-note { font-family: Georgia, serif; font-style: italic; text-align: center; color: #90a286; font-size: 12px; line-height: 1.8; }
+.adventure-touch-note { font-family: var(--body-font); font-style: italic; text-align: center; color: #90a286; font-size: 12px; line-height: 1.8; }
 .adventure-panel { width: min(900px, calc(100% - 30px)); margin: 30px auto; padding: 25px; background: #1c3027; border: 1px solid #b6c89944; border-radius: 15px; }
 .adventure-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .adventure-panel-heading h2 { font-size: 30px; margin: 10px 0 25px; }

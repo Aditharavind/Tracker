@@ -1,0 +1,30 @@
+.weekmap { position: fixed; inset: 0; z-index: 90; overflow: hidden; background: #07120d; color: #f6e7c2; }
+.weekmap-close { position: absolute; z-index: 3; top: 16px; left: 16px; border: 0; background: #16140ccc; color: #f6e7c2; padding: 9px 12px; font: 700 11px var(--game-font); cursor: pointer; }
+.weekmap-path { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }
+.weekmap-canvas { position: relative; min-height: 100%; }
+.weekmap-bg { position: absolute; inset: 0; background: url("/assets/weekmap-bg.png") center / 100% 100% no-repeat; }
+.weekmap-node { position: absolute; width: 0; height: 0; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; transform: translate(-50%, -50%); }
+.weekmap-node:disabled { cursor: default; }
+.weekmap-stone { position: absolute; left: 50%; top: 50%; width: 56px; height: 28px; transform: translate(-50%, -50%); border: 3px solid #263129; border-radius: 50%; background: linear-gradient(#9b9b87 0 22%, #595d57 23% 68%, #383e3b 69%); box-shadow: 0 5px 0 #1d2621, inset 0 0 0 3px #6e735f; }
+.weekmap-node.current .weekmap-stone { box-shadow: 0 0 18px color-mix(in srgb, var(--node-color) 65%, transparent), 0 5px 0 #1d2621, inset 0 0 0 3px #8c927b; }
+.weekmap-sign { position: absolute; left: 50%; bottom: 20px; min-width: 96px; padding: 8px 9px; transform: translateX(-50%); color: #f7e6bb; font-size: 9px; line-height: 1.45; letter-spacing: 0; text-align: center; background: #51341d; border: 3px solid #241a10; box-shadow: inset 0 0 0 2px #a17539, 0 4px 0 #1b160f; }
+.weekmap-sign::before, .weekmap-sign::after { content: ""; position: absolute; bottom: -16px; width: 4px; height: 16px; background: #291b11; }
+.weekmap-sign::before { left: 18px; }
+.weekmap-sign::after { right: 18px; }
+.weekmap-sign small { display: block; margin-top: 5px; color: #d5c6a1; font-size: 6px; line-height: 1.6; white-space: nowrap; }
+.weekmap-lock { position: absolute; left: 50%; top: 50%; width: 16px; height: 13px; transform: translate(-50%, -37%); background: #ead59a; border: 2px solid #5f5135; border-radius: 2px; }
+.weekmap-lock::before { content: ""; position: absolute; left: 2px; top: -10px; width: 8px; height: 9px; border: 2px solid #ead59a; border-bottom: 0; border-radius: 8px 8px 0 0; }
+.weekmap-node:not(.locked) .weekmap-lock { display: none; }
+.weekmap-node.releasing .weekmap-lock { display: block; animation: weekmap-unlock .58s ease-in forwards; }
+.weekmap-node.releasing .weekmap-sign { animation: weekmap-board-open .58s ease-in forwards; }
+.weekmap-panda-anchor { position: absolute; z-index: 2; width: 0; height: 0; transition: left .78s linear, top .78s linear; }
+.weekmap-panda-anchor > .weekmap-panda { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); }
+.weekmap-panda { width: 72px; height: 92px; pointer-events: none; filter: drop-shadow(0 4px 4px #0b120bcc); }
+.weekmap-panda-fallback, .weekmap-panda-model { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.weekmap-panda-model { background: transparent; }
+.weekmap-panda.running .weekmap-panda-fallback, .weekmap-panda.running .weekmap-panda-model { animation: weekmap-run .28s steps(2, end) infinite; }
+@keyframes weekmap-run { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@keyframes weekmap-unlock { to { opacity: 0; transform: translate(-50%, -120%) scale(.3) rotate(18deg); } }
+@keyframes weekmap-board-open { 55% { transform: translateX(-50%) scale(1.08); } 100% { transform: translateX(-50%) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .weekmap-panda-anchor, .weekmap-panda.running .weekmap-panda-fallback, .weekmap-panda.running .weekmap-panda-model, .weekmap-node.releasing .weekmap-lock, .weekmap-node.releasing .weekmap-sign { animation: none; transition: none; } }
+@media (max-width: 520px) { .weekmap-sign { min-width: 84px; font-size: 8px; } .weekmap-sign small { font-size: 5px; } .weekmap-panda { width: 62px; height: 80px; } }

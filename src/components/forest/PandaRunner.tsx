@@ -9,46 +9,17 @@ import {
 import { playJump } from "../../sound";
 import DashLeaderboard from "../DashLeaderboard";
 import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "../../game/runnerEngine";
+import { drawCoin } from "../../game/coinArt";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
 const Y_BASE = 0.1;
 const Y_SCALE = 0.017;
 
-/** The golden panda-imprint coin from Coin.tsx, drawn on canvas. */
-function drawCoin(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = "#f0c04a";
-  ctx.fill();
-  ctx.lineWidth = Math.max(1, r * 0.16);
-  ctx.strokeStyle = "#8a5a17";
-  ctx.stroke();
-  ctx.fillStyle = "#8a5a17";
-  ctx.beginPath();
-  ctx.arc(cx - r * 0.36, cy - r * 0.18, r * 0.2, 0, Math.PI * 2);
-  ctx.arc(cx + r * 0.36, cy - r * 0.18, r * 0.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#fff3c9";
-  ctx.beginPath();
-  ctx.ellipse(cx, cy + r * 0.12, r * 0.46, r * 0.4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#8a5a17";
-  ctx.beginPath();
-  ctx.ellipse(cx - r * 0.18, cy + r * 0.02, r * 0.12, r * 0.16, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx + r * 0.18, cy + r * 0.02, r * 0.12, r * 0.16, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx, cy + r * 0.34, r * 0.1, r * 0.07, 0, 0, Math.PI * 2);
-  ctx.fill();
-}
-
 /**
  * The star power-up (see runnerEngine.ts's Star type / STAR_MS) -- a Mario-
  * style invincibility pickup. Slow spin and a soft glow make it read as
  * clearly rarer/more special than a coin at a glance, same hand-drawn-canvas
- * style as drawCoin() above.
+ * style as drawCoin() (../../game/coinArt).
  */
 function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, spin: number) {
   ctx.save();
@@ -454,6 +425,13 @@ export default function PandaRunner({
         onClose();
         return;
       }
+      // A focused card button (EXIT, PLAY AGAIN, START) activates on Space/
+      // Enter via the browser's own default behaviour -- without this guard
+      // the game-input binding below intercepts that same Space keydown
+      // first, calls preventDefault, and restarts the run out from under the
+      // button before its native click ever fires. Mirrors Adventure.tsx's
+      // identical guard for the same reason.
+      if (e.target instanceof HTMLButtonElement && (e.key === " " || e.key === "Spacebar" || e.key === "Enter")) return;
       if (e.key === "ArrowUp" || e.key === " " || e.key === "Spacebar" || e.key === "w") {
         e.preventDefault();
         if (!e.repeat) onJumpInput();
@@ -494,9 +472,13 @@ export default function PandaRunner({
           <span className="runner-hud-best">
             BEST {best.dist}m · {best.coins}🪙
           </span>
-          <button type="button" className="runner-exit pixel-font" onClick={onClose}>
-            ‹ EXIT
-          </button>
+          {/* One exit per screen: this bails out of a ready/running game;
+              on game-over it's hidden and the card carries the only EXIT. */}
+          {phase !== "over" && (
+            <button type="button" className="runner-exit pixel-font" onClick={onClose}>
+              ‹ EXIT
+            </button>
+          )}
         </div>
 
         <div
@@ -509,7 +491,13 @@ export default function PandaRunner({
           <canvas ref={canvasRef} className="runner-canvas" />
 
           {phase === "ready" && (
-            <div className="runner-card">
+            <div
+              className="runner-card"
+              // The stage swallows every pointerdown as "hop" -- stop it here
+              // so the card's own buttons (START, PLAY AGAIN, EXIT) actually
+              // get their click instead of the game restarting under them.
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               <p className="pixel-font runner-card-title">FOREST DASH</p>
               <p>
                 Floating ledges, no ground. <kbd>↑</kbd> / <kbd>Space</kbd> / tap to hop every gap —
@@ -524,7 +512,7 @@ export default function PandaRunner({
           )}
 
           {phase === "over" && (
-            <div className="runner-card" role="alert">
+            <div className="runner-card" role="alert" onPointerDown={(e) => e.stopPropagation()}>
               <p className="pixel-font runner-card-title">
                 {result.dist < 3 ? "OOPS" : "DOWN YOU GO"}
               </p>

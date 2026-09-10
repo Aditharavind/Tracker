@@ -15,15 +15,16 @@
 //   Hop    -- both legs tuck, body lifts (a jump)
 //   Dance  -- side-to-side tilt + bob (Day-complete screen)
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 
 const CHARACTERS = [
   { id: "panda", png: "scripts/assets/panda-character.png" },
+  { id: "panda-back", png: "scripts/assets/panda-back.png" },
   { id: "koala", png: "scripts/assets/koala-character.png" },
   { id: "redpanda", png: "scripts/assets/redpanda-character.png" },
 ];
@@ -46,8 +47,13 @@ const zq = (deg) => {
 };
 const IDENT = [0, 0, 0, 1];
 
-function buildGlb(imagePath) {
-  const image = readFileSync(imagePath);
+// Exported so scripts/build-skin-glbs.mjs can reuse the exact same mesh/
+// rigging/animation code for a skin-composited texture -- only the input
+// image bytes change; the geometry math depends solely on that image's own
+// dimensions/leg-crop layout (LEG_FRAC etc. above), never its content, so a
+// composited texture of the same 256x256 canvas is exactly as valid an
+// input as the plain character texture.
+export function buildGlb(image) {
   const chunks = [];
   const align = (buf) => {
     const pad = (4 - (buf.byteLength % 4)) % 4;
@@ -177,7 +183,17 @@ function buildGlb(imagePath) {
     accessors,
   };
 
-  const json = align(Buffer.from(JSON.stringify(gltf), "utf8"));
+  // The glTF 2.0 spec requires the JSON chunk to be padded with ASCII space
+  // (0x20) to 4-byte alignment, NOT zero bytes -- align() above zero-pads,
+  // which is correct for the BIN chunk's binary buffers but invalid here: a
+  // trailing NUL is not whitespace, so a spec-compliant JSON.parse (what
+  // three.js's GLTFLoader uses under model-viewer) rejects the whole file
+  // with "Unexpected non-whitespace character after JSON". Panda.tsx's flat-
+  // sprite fallback masked this completely -- the 3D model silently never
+  // loaded, in any browser, for every character this script has ever built.
+  const jsonRaw = Buffer.from(JSON.stringify(gltf), "utf8");
+  const jsonPad = (4 - (jsonRaw.byteLength % 4)) % 4;
+  const json = jsonPad ? Buffer.concat([jsonRaw, Buffer.alloc(jsonPad, 0x20)]) : jsonRaw;
   const bin = Buffer.concat(chunks.map((c) => c.buffer));
   const total = 12 + 8 + json.byteLength + 8 + bin.byteLength;
   const out = Buffer.alloc(total);
@@ -194,11 +210,16 @@ function buildGlb(imagePath) {
   return out;
 }
 
-const outDir = resolve(root, "public/assets/characters");
-mkdirSync(outDir, { recursive: true });
-for (const c of CHARACTERS) {
-  const glb = buildGlb(resolve(root, c.png));
-  const dest = resolve(outDir, `${c.id}.glb`);
-  writeFileSync(dest, glb);
-  console.log(`Wrote ${dest} (${glb.byteLength} bytes)`);
+// Guarded so build-skin-glbs.mjs can `import { buildGlb }` without also
+// re-running this CLI's own base-character build as a side effect.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const outDir = resolve(root, "public/assets/characters");
+  mkdirSync(outDir, { recursive: true });
+  for (const c of CHARACTERS) {
+    const glb = buildGlb(readFileSync(resolve(root, c.png)));
+    const dest = resolve(outDir, `${c.id}.glb`);
+    writeFileSync(dest, glb);
+    if (c.id === "panda-back") copyFileSync(resolve(root, c.png), resolve(outDir, "panda-back.png"));
+    console.log(`Wrote ${dest} (${glb.byteLength} bytes)`);
+  }
 }

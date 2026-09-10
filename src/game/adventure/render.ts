@@ -3,6 +3,7 @@ import { WORLDS, type Level } from "./content";
 import type { Settings } from "./save";
 import { BOSS_SPRITES, EFFECT_SPRITES, drawBossSprite, drawEffect, type EffectName } from "./sprites";
 import { CHARACTER_EYES, CHARACTER_FUR, CHARACTER_SPRITE } from "../characters";
+import { drawCoin } from "../coinArt";
 
 export type Art = { forest: HTMLImageElement; panda: HTMLImageElement; bush: HTMLImageElement; plant: HTMLImageElement; boss: HTMLImageElement; effects: HTMLImageElement };
 export function loadArt(world?: number): Art {
@@ -150,7 +151,7 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
   for (const thing of level.things) {
     if (!onscreen(thing.x) || s.coins.has(thing.id) || s.lore.has(thing.id) || s.opened.has(thing.id)) continue;
     const y = thing.y + (reduced ? 0 : Math.sin(s.t * 2 + thing.id) * 3);
-    if (thing.kind === "coin") { oval(ctx, thing.x, y, 6, 8, "#f4d486"); oval(ctx, thing.x - 2, y - 2, 1.7, 2, "#977841"); oval(ctx, thing.x + 2, y - 2, 1.7, 2, "#977841"); }
+    if (thing.kind === "coin") drawCoin(ctx, thing.x, y, 8);
     else if (thing.kind === "decoy") { ctx.strokeStyle = s.focus > 0 ? "#9a94b730" : "#d6b5d9"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(thing.x, y, 7, 0, Math.PI * 2); ctx.stroke(); }
     else { ctx.fillStyle = thing.power && !s.powers.has(thing.power) ? "#a6b6b0" : "#f3dea1"; ctx.font = "20px Georgia"; ctx.fillText(thing.kind === "lore" ? "✧" : "♥", thing.x - 8, y + 5); }
   }

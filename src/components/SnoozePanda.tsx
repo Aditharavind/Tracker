@@ -1,7 +1,6 @@
 /**
- * The reward for hitting snooze. Inline SVG in the same spirit as Sprite and
- * the ThemePicker icons -- no image asset, so it costs nothing to ship and
- * stays sharp at any size.
+ * The reward for hitting snooze. Inline SVG in the same spirit as Sprite --
+ * no image asset, so it costs nothing to ship and stays sharp at any size.
  *
  * Draw order matters twice over: the ears sit behind the head so they read as
  * ears rather than lumps, and the waving arm sits *in front* of it, because at

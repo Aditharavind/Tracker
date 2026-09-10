@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useRef } from "react";
+import { type CSSProperties, type KeyboardEvent, useEffect, useRef } from "react";
 import { useModelViewer } from "../../modelViewer";
 import {
   CHARACTER_EYES,
@@ -16,7 +16,15 @@ import {
  * shared everywhere the character is drawn (the canvas minigame has a matching
  * version). Purely decorative.
  */
-export function CharBlink({ character }: { character: CharacterId }) {
+export function CharBlink({
+  character,
+  closed = false,
+  excited = false,
+}: {
+  character: CharacterId;
+  closed?: boolean;
+  excited?: boolean;
+}) {
   const e = CHARACTER_EYES[character];
   const lid = (cx: number): CSSProperties => ({
     left: `${cx - e.w / 2}%`,
@@ -26,7 +34,7 @@ export function CharBlink({ character }: { character: CharacterId }) {
   });
   return (
     <span
-      className="char-blink"
+      className={`char-blink${closed ? " char-blink-closed" : ""}${excited ? " char-blink-excited" : ""}`}
       aria-hidden="true"
       style={{ ["--fur" as string]: CHARACTER_FUR[character] }}
     >
@@ -59,7 +67,7 @@ export type PandaAnim =
  * drawer's character preview still uses the 3D models regardless, which is
  * fine: that is behind a tap, so it never touches first load.
  */
-const USE_3D_PANDA = true;
+const USE_3D_PANDA = false;
 
 
 function Panda3D({
@@ -136,22 +144,39 @@ const PandaFlat = ({ character }: { character: CharacterId }) => (
 export default function Panda({
   anim,
   character = DEFAULT_CHARACTER,
+  sleeping = false,
+  delighted = false,
+  onCompanionTap,
 }: {
   anim: PandaAnim;
   character?: CharacterId;
+  sleeping?: boolean;
+  delighted?: boolean;
+  onCompanionTap?: () => void;
 }) {
+  const interactive = Boolean(onCompanionTap);
+  const reactToKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onCompanionTap || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    onCompanionTap();
+  };
+
   return (
     <div
-      className={`panda panda-${anim}`}
-      role="img"
-      aria-label="Your character"
+      className={`panda panda-${anim}${sleeping ? " panda-sleeping" : ""}${delighted ? " panda-giggling" : ""}${interactive ? " panda-companion" : ""}`}
+      role={interactive ? "button" : "img"}
+      aria-label={interactive ? "Your companion. Tap to say hello." : "Your character"}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onCompanionTap}
+      onKeyDown={reactToKey}
     >
       {USE_3D_PANDA ? (
         <Panda3D anim={anim} character={character} />
       ) : (
         <PandaFlat character={character} />
       )}
-      <CharBlink character={character} />
+      <CharBlink character={character} closed={sleeping} excited={delighted} />
+      {sleeping && <span className="panda-sleep-mark" aria-hidden="true">z</span>}
     </div>
   );
 }
