@@ -63,7 +63,14 @@ export const CHARACTER_EYES: Record<
   CharacterId,
   { lx: number; rx: number; y: number; w: number; h: number }
 > = {
-  panda: { lx: 41, rx: 67, y: 41, w: 17, h: 19 },
+  // Remeasured again after panda-sprite.webp switched from a stretched
+  // (non-uniform) resize -- which forced the naturally-taller-than-wide crop
+  // into an exact square and distorted the character -- to a uniform,
+  // aspect-preserving resize letterboxed into the same 256x256 canvas. The
+  // art now fills the full height (like koala/redpanda) but only ~80% of
+  // the width, centred, so x needs remapping; y is unchanged since height
+  // was already the filled/limiting axis before and after.
+  panda: { lx: 40, rx: 70, y: 39, w: 17, h: 20 },
   koala: { lx: 35, rx: 65, y: 46, w: 13, h: 15 },
   // the long tail pulls the art bounding box right, so the head -- and eyes --
   // sit well left of the box centre.

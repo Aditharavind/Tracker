@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DayCell } from "../../types";
 import { CHAPTER_ENEMIES, WORLDS, type EnemyKind } from "../../game/adventure/content";
-import { isWeekConsistent, unlockedWeekCount, WEEK_COUNT } from "../../game/weekSystem";
+import { isWeekConsistent, unlockedWeekCount, STORY_WEEK_LIMIT, WEEK_COUNT } from "../../game/weekSystem";
 import { useModelViewer } from "../../modelViewer";
 import { usePrefersReducedMotion } from "./ForestScene";
 import "../../story.css";
@@ -102,10 +102,15 @@ export default function WeekMap({
       {NODE_POS.map((pos, i) => {
         const week = i + 1;
         const locked = week > visibleUnlocked;
-        const world = WORLDS[i];
+        // Only the first STORY_WEEK_LIMIT weeks have a Story world behind
+        // them -- WEEK_COUNT tracks the challenge's own ~11 real weeks (75
+        // days / 7), not the 8 worlds. A week past that still unlocks and
+        // counts as a real milestone; it just has nothing to open yet.
+        const hasWorld = i < STORY_WEEK_LIMIT;
+        const world = hasWorld ? WORLDS[i] : null;
         const cleared = week < unlocked || (week === unlocked && isWeekConsistent(calendar, week));
-        return <button key={week} type="button" className={`weekmap-node${locked ? " locked" : ""}${week === unlocked ? " current" : ""}${cleared ? " cleared" : ""}${releasingWeek === week ? " releasing" : ""}`} style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, "--node-color": world.color } as React.CSSProperties} disabled={locked} onClick={() => onOpenWorld(i)} aria-label={locked ? `Week ${week} locked` : `Week ${week}: ${world.name}`}>
-          <span className="weekmap-sign pixel-font">{locked ? <>UNLOCK<br />WEEK {week}</> : <>WEEK {week}<small>{CHAPTER_ENEMIES[i].map(enemy => ENEMY_LABEL[enemy]).join(" + ")}</small></>}</span>
+        return <button key={week} type="button" className={`weekmap-node${locked ? " locked" : ""}${week === unlocked ? " current" : ""}${cleared ? " cleared" : ""}${releasingWeek === week ? " releasing" : ""}`} style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, "--node-color": world?.color ?? "#f0c04a" } as React.CSSProperties} disabled={locked} onClick={() => { if (hasWorld) onOpenWorld(i); }} aria-label={locked ? `Week ${week} locked` : hasWorld ? `Week ${week}: ${world!.name}` : `Week ${week} cleared`}>
+          <span className="weekmap-sign pixel-font">{locked ? <>UNLOCK<br />WEEK {week}</> : hasWorld ? <>WEEK {week}<small>{CHAPTER_ENEMIES[i].map(enemy => ENEMY_LABEL[enemy]).join(" + ")}</small></> : <>WEEK {week}<small>MORE COMING</small></>}</span>
           <span className="weekmap-stone" aria-hidden="true"><span className="weekmap-lock" /></span>
         </button>;
       })}

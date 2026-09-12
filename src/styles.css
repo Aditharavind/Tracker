@@ -1750,13 +1750,19 @@ h3 {
   transition: height 0.55s cubic-bezier(0.3, 0.9, 0.4, 1);
 }
 
-/* A little surface shimmer on the water line. */
+/* A little surface shimmer on the water line -- inset just inside the
+   water's own top edge (not straddling it) so it stays inside the heart's
+   clip-path even at 100% fill; LivesHUD only ever sets --fill to 0% or
+   100% (a discrete life is full or spent, never partial), so a full heart's
+   water top sits flush with the heart's own top -- straddling that edge
+   (as this used to) clipped the whole shimmer away for every full heart,
+   which is the normal, most-common state. */
 .heart-water::after {
   content: "";
   position: absolute;
   left: -20%;
   right: -20%;
-  top: -2px;
+  top: 0;
   height: 3px;
   background: rgba(255, 220, 224, 0.85);
   border-radius: 50%;
@@ -1836,6 +1842,24 @@ h3 {
 /* ---------------------------------------------------------------- forest */
 /* Stage palettes -- independent of [data-theme]; only the forest scene's
    own visuals change chapter to chapter, never app chrome/layout. */
+
+/* Phaser preview (skill: PhaserForestScene), gated behind ?engine=phaser --
+   same footprint as .forest-scene so swapping between the two doesn't
+   reflow anything else on the page. Phaser's own Scale.FIT mode fills
+   whatever box it's given, so this only needs to define the box. */
+.phaser-forest-container {
+  position: relative;
+  height: 340px;
+  margin-top: 18px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  background: #0c1710;
+}
+
+.phaser-forest-container canvas {
+  display: block;
+}
 
 .forest-scene {
   /* Platforms shrink once there are more of them than the level's width has
@@ -3518,6 +3542,21 @@ h3 {
   .topbar-character-name {
     display: none;
   }
+  /* .topbar-lives's 250px min-width (sized for a roomy desktop row) was
+     wider than the whole remaining row on a phone -- hamburger + title +
+     lives together overflowed .game-topbar with no wrap, so the hearts got
+     pushed out of the viewport instead of just sitting tighter. The hearts
+     themselves are small; they never needed 250px, only the (independently
+     absolutely-positioned) failure tooltip did, and that keeps its own
+     width regardless of this. */
+  .topbar-lives {
+    min-width: 0;
+  }
+  .game-topbar {
+    padding-left: 16px;
+    padding-right: 16px;
+    gap: 6px;
+  }
 }
 
 /* ---- stage: forest fills whatever height is left -------------------- */
@@ -3876,16 +3915,6 @@ h3 {
   color: var(--text);
 }
 
-/* Leaderboard drawer's dismiss control -- wider to fit the panda-on-a-plank
-   icon, with a warm wood-toned hover instead of the generic panel one. */
-.panel-close-plank {
-  width: 40px;
-}
-
-.panel-close-plank:hover {
-  background: color-mix(in srgb, #6b4a1e 30%, transparent);
-}
-
 .panel-section + .panel-section {
   margin-top: 14px;
 }
@@ -4082,6 +4111,106 @@ h3 {
   .install-bar {
     margin: 0 16px 10px;
     flex-wrap: wrap;
+  }
+}
+
+/* ---------------------------------------------------------- panda peek */
+/* The notification opt-in: a cropped sliver of the panda sprite peeking up
+   over the bottom-right corner, as if it snuck up to get your attention.
+   .panda-peek-crop is a short window (overflow: hidden) over the FULL
+   sprite -- only its top band (ears + eyes, per CHARACTER_EYES.panda's own
+   y ~39%) shows through, the rest is simply clipped, not a separate asset. */
+.panda-peek {
+  position: fixed;
+  right: 18px;
+  bottom: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.panda-peek-crop {
+  width: 64px;
+  height: 30px;
+  overflow: hidden;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  animation: panda-peek-rise 0.6s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.panda-peek-crop img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  object-position: top;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.panda-peek-open .panda-peek-crop {
+  animation: none;
+}
+
+@keyframes panda-peek-rise {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.panda-peek-card {
+  width: min(240px, calc(100vw - 36px));
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+  animation: panda-peek-card-in 0.2s ease-out both;
+}
+
+.panda-peek-text {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.panda-peek-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.panda-peek-actions .btn {
+  padding: 7px 14px;
+  font-size: 12px;
+}
+
+@keyframes panda-peek-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panda-peek-crop {
+    animation: none;
+  }
+  .panda-peek-card {
+    animation: none;
   }
 }
 
@@ -4402,16 +4531,25 @@ h3 {
 /* Hand-drawn backdrop for the first chapter (Forest Entrance). Only shown
    for stage 1; the other chapters fall back to the CSS parallax stack until
    they get their own art. Overscanned + a slice of the follow-cam shift so
-   it parallaxes gently instead of sitting dead still. */
+   it parallaxes gently instead of sitting dead still.
+
+   Tiles horizontally (repeat-x) rather than a single no-repeat `cover`
+   image: a day with more tasks/platforms is a wider level (ForestScene.tsx
+   spaces platforms by task count), and --cam-x's parallax shift grows with
+   it -- a single fixed-size backdrop eventually scrolls past its own edge
+   and leaves bare colour behind it. `background-size: auto 100%` scales
+   each tile to the strip's full height, preserving the art's own aspect
+   ratio, so the repeat seam falls at a natural image-width boundary instead
+   of a stretched/distorted one. */
 .forest-photo {
   position: absolute;
   inset: 0;
   z-index: 0;
   display: none;
   background-image: url("/assets/forest-bg-1.webp");
-  background-repeat: no-repeat;
-  background-position: center bottom;
-  background-size: cover;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: auto 100%;
   image-rendering: pixelated;
   transform: scale(1.12) translateX(calc(var(--cam-x, 0%) * 0.1));
   transition: transform 0.5s cubic-bezier(0.33, 0.1, 0.25, 1);
@@ -4734,6 +4872,50 @@ h3 {
   line-height: 1.25;
   color: #fff;
   text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+/* Day 75 only -- a warmer card frame plus a soft gold glow behind the
+   dancer, so the run's one-time payoff reads as a different occasion than
+   the daily "stage clear" card, not just a bigger version of it. */
+.daycomplete-finale {
+  border-color: #ffd77a;
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(0, 0, 0, 0.5) inset,
+    0 0 70px rgba(240, 192, 74, 0.35);
+}
+
+.daycomplete-finale .daycomplete-stage::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 215, 122, 0.35), transparent 70%);
+  pointer-events: none;
+}
+
+.daycomplete-finale-text {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(240, 192, 74, 0.08);
+  border: 1px solid rgba(240, 192, 74, 0.3);
+  text-align: left;
+}
+
+.daycomplete-finale-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--forest-cream, #f3e6c8);
+}
+
+.daycomplete-finale-text p + p {
+  margin-top: 8px;
 }
 
 .daycomplete-stage {

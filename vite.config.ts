@@ -66,6 +66,12 @@ export default defineConfig({
           // Adventure chunk above: it sits behind a tap, not on the critical
           // path, so it is cached at runtime instead of during SW install.
           "**/assets/weekmap-bg.png",
+          // The Phaser migration's preview chunk (bundles the ~1.4MB Phaser
+          // runtime) -- gated behind ?engine=phaser and lazy-loaded on the
+          // React side (see App.tsx), so it must also stay out of the SW's
+          // eager install-time precache or every visitor downloads it
+          // regardless of ever opting in. Same reasoning as Adventure above.
+          "**/PhaserForestScene-*.js",
         ],
         // Sized to admit the ~1.05MB model-viewer runtime. Anything genuinely
         // huge is excluded by name above rather than by slipping under a cap.
@@ -75,6 +81,14 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/PhaserForestScene-[^/]+\.js$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "phaser-preview-assets",
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
+          },
           {
             urlPattern: /\/assets\/(?:Adventure-[^/]+\.(?:js|css)|story\/[^/]+\.webp)$/,
             handler: "CacheFirst",

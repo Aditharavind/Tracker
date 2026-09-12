@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import type { CharacterId } from "../game/characters";
+import type { DayCell } from "../types";
 import PandaRunner from "./forest/PandaRunner";
 
-export default function Minigames({ character, userId, onClose }: { character: CharacterId; userId: number | null; onClose: () => void }) {
+export default function Minigames({ character, userId, calendar, onClose }: { character: CharacterId; userId: number | null; calendar: DayCell[]; onClose: () => void }) {
   // PandaRunner is its own modal dialog (focus, Escape, aria-modal all handled
   // there) -- this wrapper only owns locking background scroll while it's open
   // and giving focus back to whatever launched it.
@@ -12,5 +13,5 @@ export default function Minigames({ character, userId, onClose }: { character: C
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = overflow; previous?.focus(); };
   }, []);
-  return <PandaRunner character={character} userId={userId} onClose={onClose} />;
+  return <PandaRunner character={character} userId={userId} calendar={calendar} onClose={onClose} />;
 }

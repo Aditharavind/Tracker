@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Top-HUD lives: three heart containers that fill like liquid rising through
- * a vessel as today's tasks are completed -- empty at the start of the day,
- * brimming when it's a full clear. Heart 1 fills first, then heart 2, then
- * heart 3. On a run reset they shatter, then drain to the new day's empty.
- * The persisted task / `resets` data is the source of truth; nothing is read
- * back from the icons.
+ * Top-HUD lives: three heart containers, each either full (a life still in
+ * the buffer) or empty (spent on a missed day) -- the real 3-lives system
+ * (server/engine.js), not a stand-in for today's own task progress (that
+ * has its own bar in the Day card). Losing all 3 costs a week (day_number
+ * moves back 7 days), not the whole run -- the hearts shatter for that
+ * moment, then refill for the fresh buffer. The persisted `lives`/`resets`
+ * data is the source of truth; nothing is read back from the icons.
  */
 export default function LivesHUD({
-  completed,
-  total,
+  lives,
+  initialLives,
   resets,
   expanded,
   onToggle,
 }: {
-  completed: number;
-  total: number;
+  lives: number;
+  initialLives: number;
   resets: number;
   expanded?: boolean;
   onToggle?: () => void;
@@ -35,10 +36,8 @@ export default function LivesHUD({
     return () => window.clearTimeout(timer.current);
   }, [resets]);
 
-  const frac = broken ? 0 : total > 0 ? Math.max(0, Math.min(1, completed / total)) : 0;
-  // Split the single fill level across three containers.
-  const hearts = [0, 1, 2].map((i) => Math.max(0, Math.min(1, frac * 3 - i)));
-  const pct = Math.round(frac * 100);
+  const safeInitial = Math.max(1, initialLives);
+  const hearts = Array.from({ length: safeInitial }, (_, i) => (broken ? 0 : i < lives ? 1 : 0));
 
   return (
     <button
@@ -46,7 +45,7 @@ export default function LivesHUD({
       className={`lives-block${broken ? " broken" : ""}`}
       aria-expanded={!!expanded}
       onClick={onToggle}
-      aria-label={`Lives ${pct}% full (${completed} of ${total} tasks today). Show what happens if you miss a task.`}
+      aria-label={`Lives: ${broken ? 0 : lives} of ${safeInitial} remaining. Show what happens if you miss a task.`}
     >
       <div className="lives">
         {hearts.map((fill, i) => (
@@ -60,7 +59,7 @@ export default function LivesHUD({
           </span>
         ))}
       </div>
-      <span className="lives-label">{broken ? "RESET" : "LIVES"}</span>
+      <span className="lives-label">{broken ? "-7 DAYS" : "LIVES"}</span>
     </button>
   );
 }

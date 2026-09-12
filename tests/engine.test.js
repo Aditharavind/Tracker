@@ -61,15 +61,59 @@ test("same run, today finished", () => {
   assert.equal(p.day_number, 11);
 });
 
-test("a partial day still breaks the run", () => {
+test("a partial day breaks the streak and costs one life, not the run", () => {
   const c = [];
   for (let i = 10; i > 0; i -= 1) c.push(...(i === 6 ? tick(ago(i), 3) : tick(ago(i))));
   const p = run(10, c);
-  assert.equal(p.run_start, ago(5));
-  assert.equal(p.day_number, 6);
+  // One miss out of a 3-life buffer: the run itself keeps going.
+  assert.equal(p.run_start, ago(10));
+  assert.equal(p.day_number, 11);
+  assert.equal(p.lives, 2);
+  assert.equal(p.resets, 0);
+  // The streak (consecutive perfect days) still breaks on the miss.
   assert.equal(p.streak, 5);
   assert.equal(p.best_streak, 5); // the 5-day run after the miss
+});
+
+test("the third missed day costs a week, not the whole run", () => {
+  const c = [];
+  for (let i = 10; i > 3; i -= 1) c.push(...tick(ago(i))); // ago(10)..ago(4) perfect
+  // ago(3), ago(2), ago(1) all blank -- the third one exhausts the buffer.
+  const p = run(10, c);
   assert.equal(p.resets, 1);
+  assert.equal(p.lives, 3, "a fresh buffer for the new attempt");
+  assert.equal(p.run_start, ago(3), "runStart moves 7 days forward, not all the way to today");
+  assert.equal(p.day_number, 4, "day 10 minus the 7-day penalty, not back to day 1");
+  assert.equal(p.best_streak, 7, "the original 7-day run is still on the books");
+});
+
+test("two separate setbacks in one history compound additively", () => {
+  const c = [];
+  for (let i = 20; i >= 15; i -= 1) c.push(...tick(ago(i))); // 6 perfect days
+  // ago(14..12): 3 misses -> first setback
+  for (let i = 11; i >= 8; i -= 1) c.push(...tick(ago(i))); // 4 perfect days
+  // ago(7..5): 3 misses -> second setback
+  for (let i = 4; i >= 1; i -= 1) c.push(...tick(ago(i))); // 4 perfect days
+  const p = run(20, c);
+  assert.equal(p.resets, 2);
+  assert.equal(p.lives, 3);
+  assert.equal(p.run_start, ago(6), "two 7-day setbacks from ago(20): ago(13), then ago(6)");
+  assert.equal(p.day_number, 7);
+  assert.equal(p.streak, 4, "the 4 clean days since the second setback");
+  assert.equal(p.best_streak, 6, "the original 6-day run is still the lifetime best");
+});
+
+test("a setback early in the run bottoms out at Day 1, never goes negative", () => {
+  const c = [];
+  for (let i = 5; i >= 4; i -= 1) c.push(...tick(ago(i))); // 2 perfect days
+  // ago(3), ago(2), ago(1): 3 misses, exhausting the buffer only 5 days in --
+  // a 7-day setback from here would overshoot past today.
+  const p = run(5, c);
+  assert.equal(p.resets, 1);
+  assert.equal(p.lives, 3);
+  assert.equal(p.run_start, TODAY, "clamped -- can't set the run start in the future");
+  assert.equal(p.day_number, 1);
+  assert.equal(p.best_streak, 2);
 });
 
 test("backfilling the missed day heals the run", () => {
@@ -107,14 +151,27 @@ test("xp and badge maths at 7 days", () => {
   assert.equal(p.level_name, "Grinder");
 });
 
-test("a long gap counts as one reset, not one per dead day", () => {
+test("a long dead gap costs a reset every three missed days, not just one", () => {
+  // 5 clean days, then 15 dead ones -- five full life-cycles of 3 misses each.
   const c = [];
   for (let i = 20; i > 15; i -= 1) c.push(...tick(ago(i)));
   const p = run(20, c);
-  assert.equal(p.resets, 1);
+  assert.equal(p.resets, 5);
+  assert.equal(p.lives, 3, "each reset refills the buffer for the next attempt");
   assert.equal(p.streak, 0);
   assert.equal(p.day_number, 1);
   assert.equal(p.best_streak, 5);
+});
+
+test("one or two missed days in a row don't reset the run at all", () => {
+  const c = [];
+  for (let i = 10; i > 0; i -= 1) c.push(...(i <= 2 ? [] : tick(ago(i))));
+  const p = run(10, c);
+  assert.equal(p.resets, 0, "only 2 lives spent, run survives");
+  assert.equal(p.lives, 1);
+  assert.equal(p.run_start, ago(10));
+  assert.equal(p.day_number, 11);
+  assert.equal(p.streak, 0, "the streak itself still broke on the misses");
 });
 
 test("bonus tasks earn xp but cannot break a streak", () => {
@@ -159,23 +216,22 @@ test("levels span the whole challenge", () => {
   assert.equal(p.next_badge, null);
 });
 
-test("the calendar only ever shows the current run", () => {
-  // messy history: perfect, partial, empty, perfect, and today perfect
+test("a missed day inside the buffer shows as 'missed' on the calendar, not erased", () => {
+  // messy history: perfect, partial, empty, perfect, and today perfect --
+  // two misses (ago(3) partial, ago(2) blank), which costs 2 lives, not the run.
   const c = [...tick(ago(4)), ...tick(ago(3), 2), ...tick(ago(1)), ...tick(TODAY)];
   const p = run(4, c);
 
-  assert.equal(p.run_start, ago(1), "the run restarts after the last failed day");
-  assert.equal(p.streak, 2);
-  assert.equal(p.resets, 1);
-
-  // Invariant: a failed past day always moves run_start beyond itself, so no
-  // in-run day before today can be anything but done. If this ever fails the
-  // calendar needs real partial/missed states again.
-  const statuses = new Set(p.calendar.map((x) => x.status));
-  assert.deepEqual([...statuses].sort(), ["done", "future"]);
+  assert.equal(p.run_start, ago(4), "2 lives spent -- the run itself never restarted");
+  assert.equal(p.lives, 1);
+  assert.equal(p.resets, 0);
+  assert.equal(p.streak, 2, "ago(1) and today, since the last miss");
 
   const byDay = Object.fromEntries(p.calendar.map((x) => [x.day, x.status]));
-  assert.equal(byDay[ago(3)], undefined, "days before the run are not shown");
+  assert.equal(byDay[ago(4)], "done");
+  assert.equal(byDay[ago(3)], "missed", "partial day, inside the buffer, now visible as missed");
+  assert.equal(byDay[ago(2)], "missed", "blank day, inside the buffer");
+  assert.equal(byDay[ago(1)], "done");
   assert.equal(byDay[TODAY], "done");
   assert.equal(byDay[addDays(TODAY, 1)], "future");
 });

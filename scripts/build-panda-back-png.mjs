@@ -16,12 +16,21 @@ const rect = (x, y, w, h, color) => {
     pixels.set(color, at);
   }
 };
-rect(54, 51, 37, 38, colors.dark); rect(165, 51, 37, 38, colors.dark);
-rect(62, 59, 21, 22, colors.mid); rect(173, 59, 21, 22, colors.mid);
-rect(43, 89, 170, 80, colors.dark); rect(54, 87, 148, 85, colors.cream); rect(65, 154, 126, 27, colors.shade);
-rect(54, 161, 37, 42, colors.dark); rect(165, 161, 37, 42, colors.dark); rect(61, 169, 23, 27, colors.mid); rect(172, 169, 23, 27, colors.mid);
-rect(78, 137, 100, 53, colors.brown); rect(86, 145, 84, 37, colors.brownDark); rect(96, 145, 64, 11, colors.brownLight); rect(112, 151, 32, 14, colors.strap);
-rect(63, 95, 130, 51, colors.shade); rect(75, 95, 106, 44, colors.cream); rect(79, 188, 41, 27, colors.dark); rect(136, 188, 41, 27, colors.dark); rect(87, 195, 26, 12, colors.mid); rect(143, 195, 26, 12, colors.mid); rect(97, 78, 62, 13, colors.cream);
+// Scaled 1.46x from the original hand-drawn layout and re-centred so the
+// silhouette fills the 256x256 canvas the same ~95-99% both axes koala/
+// redpanda/panda's front sprites do (measured, not eyeballed) -- the
+// original was drawn at ~65% fill, which is why this character alone read
+// as noticeably smaller everywhere it's placed next to the other two.
+rect(20, 5, 54, 55, colors.dark); rect(182, 5, 54, 55, colors.dark);
+rect(32, 17, 31, 32, colors.mid); rect(194, 17, 31, 32, colors.mid);
+rect(4, 60, 248, 117, colors.dark); rect(20, 58, 216, 124, colors.cream); rect(36, 155, 184, 39, colors.shade);
+rect(20, 166, 54, 61, colors.dark); rect(182, 166, 54, 61, colors.dark); rect(30, 177, 34, 39, colors.mid); rect(192, 177, 34, 39, colors.mid);
+rect(55, 131, 146, 77, colors.brown); rect(67, 142, 123, 54, colors.brownDark); rect(81, 142, 93, 16, colors.brownLight); rect(105, 151, 47, 20, colors.strap);
+rect(33, 69, 190, 74, colors.shade); rect(51, 69, 155, 64, colors.cream); rect(57, 205, 60, 39, colors.dark); rect(140, 205, 60, 39, colors.dark); rect(68, 215, 38, 18, colors.mid); rect(150, 215, 38, 18, colors.mid); rect(83, 44, 91, 19, colors.cream);
+// Backpack shoulder straps -- drawn last so they read as worn over the body
+// rather than another patch: two bands running from the shoulder line down
+// into the top of the pack.
+rect(70, 69, 20, 71, colors.strap); rect(166, 69, 20, 71, colors.strap);
 const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let i = 0; i < 8; i++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
 const crc = buffer => { let value = 0xffffffff; for (const byte of buffer) value = crcTable[(value ^ byte) & 255] ^ (value >>> 8); return (value ^ 0xffffffff) >>> 0; };
 const chunk = (type, data) => { const head = Buffer.alloc(8); head.writeUInt32BE(data.length, 0); head.write(type, 4); const tail = Buffer.alloc(4); tail.writeUInt32BE(crc(Buffer.concat([Buffer.from(type), data])), 0); return Buffer.concat([head, data, tail]); };

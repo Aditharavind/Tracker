@@ -6,8 +6,16 @@ import { WORLDS } from "./adventure/content";
 // content.ts's storyWorldUnlockDay) -- completing every day of week W is
 // always reached on or after that world's day-based ceiling, so this is
 // strictly the harder of the two gates and Adventure's own gate never has
-// to change. One week stone per world: this is not an independent length.
-export const WEEK_COUNT = WORLDS.length;
+// to change.
+//
+// WEEK_COUNT tracks the challenge's own calendar (75 days / 7 -- an 11th,
+// partial week of 5 days still counts as a week), independent of how many
+// Story worlds exist. STORY_WEEK_LIMIT is how many of those weeks actually
+// have a world behind them right now (one per world, in order) -- weeks
+// past that still unlock and count as real milestones, they just don't open
+// a Story world yet.
+export const WEEK_COUNT = Math.ceil(75 / 7);
+export const STORY_WEEK_LIMIT = WORLDS.length;
 
 /** 1-indexed week -> the inclusive [start, end] 1-indexed day numbers it covers. */
 export function weekDayRange(week: number): { start: number; end: number } {
@@ -41,4 +49,17 @@ export function unlockedWeekCount(calendar: DayCell[]): number {
   let unlocked = 1;
   while (unlocked < WEEK_COUNT && isWeekConsistent(calendar, unlocked)) unlocked++;
   return unlocked;
+}
+
+/**
+ * Which Story world's environment the rest of the game (Forest Dash, and
+ * eventually the daily climb itself) should currently be painted in --
+ * shared across surfaces so progressing a week visibly changes more than
+ * just the trail map. Week 1 maps to world 0 ("The Sleeping Forest"), which
+ * is deliberately the same forest look the game already opens in -- nothing
+ * changes until real progress actually earns a new one. Clamped to
+ * STORY_WEEK_LIMIT since weeks past that don't have a world yet.
+ */
+export function currentWorldIndex(calendar: DayCell[]): number {
+  return Math.min(unlockedWeekCount(calendar), STORY_WEEK_LIMIT) - 1;
 }

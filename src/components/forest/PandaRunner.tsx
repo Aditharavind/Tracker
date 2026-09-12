@@ -10,6 +10,9 @@ import { playJump } from "../../sound";
 import DashLeaderboard from "../DashLeaderboard";
 import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "../../game/runnerEngine";
 import { drawCoin } from "../../game/coinArt";
+import { WORLDS } from "../../game/adventure/content";
+import { currentWorldIndex } from "../../game/weekSystem";
+import type { DayCell } from "../../types";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
 const Y_BASE = 0.1;
@@ -60,12 +63,19 @@ function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numb
 export default function PandaRunner({
   character,
   userId,
+  calendar,
   onClose,
 }: {
   character: CharacterId;
   userId: number | null;
+  calendar: DayCell[];
   onClose: () => void;
 }) {
+  // The same environment Story Mode is currently themed in -- shared across
+  // both surfaces so a week of real progress visibly changes more than just
+  // the trail map. Week 1 (world 0) is deliberately the same forest look
+  // this already opened in, so nothing shifts until real progress earns it.
+  const world = WORLDS[currentWorldIndex(calendar)];
   const key = userId ?? "guest";
   const bestDistKey = `75hard.dash.best:${key}`;
   const bestCoinKey = `75hard.dash.coins:${key}`;
@@ -169,6 +179,14 @@ export default function PandaRunner({
       for (; x < W; x += bw) ctx.drawImage(bg, x, 0, bw, H);
       ctx.globalAlpha = 1;
     }
+    // World tint -- shared with Story Mode's own per-world wash (render.ts),
+    // so a week of real progress changes this too, not just the trail map.
+    // Barely visible on world 0 (the same forest look this already opens
+    // in); genuinely shifts once a later world is actually earned.
+    ctx.fillStyle = world.tint;
+    ctx.globalAlpha = 0.16;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
 
     // --- ledges ---
     for (const p of st.platforms) {
@@ -301,7 +319,7 @@ export default function PandaRunner({
     ctx.beginPath();
     ctx.ellipse((PANDA_X + PANDA_W / 2) * sx, yPx(st.y), pw * 0.45, H * 0.012, 0, 0, Math.PI * 2);
     ctx.fill();
-  }, [character]);
+  }, [character, world]);
 
   const frame = useCallback(
     (ts: number) => {

@@ -43,6 +43,9 @@ export type Progress = {
   color: string;
   run_start: string;
   day_number: number;
+  /** Remaining out of initial_lives -- a missed day costs one; day_number keeps advancing until this hits 0. */
+  lives: number;
+  initial_lives: number;
   streak: number;
   best_streak: number;
   resets: number;

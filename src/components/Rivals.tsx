@@ -38,7 +38,7 @@ export default function Rivals({ board, meId }: { board: Progress[]; meId: numbe
                 </div>
                 <div className="rival-meta">
                   day {p.day_number} &middot; {p.streak}d streak &middot; {p.xp.toLocaleString()} xp
-                  {p.resets > 0 && ` · ${p.resets} restart${p.resets > 1 ? "s" : ""}`}
+                  {p.resets > 0 && ` · ${p.resets} setback${p.resets > 1 ? "s" : ""}`}
                 </div>
                 <div className="mini">
                   <i style={{ width: `${pct}%` }} />

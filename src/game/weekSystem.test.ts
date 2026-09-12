@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isWeekConsistent, unlockedWeekCount, weekDayRange, WEEK_COUNT } from "./weekSystem";
+import { currentWorldIndex, isWeekConsistent, STORY_WEEK_LIMIT, unlockedWeekCount, weekDayRange, WEEK_COUNT } from "./weekSystem";
 import type { DayCell } from "../types";
 
 const cell = (status: DayCell["status"]): DayCell => ({ day: "", index: 0, status, done: status === "done" ? 1 : 0, total: 1 });
@@ -46,5 +46,18 @@ describe("unlockedWeekCount", () => {
   });
   it("never exceeds the number of worlds", () => {
     expect(unlockedWeekCount(calendarWith(75))).toBe(WEEK_COUNT);
+  });
+});
+
+describe("currentWorldIndex", () => {
+  it("starts at world 0 (the same forest the game already opens in)", () => {
+    expect(currentWorldIndex(calendarWith(0))).toBe(0);
+  });
+  it("advances one world per fully consistent week", () => {
+    expect(currentWorldIndex(calendarWith(7))).toBe(1);
+    expect(currentWorldIndex(calendarWith(14))).toBe(2);
+  });
+  it("clamps to the last real world once weeks run past STORY_WEEK_LIMIT", () => {
+    expect(currentWorldIndex(calendarWith(75))).toBe(STORY_WEEK_LIMIT - 1);
   });
 });

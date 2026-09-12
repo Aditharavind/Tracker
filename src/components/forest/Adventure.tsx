@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CHARACTER_SPRITE, type CharacterId } from "../../game/characters";
 import { MAIN_LEVELS, POWERS, WISDOM, WORLDS, makeLevel, storyWorldUnlockDay, wisdomUrl, type Power } from "../../game/adventure/content";
 import { createState, HEIGHT, snapshot, step, WIDTH } from "../../game/adventure/engine";
@@ -71,6 +71,21 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
     const nextPhase = attempt?.scene ?? "intro"; storeAttempt(nextPhase, attempt?.page ?? 0);
     moveTo(nextPhase === "play" ? "paused" : nextPhase, attempt?.page ?? 0);
   };
+  // Opened from the weekly trail map with a specific world already chosen --
+  // that map WAS the world-picker, so this screen's own map/world-select
+  // would just be a second, redundant one. Jump straight into the trail
+  // instead (resuming it if one's already in progress). Runs once,
+  // synchronously before paint, so there's no visible flash of the map
+  // phase first. If the world turns out not to be playable yet (e.g. its
+  // world's boss-sequence gate isn't cleared even though the calendar says
+  // the week is unlocked), begin() is a no-op and this falls back to the map.
+  useLayoutEffect(() => {
+    if (initialWorld === undefined) return;
+    const trailId = initialWorld * 3;
+    const resumeId = saved.current.attempts[trailId + 1] ? trailId + 1 : trailId;
+    begin(resumeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const play = () => { storeAttempt("play", 0); moveTo("play"); void audio.current.start(); };
   const retry = () => { state.current = createState(level, saved.current, snapshot(state.current)); revision.current = 0; camera.current = { x: Math.max(0, state.current.x - 200), zoom: 1 }; refreshHud(); play(); };
   const finishMoment = () => {

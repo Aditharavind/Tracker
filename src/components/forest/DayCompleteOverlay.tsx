@@ -10,6 +10,15 @@ import type { CharacterId } from "../../game/characters";
  * a CONTINUE button dismisses it. It is celebratory only: day advancement is
  * still date-driven by the tracker, nothing here mutates challenge state.
  */
+// The 75-day payoff, shown in place of the usual "stage clear" copy on the
+// final day only -- the whole run has been leading here, so it gets its own
+// words instead of just being "Day 75 complete" with a bigger number.
+const FINALE_LINES = [
+  "Seventy-five days ago this felt impossible. Today it's just... done.",
+  "Over the last ridge, the family is waiting exactly where they said they'd be.",
+  "Not a different panda. The one seventy-five days of showing up was quietly building.",
+];
+
 export default function DayCompleteOverlay({
   dayNumber,
   tasksCompleted,
@@ -30,6 +39,7 @@ export default function DayCompleteOverlay({
   onPlayRunner?: () => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
+  const isFinale = dayNumber >= 75;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,9 +79,11 @@ export default function DayCompleteOverlay({
         ))}
       </div>
 
-      <div className="daycomplete-card">
-        <p className="daycomplete-kicker pixel-font">STAGE CLEAR</p>
-        <h1 className="daycomplete-title pixel-font">DAY {String(dayNumber).padStart(2, "0")} COMPLETE</h1>
+      <div className={`daycomplete-card${isFinale ? " daycomplete-finale" : ""}`}>
+        <p className="daycomplete-kicker pixel-font">{isFinale ? "75 DAYS COMPLETE" : "STAGE CLEAR"}</p>
+        <h1 className="daycomplete-title pixel-font">
+          {isFinale ? "WELCOME HOME" : `DAY ${String(dayNumber).padStart(2, "0")} COMPLETE`}
+        </h1>
 
         <div className="daycomplete-stage" aria-hidden="true">
           <div className="daycomplete-dancer">
@@ -79,6 +91,14 @@ export default function DayCompleteOverlay({
           </div>
           <div className="daycomplete-podium" />
         </div>
+
+        {isFinale && (
+          <div className="daycomplete-finale-text">
+            {FINALE_LINES.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        )}
 
         <dl className="daycomplete-score">
           <div>

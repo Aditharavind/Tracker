@@ -31,8 +31,12 @@ export function drawPanda(ctx: CanvasRenderingContext2D, sprite: HTMLImageElemen
   if (pose === "fall") ctx.rotate(.1);
   if (pose === "attack") { ctx.translate(4, 0); ctx.rotate(.12); }
   if (pose === "hurt") ctx.rotate(-.14);
-  // Match Forest Dash's sprite aspect and compensate for transparent space below its feet.
-  const height = 64, width = height * .92, left = -width / 2, top = -height * .9;
+  // Match Forest Dash's sprite aspect and compensate for transparent space
+  // below its feet -- 0.98, not the visually-round 0.9, because
+  // panda-sprite.webp's actual content now runs to ~98% of the canvas
+  // height (it was recropped to fill the frame the same way koala/redpanda
+  // already did; the old crop's feet landed at ~90%, which is where 0.9 came from).
+  const height = 64, width = height * .92, left = -width / 2, top = -height * .98;
   ctx.imageSmoothingEnabled = false;
   if (dark) ctx.filter = "brightness(.5) saturate(.45)";
   ctx.drawImage(sprite, left, top, width, height);

@@ -19,7 +19,12 @@
 .weekmap-node.releasing .weekmap-sign { animation: weekmap-board-open .58s ease-in forwards; }
 .weekmap-panda-anchor { position: absolute; z-index: 2; width: 0; height: 0; transition: left .78s linear, top .78s linear; }
 .weekmap-panda-anchor > .weekmap-panda { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); }
-.weekmap-panda { width: 72px; height: 92px; pointer-events: none; filter: drop-shadow(0 4px 4px #0b120bcc); }
+/* Square, matching every other place these characters render (.panda-model
+   etc. are always equal width/height) -- this was 72x92 (a 0.78:1, notably
+   taller-than-wide box), which is what made the rear view read as stretched:
+   the character's own art is close to square, so forcing it into a tall
+   narrow box squashed it horizontally relative to how it looks everywhere else. */
+.weekmap-panda { width: 78px; height: 78px; pointer-events: none; filter: drop-shadow(0 4px 4px #0b120bcc); }
 .weekmap-panda-fallback, .weekmap-panda-model { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .weekmap-panda-model { background: transparent; }
 .weekmap-panda.running .weekmap-panda-fallback, .weekmap-panda.running .weekmap-panda-model { animation: weekmap-run .28s steps(2, end) infinite; }
@@ -27,4 +32,4 @@
 @keyframes weekmap-unlock { to { opacity: 0; transform: translate(-50%, -120%) scale(.3) rotate(18deg); } }
 @keyframes weekmap-board-open { 55% { transform: translateX(-50%) scale(1.08); } 100% { transform: translateX(-50%) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .weekmap-panda-anchor, .weekmap-panda.running .weekmap-panda-fallback, .weekmap-panda.running .weekmap-panda-model, .weekmap-node.releasing .weekmap-lock, .weekmap-node.releasing .weekmap-sign { animation: none; transition: none; } }
-@media (max-width: 520px) { .weekmap-sign { min-width: 84px; font-size: 8px; } .weekmap-sign small { font-size: 5px; } .weekmap-panda { width: 62px; height: 80px; } }
+@media (max-width: 520px) { .weekmap-sign { min-width: 84px; font-size: 8px; } .weekmap-sign small { font-size: 5px; } .weekmap-panda { width: 66px; height: 66px; } }

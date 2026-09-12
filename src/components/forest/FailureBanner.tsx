@@ -11,7 +11,7 @@ export default function FailureBanner({ resets }: { resets: number }) {
         </svg>
         MISSED A TASK?
       </p>
-      <p>The panda falls back... {resets > 0 ? "you are climbing again from Day 1." : "complete all tasks to keep climbing."}</p>
+      <p>The panda falls back... {resets > 0 ? "losing all 3 lives costs a week, not the whole climb." : "complete all tasks to keep climbing."}</p>
       <p className="muted">Complete all tasks to keep climbing!</p>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
 import * as outbox from "./outbox";
 import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
@@ -12,6 +12,11 @@ import DashLeaderboard from "./components/DashLeaderboard";
 import Coach from "./components/Coach";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
+// The Phaser migration's first slice (see src/game/'s PhaserGame.ts) -- only
+// the Forest Entrance environment so far, gated behind ?engine=phaser and
+// lazy-loaded so the ~1MB Phaser runtime never reaches anyone who hasn't
+// opted in.
+const PhaserForestScene = lazy(() => import("./components/forest/PhaserForestScene"));
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
 import Minigames from "./components/Minigames";
@@ -29,6 +34,8 @@ import FailureBanner from "./components/forest/FailureBanner";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
 import { isMuted, primeJump, toggleMuted } from "./sound";
+import { maybeRemind, shouldOfferPrompt } from "./notifications";
+import PandaPeekPrompt from "./components/PandaPeekPrompt";
 
 const LAST_USER = LAST_USER_KEY;
 const AVATAR_KEY = "75hard.avatar";
@@ -137,36 +144,6 @@ function IconClose() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M2 2l12 12M14 2 2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// Close control for the Leaderboard drawer specifically -- a tiny panda
-// climbing down a diagonal wooden plank, echoing the forest theme instead of
-// a generic X, per the request to reskin that one dismiss control.
-function IconPandaDescend() {
-  return (
-    <svg width="22" height="20" viewBox="0 0 22 20" aria-hidden="true">
-      <rect
-        x="2"
-        y="12"
-        width="20"
-        height="4.4"
-        rx="1"
-        transform="rotate(-24 2 12)"
-        fill="#6b4a1e"
-        stroke="#3a2810"
-        strokeWidth="1"
-      />
-      <rect x="3.4" y="13.9" width="16.4" height="0.9" transform="rotate(-24 3.4 13.9)" fill="#4c3315" opacity="0.6" />
-      <g transform="translate(6.4 2.4) rotate(-24)">
-        <circle cx="4" cy="4" r="3.6" fill="#f4f1ea" stroke="#241804" strokeWidth="0.6" />
-        <circle cx="1.3" cy="1.7" r="1.3" fill="#241804" />
-        <circle cx="6.7" cy="1.7" r="1.3" fill="#241804" />
-        <ellipse cx="2.3" cy="4.2" rx="1" ry="1.3" fill="#241804" />
-        <ellipse cx="5.7" cy="4.2" rx="1" ry="1.3" fill="#241804" />
-        <ellipse cx="4" cy="5.6" rx="0.7" ry="0.5" fill="#241804" />
-      </g>
     </svg>
   );
 }
@@ -504,6 +481,7 @@ export default function App() {
   const [livesOpen, setLivesOpen] = useState(false);
   const [dayCompleteOpen, setDayCompleteOpen] = useState(false);
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
+  const [showPeek, setShowPeek] = useState(false);
   const [runnerOpen, setRunnerOpen] = useState(false);
   // Story Mode's own overlay -- opened from the weekly trail map, not
   // bundled into the Minigames picker (which is Forest Dash only now).
@@ -514,6 +492,11 @@ export default function App() {
   // unlocked stone here is what actually opens Story Mode, pre-selected on
   // that world.
   const [weekMapOpen, setWeekMapOpen] = useState(false);
+  // Opt-in preview of the Phaser rebuild of the Forest Entrance environment
+  // (?engine=phaser) -- read once; the rest of the app is unaffected either
+  // way. See src/game/PhaserGame.ts for the migration this is the first
+  // slice of.
+  const [usePhaserEngine] = useState(() => new URLSearchParams(window.location.search).get("engine") === "phaser");
   const [muted, setMuted] = useState(isMuted);
   const installState = useInstallPrompt();
   // Wake-up alarm settings. Until now the only way to set these was the signup
@@ -1232,6 +1215,31 @@ export default function App() {
   const shellVisible =
     users !== null && users.length > 0 && !!me && !!detail && !!myCharacter;
 
+  // The notification opt-in -- shown once the shell has actually settled
+  // (not on the very first paint), and only when shouldOfferPrompt() says
+  // it's worth asking (permission still undecided, not recently dismissed).
+  useEffect(() => {
+    if (!shellVisible) return;
+    const timer = window.setTimeout(() => {
+      if (shouldOfferPrompt()) setShowPeek(true);
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [shellVisible]);
+
+  // Once permission is granted, check periodically whether today's tasks
+  // are still open past the reminder hour -- maybeRemind is idempotent per
+  // real calendar day, so polling often is harmless.
+  useEffect(() => {
+    if (!shellVisible || !detail) return;
+    const check = () => {
+      const completed = detail.tasks.filter((t) => t.done).length;
+      maybeRemind(todayISO(), completed, detail.tasks.length);
+    };
+    check();
+    const timer = window.setInterval(check, 5 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [shellVisible, detail]);
+
   // Global Forest Dash leaderboard -- pulled when the board opens or the
   // minigame closes (a fresh score may have landed).
   useEffect(() => {
@@ -1382,11 +1390,13 @@ export default function App() {
       {worldUnlock && (
         <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
       )}
+      {showPeek && <PandaPeekPrompt onDone={() => setShowPeek(false)} />}
       {runnerOpen && myCharacter && (
         <Minigames
           key={meId}
           character={myCharacter}
           userId={meId}
+          calendar={me.calendar}
           onClose={() => setRunnerOpen(false)}
         />
       )}
@@ -1397,6 +1407,11 @@ export default function App() {
           onClose={() => setWeekMapOpen(false)}
           onOpenWorld={(w) => {
             setWeekMapOpen(false);
+            // Week 1 / world 0 ("The Sleeping Forest") is the same forest
+            // the daily climb already happens in -- there's nothing
+            // separate to open. Every later world is a genuinely different
+            // environment, so those still launch Story Mode.
+            if (w === 0) return;
             setStoryWorld(w);
             setStoryOpen(true);
           }}
@@ -1445,8 +1460,8 @@ export default function App() {
             onMouseLeave={() => setLivesOpen(false)}
           >
             <LivesHUD
-              completed={detail.tasks.filter((t) => t.done).length}
-              total={detail.tasks.length}
+              lives={me.lives}
+              initialLives={me.initial_lives}
               resets={me.resets}
               expanded={livesOpen}
               onToggle={() => setLivesOpen((v) => !v)}
@@ -1481,6 +1496,16 @@ export default function App() {
         </header>
 
         <div className="stage-area">
+          {usePhaserEngine ? (
+            <Suspense fallback={<div className="phaser-forest-container" aria-busy="true" />}>
+              <PhaserForestScene
+                detail={detail}
+                dayNumber={me.day_number}
+                seed={`${meId}:${day}`}
+                character={myCharacter}
+              />
+            </Suspense>
+          ) : (
           <ForestScene
             detail={detail}
             dayNumber={me.day_number}
@@ -1491,6 +1516,7 @@ export default function App() {
             onOpenStory={() => setWeekMapOpen(true)}
             unlockedWeeks={unlockedWeekCount(me.calendar)}
           />
+          )}
 
           <div className="day-card-float">
             <button
@@ -1578,8 +1604,8 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head">
                 <h2>Leaderboard</h2>
-                <button className="panel-close panel-close-plank" aria-label="Close" onClick={() => setOpenPanel(null)}>
-                  <IconPandaDescend />
+                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                  <IconClose />
                 </button>
               </div>
               <Rivals board={board} meId={me.user_id} />
@@ -1626,7 +1652,7 @@ export default function App() {
                 </div>
                 <div className="profile-stat">
                   <div className="n num">{me.resets}</div>
-                  <div className="l">Restarts</div>
+                  <div className="l">Setbacks</div>
                 </div>
               </div>
 
