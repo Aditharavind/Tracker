@@ -52,6 +52,42 @@ function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numb
 }
 
 /**
+ * The turf on top of a ledge, drawn from the same three grass tiles the DOM
+ * platforms use (see --grass-image in styles.css): the two finished caps are
+ * pinned to the ends and only the middle repeats, so the strip is cropped to
+ * the length of the ledge instead of being stretched across it.
+ */
+function drawGrassStrip(
+  ctx: CanvasRenderingContext2D,
+  tiles: { grassLeft?: HTMLImageElement; grassMid?: HTMLImageElement; grassRight?: HTMLImageElement },
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  const { grassLeft: left, grassMid: mid, grassRight: right } = tiles;
+  if (!left?.naturalWidth || !mid?.naturalWidth || !right?.naturalWidth) {
+    // Art not decoded yet -- the flat strip the ledges used to draw.
+    ctx.fillStyle = "#6cbb54";
+    ctx.fillRect(x, y, w, h * 0.65);
+    return;
+  }
+  const scale = h / left.naturalHeight;
+  const lw = Math.max(1, Math.round(left.naturalWidth * scale));
+  const rw = Math.max(1, Math.round(right.naturalWidth * scale));
+  const mw = Math.max(1, Math.round(mid.naturalWidth * scale));
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  for (let mx = x + Math.min(lw, w); mx < x + w; mx += mw) ctx.drawImage(mid, mx, y, mw, h);
+  ctx.drawImage(left, x, y, lw, h);
+  ctx.drawImage(right, x + w - rw, y, rw, h);
+  ctx.restore();
+}
+
+/**
  * Forest Dash -- optional endless platformer, unlocked once the day is cleared.
  *
  * Rendered on a single <canvas> with the game's own flat sprites and forest
@@ -91,7 +127,15 @@ export default function PandaRunner({
   const lastTsRef = useRef<number | null>(null);
   const jumpRef = useRef(0); // press edges queued since the last frame
   const runningRef = useRef(false);
-  const imgs = useRef<{ bg?: HTMLImageElement; panda?: HTMLImageElement; plant?: HTMLImageElement; mine?: HTMLImageElement }>({});
+  const imgs = useRef<{
+    bg?: HTMLImageElement;
+    panda?: HTMLImageElement;
+    plant?: HTMLImageElement;
+    mine?: HTMLImageElement;
+    grassLeft?: HTMLImageElement;
+    grassMid?: HTMLImageElement;
+    grassRight?: HTMLImageElement;
+  }>({});
   const bgShift = useRef(0);
 
   const [phase, setPhase] = useState<"ready" | "running" | "over">("ready");
@@ -136,6 +180,9 @@ export default function PandaRunner({
     imgs.current.panda = load(CHARACTER_SPRITE[character]);
     imgs.current.plant = load("/assets/zombie-plant.webp");
     imgs.current.mine = load("/assets/landmine.webp");
+    imgs.current.grassLeft = load("/assets/grass-left.webp");
+    imgs.current.grassMid = load("/assets/grass-mid.webp");
+    imgs.current.grassRight = load("/assets/grass-right.webp");
   }, [character]);
 
   const commitBest = useCallback(
@@ -194,14 +241,14 @@ export default function PandaRunner({
       const w = p.w * sx;
       const top = yPx(p.y);
       const h = Math.max(16, H * 0.05);
+      // Turf sprite over dirt: the dirt starts just under the sprite's solid
+      // band so the hanging tufts drape onto it rather than floating above it.
+      const gh = Math.max(10, h * 0.62);
       ctx.fillStyle = "#4a3b2c";
-      ctx.fillRect(x, top + h * 0.34, w, h * 0.66);
-      ctx.fillStyle = "#6cbb54";
-      ctx.fillRect(x, top, w, h * 0.4);
-      ctx.fillStyle = "rgba(120,190,110,0.5)";
-      ctx.fillRect(x, top, w, 3);
+      ctx.fillRect(x, top + gh * 0.55, w, h - gh * 0.55);
       ctx.fillStyle = "rgba(0,0,0,0.32)";
       ctx.fillRect(x, top + h, w, H * 0.016);
+      drawGrassStrip(ctx, imgs.current, x, top, w, gh);
     }
 
     // --- coins: the panda-imprint gold coin, matching Coin.tsx ---

@@ -1870,6 +1870,11 @@ h3 {
      --step-count is set by ForestScene. */
   --step-scale: clamp(0.7, calc(9 / var(--step-count, 7)), 1);
 
+  /* One small ledge. Also the unit the ground's two segments are cut against:
+     the gap in the ground opens at the first ledge's left edge and closes one
+     whole --ledge-w past the last ledge's right edge. */
+  --ledge-w: calc(clamp(62px, 7vw, 96px) * var(--step-scale, 1));
+
   --forest-bg-top: #0c1710;
   --forest-bg-bottom: #060a07;
   --forest-far: #12271a;
@@ -1878,6 +1883,20 @@ h3 {
   --forest-stone: #2a2f28;
   --forest-gold: #f0c04a;
   --forest-cream: #f3e6c8;
+
+  /* The grass ledge sprite (built by scripts/pack-grass-platform.py from
+     frontend/assets/grass.png) is cut into a left cap, a right cap and a
+     tiling middle. Pinning the caps to the ends and repeating only the middle
+     means a ledge is *cropped* to the length of its base rather than stretched
+     to it, so the art keeps its own pixel density at every platform width.
+     Declared here once because both .platform-moss and .victory-lane need the
+     same four layer lists -- for their background and for the stage-tint mask
+     that sits on top of it. */
+  --grass-image: url("/assets/grass-left.webp"), url("/assets/grass-right.webp"),
+    url("/assets/grass-mid.webp");
+  --grass-position: left top, right top, left top;
+  --grass-repeat: no-repeat, no-repeat, repeat-x;
+  --grass-size: auto 100%;
 
   position: relative;
   height: 340px;
@@ -1988,21 +2007,23 @@ h3 {
   }
 }
 
+/* Ground. Solid through the start area, then absent for the whole platform
+   run -- the ledges float over open air (skill S5) -- and picked up again one
+   ledge-width past the last platform to carry the victory run out to the exit.
+   ForestScene renders it as two segments and sets the inner edge of each; the
+   outer edges run off-screen. It lives INSIDE .forest-path so both cliff faces
+   travel with the follow-cam and stay locked to the ledges they were cut
+   against, and `bottom` backs out that layer's 64px bottom inset so the strip
+   still reaches the bottom of the scene. */
 .forest-fg {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: -60%;
+  right: -60%;
+  bottom: -64px;
   height: 76px;
-  z-index: 5;
+  z-index: 0;
   background-color: #17190d;
   background-image:
-    linear-gradient(
-      to bottom,
-      rgba(156, 218, 59, 0.72) 0 9px,
-      rgba(49, 87, 31, 0.9) 9px 17px,
-      transparent 17px
-    ),
     linear-gradient(
       90deg,
       rgba(255, 224, 99, 0.11) 0 2px,
@@ -2013,16 +2034,37 @@ h3 {
     radial-gradient(circle at 40% 74%, #796228 0 3px, transparent 3px),
     radial-gradient(circle at 80% 46%, #423316 0 3px, transparent 3px);
   background-size:
-    100% 100%,
     16px 100%,
     100% 14px,
     46px 32px,
     54px 38px,
     50px 34px;
-  border-top: 2px solid rgba(217, 205, 107, 0.55);
-  box-shadow:
-    inset 0 8px 12px rgba(197, 255, 66, 0.12),
-    0 -8px 20px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.28);
+  isolation: isolate;
+}
+
+/* Turf, from the same three tiles as the ledges -- so the cliff each segment
+   ends on gets the sprite's own finished cap rather than a cut-off gradient. */
+.forest-fg::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 18px;
+  background-image: var(--grass-image);
+  background-position: var(--grass-position);
+  background-repeat: var(--grass-repeat);
+  background-size: var(--grass-size);
+  image-rendering: pixelated;
+}
+
+.forest-fg-start {
+  border-right: 2px solid rgba(0, 0, 0, 0.5);
+}
+
+.forest-fg-exit {
+  border-left: 2px solid rgba(0, 0, 0, 0.5);
 }
 
 /* Story Mode's entry point in the main game (not the Minigames picker): a
@@ -2096,8 +2138,9 @@ h3 {
   z-index: 6;
   /* Follow-cam: --cam-x is set per render by ForestScene to keep the active
      character near mid-screen (never behind the Day card). The whole path
-     layer -- platforms, coins, trail, start sign, plant, goal, character --
-     slides together; the ground strip (.forest-fg) and HUD stay put. */
+     layer -- platforms, coins, trail, start sign, plant, goal, character, and
+     the two ground segments whose cliff edges are cut against the first and
+     last ledge -- slides together; only the HUD stays put. */
   transform: translateX(var(--cam-x, 0));
   transition: transform 0.55s cubic-bezier(0.33, 0.1, 0.25, 1);
   will-change: transform;
@@ -2242,7 +2285,7 @@ h3 {
 .platform {
   position: absolute;
   transform: translate(-50%, 50%);
-  width: calc(clamp(62px, 7vw, 96px) * var(--step-scale, 1));
+  width: var(--ledge-w);
   z-index: 6;
   filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.35))
     drop-shadow(0 0 8px rgba(240, 192, 74, 0.25));
@@ -2250,30 +2293,61 @@ h3 {
 
 /* Some ledges are stretched long so the run reads as varied terrain. */
 .platform-wide {
-  width: calc(clamp(62px, 7vw, 96px) * var(--step-scale, 1) * 2);
+  width: calc(var(--ledge-w) * 2);
 }
 
 .platform-moss {
-  height: calc(12px * var(--step-scale, 1));
-  border-radius: 3px;
-  background: linear-gradient(
-    to bottom,
-    #a8d84f 0 28%,
-    var(--forest-moss) 28% 68%,
-    #31571f 68%
-  );
-  border: 1.5px solid #d7cc77;
-  box-shadow:
-    inset 0 -3px 0 0 rgba(0, 0, 0, 0.3),
-    0 -2px 8px rgba(202, 255, 71, 0.22);
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease;
+  /* Roughly the bottom third of the sprite is hanging tufts. That overhang is
+     the extra height over the old 12px turf strip, and the negative margin
+     pulls the stone back up underneath it -- so the tufts drape over the dirt
+     while the platform's total height, and therefore the surface the character
+     stands on, is exactly where it was before. */
+  position: relative;
+  z-index: 1;
+  height: calc(18px * var(--step-scale, 1));
+  margin-bottom: calc(-6px * var(--step-scale, 1));
+  background-image: var(--grass-image);
+  background-position: var(--grass-position);
+  background-repeat: var(--grass-repeat);
+  background-size: var(--grass-size);
+  image-rendering: pixelated;
+  transition: filter 0.3s ease;
 }
 
-.platform.cleared .platform-moss {
+/* The sprite is one fixed green, so each stage's --forest-moss is laid back
+   over it through a mask cut from the same three tiles -- on every surface the
+   grass appears on, so a stage recolours the ledges, the ground and the
+   victory runway together rather than drifting apart. */
+.platform-moss::after,
+.victory-lane::after,
+.forest-fg::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  /* .forest-fg is a tall block of dirt; the other two ARE the turf strip. */
+  height: 18px;
   background: var(--forest-moss);
-  border-color: color-mix(in srgb, var(--forest-moss) 60%, black);
+  mix-blend-mode: soft-light;
+  opacity: 0.45;
+  -webkit-mask-image: var(--grass-image);
+  mask-image: var(--grass-image);
+  -webkit-mask-position: var(--grass-position);
+  mask-position: var(--grass-position);
+  -webkit-mask-repeat: var(--grass-repeat);
+  mask-repeat: var(--grass-repeat);
+  -webkit-mask-size: var(--grass-size);
+  mask-size: var(--grass-size);
+}
+
+.platform-moss::after {
+  height: 100%;
+}
+
+/* Passed ledges dim rather than recolour -- the turf is art now, not a fill. */
+.platform.cleared .platform-moss {
+  filter: brightness(0.78) saturate(0.8);
 }
 
 .platform-stone {
@@ -2678,17 +2752,20 @@ h3 {
 }
 
 .victory-lane {
+  /* Same grass tiles as the ledges, sunk by the height of the tufts so the
+     runway's turf line lands where the old flat strip's did and the hanging
+     part simply runs off the bottom of the scene, the way ground should. */
   position: absolute;
-  bottom: 0;
-  height: 12px;
+  bottom: -6px;
+  height: 18px;
   z-index: 5;
-  border-radius: 3px;
-  background:
-    linear-gradient(180deg, #3f6b3a 0%, #2c4d2b 45%, #22331f 100%),
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 5px, transparent 5px 11px);
-  box-shadow:
-    inset 0 2px 0 rgba(150, 210, 130, 0.35),
-    0 3px 6px rgba(0, 0, 0, 0.45);
+  background-image: var(--grass-image);
+  background-position: var(--grass-position);
+  background-repeat: var(--grass-repeat);
+  background-size: var(--grass-size);
+  image-rendering: pixelated;
+  isolation: isolate;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
   opacity: 0;
   transform: translateY(6px);
   transition:

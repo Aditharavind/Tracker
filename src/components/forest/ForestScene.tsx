@@ -137,6 +137,11 @@ export default function ForestScene({
   // Ground-level "victory lane": from under the last platform out to an exit
   // past the goal board. The panda drops here after the final hop and runs it.
   const lastPlatform = platforms[platforms.length - 1] ?? start;
+  // The ground's two cliff edges are cut against these (see .forest-fg).
+  // Neither the first nor the last platform is ever a WIDE ledge -- `wide` is
+  // only index 1 and index total-2 -- so half of one --ledge-w is the right
+  // overhang for both.
+  const firstPlatform = platforms[0];
   // The bush sits well past the goal flag -- a clear stretch of open ground
   // between the last platform and it. After the last task the panda drops off
   // the final platform and runs that ground to the bush at the right edge of
@@ -462,6 +467,32 @@ export default function ForestScene({
       <div className="forest-fireflies" aria-hidden="true" />
 
       <div className="forest-path">
+        {/* Ground, cut against the run: solid up to the first ledge, gone for
+            the whole platform stretch, back one small ledge past the last one.
+            The two inner edges are the only thing set here -- .forest-fg runs
+            both outer edges off-screen. With no platforms at all there is
+            nothing to cut against, so it stays one unbroken strip. */}
+        {firstPlatform ? (
+          <>
+            <div
+              className="forest-fg forest-fg-start"
+              aria-hidden="true"
+              style={{
+                right: `calc(${100 - pct(firstPlatform).left}% + var(--ledge-w) / 2)`,
+              }}
+            />
+            <div
+              className="forest-fg forest-fg-exit"
+              aria-hidden="true"
+              style={{
+                left: `calc(${pct(lastPlatform).left}% + var(--ledge-w) * 1.5)`,
+              }}
+            />
+          </>
+        ) : (
+          <div className="forest-fg" aria-hidden="true" />
+        )}
+
         <Scenery seed={seed} taskCount={total} />
 
         <svg className="forest-trail" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -548,8 +579,6 @@ export default function ForestScene({
           </div>
         )}
       </div>
-
-      <div className="forest-fg" aria-hidden="true" />
 
       {onOpenStory && <StoryPortal unlockedWorlds={unlockedWeeks} onOpen={onOpenStory} />}
     </div>
