@@ -18,6 +18,7 @@ import ForestScene from "./components/forest/ForestScene";
 // opted in.
 const PhaserForestScene = lazy(() => import("./components/forest/PhaserForestScene"));
 import LivesHUD from "./components/forest/LivesHUD";
+import DayCountdown from "./components/forest/DayCountdown";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
 import Minigames from "./components/Minigames";
 import StoryLauncher from "./components/forest/StoryLauncher";
@@ -131,14 +132,6 @@ const msUntilTomorrow = () => {
   d.setHours(24, 0, 0, 0);
   return d.getTime() - Date.now();
 };
-
-function IconMenu() {
-  return (
-    <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
-      <path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function IconClose() {
   return (
@@ -1433,14 +1426,10 @@ export default function App() {
 
       <div className="game-shell-inner">
         <header className="game-topbar">
-          <button
-            className="hamburger-btn"
-            aria-label="Menu"
-            aria-expanded={openPanel !== null}
-            onClick={() => togglePanel("profile")}
-          >
-            <IconMenu />
-          </button>
+          {/* No hamburger -- PROFILE in the bottom nav already opens the same
+              panel (togglePanel("profile")), so a second menu entry point
+              here was redundant. Layout is now: character select (left),
+              the day clock (centre), lives + coins (right). */}
           <button
             type="button"
             className="topbar-character"
@@ -1450,49 +1439,55 @@ export default function App() {
             <img src={CHARACTER_SPRITE[myCharacter]} alt="" aria-hidden="true" className="topbar-character-sprite" />
             <span className="topbar-character-name pixel-font">{myCharacterName.toUpperCase()}</span>
           </button>
-          <div className="game-title pixel-font">75 DAY HARD CHALLENGE</div>
-          <div className="topbar-coins" aria-label={`${coinsEarned} coins earned`}>
-            <IconCoin />
-            <span className="topbar-coins-count pixel-font">×{String(coinsEarned).padStart(2, "0")}</span>
-          </div>
-          <div
-            className={`topbar-lives${livesOpen ? " open" : ""}`}
-            onMouseLeave={() => setLivesOpen(false)}
-          >
-            <LivesHUD
-              lives={me.lives}
-              initialLives={me.initial_lives}
-              resets={me.resets}
-              expanded={livesOpen}
-              onToggle={() => setLivesOpen((v) => !v)}
-            />
-            <div className="failure-banner-float" role="tooltip">
-              <FailureBanner resets={me.resets} />
+          <DayCountdown compact />
+          {/* One flex item on the right (instead of four loose ones) so
+              justify-content:space-between balances it against the single
+              character chip on the left, holding the clock closer to true
+              centre than six unevenly-sized siblings would. */}
+          <div className="topbar-right">
+            <div
+              className={`topbar-lives${livesOpen ? " open" : ""}`}
+              onMouseLeave={() => setLivesOpen(false)}
+            >
+              <LivesHUD
+                lives={me.lives}
+                initialLives={me.initial_lives}
+                resets={me.resets}
+                expanded={livesOpen}
+                onToggle={() => setLivesOpen((v) => !v)}
+              />
+              <div className="failure-banner-float" role="tooltip">
+                <FailureBanner resets={me.resets} />
+              </div>
             </div>
-          </div>
-          <button
-            type="button"
-            className="mute-toggle"
-            aria-pressed={muted}
-            aria-label={muted ? "Unmute sound" : "Mute sound"}
-            title={muted ? "Sound off — tap to unmute" : "Sound on — tap to mute"}
-            onClick={() => {
-              toggleMuted();
-              setMuted((m) => !m);
-            }}
-          >
-            {muted ? <IconSoundOff /> : <IconSoundOn />}
-          </button>
-          {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && !weekMapOpen && (
+            <div className="topbar-coins" aria-label={`${coinsEarned} coins earned`}>
+              <IconCoin />
+              <span className="topbar-coins-count pixel-font">×{String(coinsEarned).padStart(2, "0")}</span>
+            </div>
             <button
               type="button"
-              className="dash-launch pixel-font"
-              onClick={() => setRunnerOpen(true)}
-              title="Play Forest Dash"
+              className="mute-toggle"
+              aria-pressed={muted}
+              aria-label={muted ? "Unmute sound" : "Mute sound"}
+              title={muted ? "Sound off — tap to unmute" : "Sound on — tap to mute"}
+              onClick={() => {
+                toggleMuted();
+                setMuted((m) => !m);
+              }}
             >
-              ▶ FOREST DASH
+              {muted ? <IconSoundOff /> : <IconSoundOn />}
             </button>
-          )}
+            {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && !weekMapOpen && (
+              <button
+                type="button"
+                className="dash-launch pixel-font"
+                onClick={() => setRunnerOpen(true)}
+                title="Play Forest Dash"
+              >
+                ▶ FOREST DASH
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="stage-area">

@@ -401,14 +401,41 @@ h3 {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 11px 10px;
-  border-radius: 10px;
+  /* Equal on every side (was 11px/10px asymmetric) and matched by the
+     border-radius below, so the rounded corners read as proportional to the
+     padding instead of two unrelated numbers -- the "like a button" look. */
+  padding: 12px;
+  border-radius: 12px;
   text-align: left;
-  transition: background 0.13s;
+  transition:
+    background 0.13s,
+    color 0.13s;
+}
+
+/* Minor borderline between tasks -- a thin rule instead of relying on the
+   row gap alone to separate them. Skipped on the last row (nothing below it
+   to separate from) and while a row is done (the orange pill reads as its
+   own button, a rule cutting across it would look like a stray line). */
+.task:not(:last-child):not(.done) {
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .task:hover {
-  background: var(--raised);
+  /* A light wash of the same accent orange the "done" pill uses, instead of
+     the neutral grey .raised every other hover in the app gets -- pending
+     tasks preview the colour they'll turn once checked off. */
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Completed = the row itself becomes the accent-orange "button", not the
+   checkbox -- black text on an orange, rounded pill. */
+.task.done {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.task.done:hover {
+  background: var(--accent);
 }
 
 .box {
@@ -438,19 +465,20 @@ h3 {
   border-color: var(--dimmer);
 }
 
+/* Reversed from the checkbox-turns-orange original: the ROW is now the
+   accent-coloured surface, so the checkbox instead flips to a small dark
+   "on-accent" chip -- it still visibly changes state, just without
+   competing with the row for the same orange. */
 .task.done .box {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--on-accent);
+  border-color: var(--on-accent);
+  color: var(--accent);
 }
 
 .box svg {
   opacity: 0;
   transform: scale(0.6);
   transition: 0.15s;
-}
-
-.task.done .box {
-  color: var(--on-accent);
 }
 
 .task.done .box svg {
@@ -477,10 +505,11 @@ h3 {
   text-align: left; /* buttons centre by default */
 }
 
+/* No more strikethrough/dimming -- a done task reads as "complete" from the
+   row's own orange background now, not from fading its own title out. */
 .task.done .title {
-  color: var(--dim);
-  text-decoration: line-through;
-  text-decoration-color: var(--line);
+  color: var(--on-accent);
+  font-weight: 600;
 }
 
 .tag {
@@ -499,6 +528,19 @@ h3 {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
+/* Both tags are normally tuned for a dark row background -- on the orange
+   "done" pill they'd wash out (grey-on-orange, orange-on-orange), so give
+   them the same on-accent ink the row's own text uses. */
+.task.done .tag {
+  color: var(--on-accent);
+  border-color: color-mix(in srgb, var(--on-accent) 45%, transparent);
+}
+
+.task.done .tag.locked {
+  color: var(--on-accent);
+  border-color: color-mix(in srgb, var(--on-accent) 55%, transparent);
+}
+
 /* Deleting a task sits inches from checking one, so this needs to be big
    enough to hit deliberately but not so big it swallows taps meant for the
    title. Real padding rather than a ::after overlay for exactly that reason --
@@ -514,6 +556,14 @@ h3 {
 }
 
 .kill:hover {
+  color: var(--bad);
+}
+
+.task.done .kill {
+  color: color-mix(in srgb, var(--on-accent) 55%, transparent);
+}
+
+.task.done .kill:hover {
   color: var(--bad);
 }
 
@@ -2007,6 +2057,79 @@ h3 {
   }
 }
 
+/* "Time left today" badge (DayCountdown.tsx). Frame art is
+   scripts/pack-clock-frame.py's crop of frontend/assets/clock.png; the
+   readout sits over its blank wood-panel area at that script's measured
+   percentages. `.day-clock-compact` is the only mounted variant today -- it
+   sits in .game-topbar in place of the old "75 DAY HARD CHALLENGE" title
+   (kept as the element's own title/aria-label so the name isn't lost, just
+   no longer shown); the bare class stays a sane default width for wherever
+   else this might get mounted later. */
+.day-clock {
+  position: relative;
+  display: block;
+  width: clamp(168px, 26vw, 260px);
+}
+
+.day-clock-frame {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+}
+
+.day-clock-readout {
+  position: absolute;
+  left: 15.8%;
+  right: 12.1%;
+  top: 42.3%;
+  bottom: 21.2%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  color: var(--forest-cream, #f3e6c8);
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.day-clock-label {
+  font-size: clamp(4.5px, 0.85vw, 6px);
+  letter-spacing: 0.06em;
+  opacity: 0.82;
+}
+
+.day-clock-time {
+  font-size: clamp(9px, 1.9vw, 14px);
+  letter-spacing: 0.05em;
+}
+
+/* Navbar chip -- a small fixed width (not flex:1) so .day-clock-readout's
+   percentages, measured against the frame image, still land on the actual
+   wood panel: a flex-grown container would size the image's box to whatever
+   the topbar's leftover space happened to be instead of the image's own
+   width, throwing that math off. .game-topbar's justify-content:space-between
+   still keeps it roughly centred between the left and right clusters. */
+.day-clock-compact {
+  flex: none;
+  width: clamp(84px, 15vw, 128px);
+}
+
+.day-clock-compact .day-clock-time {
+  font-size: clamp(7px, 1.7vw, 10px);
+}
+
+@media (max-width: 560px) {
+  .day-clock-compact {
+    width: clamp(68px, 26vw, 96px);
+  }
+  .day-clock-compact .day-clock-time {
+    font-size: clamp(6px, 3vw, 8px);
+  }
+}
+
 /* Ground. Solid through the start area, then absent for the whole platform
    run -- the ledges float over open air (skill S5) -- and picked up again one
    ledge-width past the last platform to carry the victory run out to the exit.
@@ -2210,14 +2333,34 @@ h3 {
   bottom: 0;
 }
 
+/* Wrapper that bobs (as the old single <img> did); the two mouth frames
+   inside it are pixel-aligned copies of the same crop (built together by
+   scripts/pack-zombie-plant.py) so cross-fading them reads as one sprite
+   snapping its jaw shut and open, not a swap between different art. */
 .plant-sprite {
+  position: relative;
   display: block;
   width: clamp(58px, 7vw, 92px);
-  height: auto;
-  image-rendering: pixelated;
   transform-origin: 50% 100%;
   animation: plant-bob 2.6s ease-in-out infinite;
   filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+}
+
+.plant-frame {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.plant-frame-closed {
+  position: absolute;
+  inset: 0;
+  animation: plant-chomp-closed 3.4s ease-in-out infinite;
+}
+
+.plant-frame-open {
+  animation: plant-chomp-open 3.4s ease-in-out infinite;
 }
 
 @keyframes plant-bob {
@@ -2227,6 +2370,38 @@ h3 {
   }
   45% {
     transform: translateY(-2px) rotate(2deg) scaleY(1.03);
+  }
+}
+
+/* A quick snap shut around the two-thirds mark of the loop, then back open --
+   more "chomp" than a slow chew, matching the guardian's threatening pose. */
+@keyframes plant-chomp-open {
+  0%,
+  62% {
+    opacity: 1;
+  }
+  70%,
+  86% {
+    opacity: 0;
+  }
+  94%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes plant-chomp-closed {
+  0%,
+  62% {
+    opacity: 0;
+  }
+  70%,
+  86% {
+    opacity: 1;
+  }
+  94%,
+  100% {
+    opacity: 0;
   }
 }
 
@@ -2351,8 +2526,11 @@ h3 {
 }
 
 .platform-stone {
+  /* Used to sit 5px in from each side, which was fine against the old flat-
+     colour moss strip but leaves the new grass sprite's jagged tufts hanging
+     past the dirt block's edges into open air on both sides -- full width
+     now, flush with the moss above it. */
   height: calc(clamp(20px, 3vw, 32px) * var(--step-scale, 1));
-  margin: 0 5px;
   border-radius: 0 0 4px 4px;
   background-color: #27220f;
   background-image:
@@ -3379,6 +3557,17 @@ h3 {
   .heart.break {
     animation: heart-fade 0.3s ease-in-out;
   }
+  /* Freeze the guardian plant on its resting (mouth-open, menacing) frame
+     instead of looping the bob/chomp/taunt-bubble motion. */
+  .plant-sprite,
+  .plant-frame-open,
+  .plant-frame-closed,
+  .plant-bubble {
+    animation: none;
+  }
+  .plant-frame-closed {
+    opacity: 0;
+  }
 }
 
 @keyframes panda-fade {
@@ -3479,10 +3668,11 @@ h3 {
 }
 
 /* ============================================================ game shell */
-/* Single-viewport gameplay screen: hamburger + title + lives on top, the
-   forest filling the rest of the screen, the Day card and quick-access
-   rail floating over it, tabs pinned to the bottom. Nothing here scrolls
-   on desktop -- the forest IS the page, per CLAUDE.md section 4. */
+/* Single-viewport gameplay screen: character select + day clock + lives/coins
+   on top, the forest filling the rest of the screen, the Day card and
+   quick-access rail floating over it, tabs pinned to the bottom (PROFILE
+   there opens the same panel the topbar's old hamburger used to). Nothing
+   here scrolls on desktop -- the forest IS the page, per CLAUDE.md section 4. */
 
 .game-shell {
   height: 100dvh;
@@ -3513,39 +3703,26 @@ h3 {
   position: relative;
 }
 
-.hamburger-btn {
-  width: 38px;
-  height: 38px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  color: var(--forest-cream, #f3e6c8);
-}
-
-.hamburger-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.game-title {
-  flex: 1;
-  text-align: center;
-  font-size: clamp(10px, 2.2vw, 14px);
-  letter-spacing: 0.16em;
-  color: var(--forest-cream, #f3e6c8);
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .topbar-lives {
   flex: none;
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  min-width: 250px;
+  align-items: center;
+  /* Used to reserve 250px so a lone .topbar-lives, right-aligned at the end
+     of the whole topbar row, had room to breathe -- now nested inside the
+     compact .topbar-right cluster with coins/mute/dash beside it, where a
+     quarter-screen-wide reservation would just bloat the cluster. The
+     failure tooltip below is independently absolutely-positioned and keeps
+     its own width regardless of this. */
+  min-width: 0;
+}
+
+.topbar-right {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .topbar-character {
@@ -3619,20 +3796,13 @@ h3 {
   .topbar-character-name {
     display: none;
   }
-  /* .topbar-lives's 250px min-width (sized for a roomy desktop row) was
-     wider than the whole remaining row on a phone -- hamburger + title +
-     lives together overflowed .game-topbar with no wrap, so the hearts got
-     pushed out of the viewport instead of just sitting tighter. The hearts
-     themselves are small; they never needed 250px, only the (independently
-     absolutely-positioned) failure tooltip did, and that keeps its own
-     width regardless of this. */
-  .topbar-lives {
-    min-width: 0;
-  }
   .game-topbar {
     padding-left: 16px;
     padding-right: 16px;
     gap: 6px;
+  }
+  .topbar-right {
+    gap: 8px;
   }
 }
 

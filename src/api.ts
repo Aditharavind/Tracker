@@ -59,6 +59,20 @@ export const todayISO = () => {
 };
 
 /**
+ * Milliseconds left in the device's current local day -- the same local-
+ * midnight boundary todayISO() rolls over on (Date's own getFullYear/Month/
+ * Date already read in the device's local timezone, so this needs no
+ * separate Intl lookup), so a "time left today" readout never disagrees with
+ * when a day actually flips. Recomputed on every call, not cached -- purely
+ * a display value, not something a mutation should ever branch on.
+ */
+export const msUntilLocalMidnight = (): number => {
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+  return nextMidnight.getTime() - now.getTime();
+};
+
+/**
  * The device's IANA timezone (e.g. "Asia/Kolkata"). No permission prompt --
  * this is the zone the OS is already set to. Sent at signup and re-synced
  * whenever it changes, so the server can decide each user's day boundary.
