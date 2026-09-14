@@ -12,7 +12,7 @@ import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "
 import { drawCoin } from "../../game/coinArt";
 import { createSeededRandom } from "../../game/seededRandom";
 import { CHARACTER_RUN_ATLAS, characterRunFrame } from "../../game/characterRunAtlas";
-import { drawPlant, PLANT_SPRITE_ASPECT } from "../../game/plantJaw";
+import { createNearBiteTracker, drawPlant, PLANT_SPRITE_ASPECT, type NearBiteTracker } from "../../game/plantJaw";
 import type { DayCell } from "../../types";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
@@ -196,6 +196,13 @@ export default function PandaRunner({
   const bgShift = useRef(0);
   const clouds = useRef(makeClouds(String(key), 6));
   const cloudDrift = useRef(0);
+  // One reaction-bite tracker per plant hazard (game/plantJaw.ts), keyed by
+  // the hazard's own id -- hazard objects keep a stable identity for their
+  // whole lifetime (runnerEngine.ts mutates h.x in place rather than
+  // replacing them), so this doesn't need cleaning up as hazards despawn;
+  // ids are just a per-run counter, and the whole map is thrown away with
+  // the component on unmount.
+  const plantNearTrackers = useRef(new Map<number, NearBiteTracker>());
 
   const [phase, setPhase] = useState<"ready" | "running" | "over">("ready");
   const [result, setResult] = useState({ dist: 0, coins: 0 });
@@ -337,8 +344,16 @@ export default function PandaRunner({
         if (headIm && headIm.complete && headIm.naturalWidth && jawIm && jawIm.complete && jawIm.naturalWidth) {
           ctx.filter = h.hue ? `hue-rotate(${h.hue}deg) saturate(1.4)` : "none";
           // Stagger each hazard's chomp phase by its id so a row of plants
-          // doesn't bite in unison.
-          drawPlant(ctx, headIm, jawIm, hx - hw / 2, baseY - hh, hw, st.t, h.id * 137);
+          // doesn't bite in unison, and give each one an immediate reaction
+          // bite (game/plantJaw.ts) as the panda -- fixed at PANDA_X while
+          // the world scrolls past it -- comes within about a body-width.
+          let tracker = plantNearTrackers.current.get(h.id);
+          if (!tracker) {
+            tracker = createNearBiteTracker();
+            plantNearTrackers.current.set(h.id, tracker);
+          }
+          const near = Math.abs(h.x - PANDA_X) < PANDA_W * 1.5;
+          drawPlant(ctx, headIm, jawIm, hx - hw / 2, baseY - hh, hw, st.t, h.id * 137, near, tracker);
           ctx.filter = "none";
         } else {
           ctx.fillStyle = "#6fae4a";

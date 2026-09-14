@@ -505,7 +505,7 @@ export default function ForestScene({
 
         <div className="start-area" aria-hidden="true">
           <StartSign left={0} bottom={0} />
-          <ZombiePlant left={0} bottom={0} />
+          <ZombiePlant left={0} bottom={0} near={atStartRest} />
         </div>
 
         {tasks.map((t, i) => {

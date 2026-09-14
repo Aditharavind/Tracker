@@ -307,6 +307,17 @@ function IconStop() {
   );
 }
 
+function IconTimer() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path d="M7 1.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M9 3.3V5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="9" cy="10.5" r="6" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9 7.3V10.5L11.3 12.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const storedAvatars = (): Record<number, AvatarId> => {
   try {
     const raw = localStorage.getItem(AVATAR_KEY);
@@ -2200,6 +2211,15 @@ export default function App() {
           >
             <IconProfile />
             PROFILE
+          </button>
+          <button
+            className={`nav-btn${openPanel === "pomodoro" ? " on" : ""}`}
+            role="tab"
+            aria-selected={openPanel === "pomodoro"}
+            onClick={() => togglePanel("pomodoro")}
+          >
+            <IconTimer />
+            FOCUS
           </button>
         </nav>
       </div>

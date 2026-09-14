@@ -1124,11 +1124,17 @@ h3 {
   }
 }
 
-.onboard-panda {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 6px;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+.onboard .onboard-logo-h1 {
+  margin: 0 0 6px;
+}
+
+.onboard-logo {
+  display: block;
+  width: clamp(150px, 42vw, 220px);
+  height: auto;
+  margin: 0 auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
 }
 
 .onboard .box2 {
@@ -2118,6 +2124,27 @@ h3 {
   filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)) brightness(1.12);
 }
 
+/* Wraps the clickable clock plus its near-invisible "pomodoro" hint (see
+   DayCountdown's doc comment) so the hint sits right under the clock
+   without disrupting .game-topbar's own flex layout -- this wrapper is the
+   flex item now, the clock button inside it. */
+.day-clock-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  flex: none;
+}
+
+.day-clock-pomo-hint {
+  margin-top: 2px;
+  font-size: 5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--forest-cream, #f3e6c8);
+  opacity: 0.28;
+  pointer-events: none;
+}
+
 .day-clock-frame {
   display: block;
   width: 100%;
@@ -2158,22 +2185,40 @@ h3 {
    wood panel: a flex-grown container would size the image's box to whatever
    the topbar's leftover space happened to be instead of the image's own
    width, throwing that math off. .game-topbar's justify-content:space-between
-   still keeps it roughly centred between the left and right clusters. */
+   still keeps it roughly centred between the left and right clusters.
+   Sized larger than the original time-only chip (110-160px, was 84-128px)
+   so the label + time both sit comfortably inside the wood panel's own
+   blank area instead of crowding its edges now that the label shows here
+   too. */
 .day-clock-compact {
   flex: none;
-  width: clamp(84px, 15vw, 128px);
+  width: clamp(110px, 18vw, 160px);
 }
 
 .day-clock-compact .day-clock-time {
   font-size: clamp(7px, 1.7vw, 10px);
 }
 
+/* Small and dim -- a quiet caption sitting above the time, not competing
+   with it -- but still legible: a muted warm brown-gold rather than the
+   readout's bright cream, not just a faded copy of the same colour. Kept
+   well under the time's own font-size so it can't be the thing that
+   outgrows the wood panel's blank area. */
+.day-clock-compact .day-clock-label {
+  font-size: clamp(2.4px, 0.45vw, 3.2px);
+  color: #c9a15c;
+  opacity: 0.75;
+}
+
 @media (max-width: 560px) {
   .day-clock-compact {
-    width: clamp(68px, 26vw, 96px);
+    width: clamp(90px, 30vw, 122px);
   }
   .day-clock-compact .day-clock-time {
     font-size: clamp(6px, 3vw, 8px);
+  }
+  .day-clock-compact .day-clock-label {
+    font-size: clamp(2.2px, 0.8vw, 2.8px);
   }
 }
 
@@ -2558,7 +2603,23 @@ h3 {
   image-rendering: pixelated;
   transform-origin: 47.8% 34.7%;
   transform: rotate(0deg);
-  animation: plant-mouth-close 0.9s ease-in-out infinite;
+  animation: plant-mouth-close 1.95s ease-in-out infinite;
+}
+
+/* The idle loop above always keeps running, on its own schedule, whether or
+   not the panda is nearby -- freezing it for as long as the panda stood
+   close (ForestScene's atStartRest, often most of a viewing session on the
+   main page since the panda rests there until the day's first task is
+   done) read as "the mouth doesn't move at all". Proximity now only adds
+   this one-shot reaction: ZombiePlant briefly applies this class itself
+   (see the biteNow state in ZombiePlant.tsx, keyed to game/plantJaw.ts's
+   NEAR_BITE_MS) the *moment* the panda arrives, snapping the jaw shut for a
+   quick reaction bite, then removes the class again so the idle loop
+   (still running underneath, untouched) carries on as if nothing happened. */
+.zombie-plant-bite-now .plant-mouth-shutter {
+  animation: none;
+  transition: transform 0.1s ease-out;
+  transform: rotate(-14deg);
 }
 
 @keyframes plant-bob {
@@ -2572,17 +2633,19 @@ h3 {
 }
 
 /* Repeated biting, not one occasional chomp: close (200ms) -> held shut
-   (300ms, upper and lower teeth interlocked) -> open (200ms) -> a 200ms
+   (300ms, upper and lower teeth interlocked) -> open (200ms) -> a 1.25s
    gap fully open before the next bite starts. -14deg (vs. an earlier
    -8deg) is deep enough that the teeth actually meet instead of just
-   narrowing the gap. */
+   narrowing the gap. Percentages of the 1.95s duration: gap 0-64.103%
+   (1.25s), close 64.103-74.359% (200ms), held 74.359-89.744% (300ms),
+   open 89.744-100% (200ms). */
 @keyframes plant-mouth-close {
   0%,
-  22.222% {
+  64.103% {
     transform: rotate(0deg);
   }
-  44.444%,
-  77.778% {
+  74.359%,
+  89.744% {
     transform: rotate(-14deg);
   }
   100% {
@@ -3916,6 +3979,13 @@ h3 {
   padding: 22px 32px 14px;
   z-index: 30;
   position: relative;
+  /* No fill of its own -- was a flat, fully opaque #020806 (inherited from
+     .game-shell), then a fading gradient, both of which still read as a
+     separate black bar sitting on top of the game. Fully transparent now:
+     the topbar's own text/icons carry enough contrast (drop-shadows,
+     pixel-font outlines) against the scene without needing a dark backing
+     panel behind them. */
+  background: none;
 }
 
 .topbar-lives {

@@ -28,7 +28,13 @@ function formatRemaining(ms: number): string {
  * `onOpenPomodoro`, when passed, makes the badge a button that opens the
  * Pomodoro focus-timer panel (App.tsx's PomodoroPanel) -- same clock-frame
  * art, a separate 25/5min timer that never reads or writes this countdown
- * or any challenge state.
+ * or any challenge state. There's nothing on the clock itself hinting that
+ * it's tappable beyond a tiny "pomodoro" label under it -- deliberately a
+ * near-hidden feature rather than another HUD element competing for
+ * attention: no 5th bottom-nav tab (the four are a fixed, already-tuned
+ * set), no badge/pulse drawing the eye to it. Someone who never notices the
+ * label still gets a perfectly normal countdown clock; someone who does
+ * gets a small discovery.
  */
 export default function DayCountdown({
   compact,
@@ -48,7 +54,7 @@ export default function DayCountdown({
     <>
       <img className="day-clock-frame" src="/assets/day-clock-frame.webp" alt="" aria-hidden="true" />
       <div className="day-clock-readout" aria-hidden="true">
-        {!compact && <span className="day-clock-label pixel-font">TIME LEFT TODAY</span>}
+        <span className="day-clock-label pixel-font">{compact ? "LEFT TODAY" : "TIME LEFT TODAY"}</span>
         <span className="day-clock-time pixel-font">{formatRemaining(remaining)}</span>
       </div>
     </>
@@ -56,15 +62,20 @@ export default function DayCountdown({
 
   if (onOpenPomodoro) {
     return (
-      <button
-        type="button"
-        className={`day-clock day-clock-btn${compact ? " day-clock-compact" : ""}`}
-        title="75 Day Hard Challenge -- tap for the Pomodoro focus timer"
-        aria-label={`75 Day Hard Challenge. Time left today: ${formatRemaining(remaining)}. Open the Pomodoro focus timer.`}
-        onClick={onOpenPomodoro}
-      >
-        {frame}
-      </button>
+      <div className="day-clock-wrap">
+        <button
+          type="button"
+          className={`day-clock day-clock-btn${compact ? " day-clock-compact" : ""}`}
+          title="75 Day Hard Challenge -- tap for the Pomodoro focus timer"
+          aria-label={`75 Day Hard Challenge. Time left today: ${formatRemaining(remaining)}. Open the Pomodoro focus timer.`}
+          onClick={onOpenPomodoro}
+        >
+          {frame}
+        </button>
+        <span className="day-clock-pomo-hint pixel-font" aria-hidden="true">
+          pomodoro
+        </span>
+      </div>
     );
   }
 

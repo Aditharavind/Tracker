@@ -1,3 +1,6 @@
+import { useEffect, useRef, useState } from "react";
+import { NEAR_BITE_MS } from "../../game/plantJaw";
+
 /**
  * The guardian plant at the start of the level (skill §11) -- one only, never
  * scattered in the main path. Art is scripts/pack-zombie-plant-jaw.py's split
@@ -31,21 +34,52 @@
  * appears, not just here. `bare` (drop the taunt bubble) and `hue`
  * (recolour via CSS filter) exist for any future DOM reuse of this
  * component specifically.
+ *
+ * `near`: true while the panda is resting at the day's start point (right
+ * next to this plant, before the first task of the day is done --
+ * ForestScene's `atStartRest`). The idle repeated-bite loop (see
+ * @keyframes plant-mouth-close) always keeps running regardless -- an
+ * earlier version froze the jaw shut for as long as `near` stayed true,
+ * which on the main page (where the panda can rest there for most of a
+ * viewing session) read as the mouth not moving at all. Instead, only the
+ * moment `near` flips from false to true triggers a brief reaction bite
+ * (game/plantJaw.ts's NEAR_BITE_MS, ~260ms) via `zombie-plant-bite-now`,
+ * then that class comes back off and the idle loop -- never actually
+ * interrupted -- just keeps going.
  */
 export default function ZombiePlant({
   left,
   bottom,
   bare,
   hue = 0,
+  near,
 }: {
   left: number;
   bottom: number;
   bare?: boolean;
   hue?: number;
+  near?: boolean;
 }) {
   const tint = hue ? { filter: `hue-rotate(${hue}deg) saturate(1.3)` } : undefined;
+  const [biteNow, setBiteNow] = useState(false);
+  const wasNear = useRef(false);
+
+  useEffect(() => {
+    if (near && !wasNear.current) {
+      setBiteNow(true);
+      const t = window.setTimeout(() => setBiteNow(false), NEAR_BITE_MS);
+      wasNear.current = near;
+      return () => window.clearTimeout(t);
+    }
+    wasNear.current = !!near;
+  }, [near]);
+
   return (
-    <div className="zombie-plant" style={{ left: `${left}%`, bottom: `${bottom}%` }} aria-hidden="true">
+    <div
+      className={`zombie-plant${biteNow ? " zombie-plant-bite-now" : ""}`}
+      style={{ left: `${left}%`, bottom: `${bottom}%` }}
+      aria-hidden="true"
+    >
       {!bare && (
         <div className="plant-bubble">
           <span className="plant-bubble-text pixel-font">DON'T START — I'LL EAT U</span>

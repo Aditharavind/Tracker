@@ -4,7 +4,7 @@ import { MAIN_LEVELS, POWERS, WISDOM, WORLDS, makeLevel, storyWorldUnlockDay, wi
 import { createState, HEIGHT, snapshot, step, WIDTH } from "../../game/adventure/engine";
 import { Controls, PerformanceGovernor, type InputMethod } from "../../game/adventure/controls";
 import { canPlay, completeLevel, emptySave, parseSave, recordAttempt, saveKey, type Attempt, type Save } from "../../game/adventure/save";
-import { loadArt, newCamera, render } from "../../game/adventure/render";
+import { loadArt, newCamera, render, type Art } from "../../game/adventure/render";
 import { AdventureAudio } from "../../game/adventure/audio";
 import AdventureSettings from "./AdventureSettings";
 import AdventureTouch from "./AdventureTouch";
@@ -196,9 +196,13 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
       else { if (s.revision !== revision.current || now - lastSave > 2000) { storeAttempt("play"); revision.current = s.revision; lastSave = now; } if (s.status === "dead") { ended = true; moveTo("dead"); } }
       draw(Math.min(.1, rawDt || 1 / 60)); if (!ended) raf = requestAnimationFrame(frame);
     };
-    const redraw = () => draw(); window.addEventListener("resize", redraw); Object.values(art.current).forEach(image => image.onload = redraw); draw();
+    // Art also carries plantNearTrackers (a Map, not an image) alongside the
+    // actual <img> assets -- only the images get an onload/redraw wire-up.
+    const artImages = (a: Art | null) =>
+      a ? Object.values(a).filter((v): v is HTMLImageElement => v instanceof HTMLImageElement) : [];
+    const redraw = () => draw(); window.addEventListener("resize", redraw); artImages(art.current).forEach(image => image.onload = redraw); draw();
     if (phase === "play") raf = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", redraw); if (art.current) Object.values(art.current).forEach(image => image.onload = null); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", redraw); artImages(art.current).forEach(image => image.onload = null); };
   }, [phase, level, refreshHud, persist, moveTo, storeAttempt, selectPower, pause]);
 
   const world = WORLDS[level.world]; const mapWorld = WORLDS[worldIndex];
