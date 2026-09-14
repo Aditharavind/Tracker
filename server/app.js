@@ -93,6 +93,17 @@ function pageParams(query) {
   return { limit, offset };
 }
 
+function adminPageParams(query) {
+  const rawLimit = Number(query.limit);
+  const rawOffset = Number(query.offset);
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(Math.max(Math.trunc(rawLimit), 1), 100)
+    : 25;
+  const offset = Number.isFinite(rawOffset) ? Math.max(Math.trunc(rawOffset), 0) : 0;
+  const search = String(query.q ?? "").trim().toLowerCase().slice(0, 80);
+  return { limit, offset, search };
+}
+
 function setPageHeaders(res, { limit, offset }, total) {
   res.set("X-Total-Count", String(total));
   res.set("X-Page-Limit", String(limit));
@@ -306,7 +317,7 @@ async function dayFor(store, user, day) {
   return dayDetail({ tasks, doneIds: new Set(done.map((c) => c.task_id)), note: note?.text }, day);
 }
 
-async function adminSummary(store) {
+async function adminSummary(store, page = { limit: 25, offset: 0, search: "" }) {
   const users = await store.listUsers();
   const ids = users.map((u) => Number(u.id));
   const [tasks, completions] = ids.length
@@ -422,6 +433,26 @@ async function adminSummary(store) {
     if (signupsByDay.has(day)) signupsByDay.set(day, (signupsByDay.get(day) ?? 0) + 1);
   }
 
+  const sortedRows = rows.sort((a, b) => {
+    const recent = String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+    return recent || Number(b.id) - Number(a.id);
+  });
+  const filteredRows = page.search
+    ? sortedRows.filter((u) =>
+        [
+          u.name,
+          String(u.id),
+          String(u.group_id ?? ""),
+          u.timezone ?? "",
+          u.location_label,
+          u.last_country ?? "",
+          u.last_region ?? "",
+          u.last_city ?? "",
+        ].some((v) => v.toLowerCase().includes(page.search))
+      )
+    : sortedRows;
+  const pageRows = filteredRows.slice(page.offset, page.offset + page.limit);
+
   return {
     generated_at: now.toISOString(),
     totals: {
@@ -442,10 +473,13 @@ async function adminSummary(store) {
       timezone_regions: chart(countBy((u) => u.timezone_region)),
       signup_days: [...signupsByDay.entries()].map(([label, count]) => ({ label, count })),
     },
-    users: rows.sort((a, b) => {
-      const recent = String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
-      return recent || Number(b.id) - Number(a.id);
-    }),
+    pagination: {
+      total: filteredRows.length,
+      limit: page.limit,
+      offset: page.offset,
+      has_more: page.offset + page.limit < filteredRows.length,
+    },
+    users: pageRows,
   };
 }
 
@@ -564,7 +598,7 @@ export function createRouter() {
     wrap(async (req, res) => {
       requireAdmin(req, res);
       const store = getStore();
-      res.json(await adminSummary(store));
+      res.json(await adminSummary(store, adminPageParams(req.query)));
     })
   );
 

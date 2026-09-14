@@ -5017,6 +5017,10 @@ h3 {
   width: min(260px, 36vw);
 }
 
+.admin-page-size {
+  width: 86px !important;
+}
+
 .admin-table-wrap {
   overflow: auto;
 }
@@ -5076,6 +5080,15 @@ h3 {
   font-weight: 800;
 }
 
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 760px) {
   .admin-shell {
     padding: 16px;
@@ -5100,8 +5113,13 @@ h3 {
     align-items: stretch;
   }
 
-  .admin-actions .field {
+  .admin-actions .field,
+  .admin-page-size {
     width: 100%;
+  }
+
+  .admin-pagination {
+    justify-content: space-between;
   }
 }
 

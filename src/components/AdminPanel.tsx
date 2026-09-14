@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 type AdminUserStats = {
   id: number;
@@ -57,6 +57,12 @@ type AdminSummary = {
     timezone_regions: ChartRow[];
     signup_days: ChartRow[];
   };
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  };
   users: AdminUserStats[];
 };
 
@@ -110,13 +116,20 @@ export default function AdminPanel() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
 
-  const load = async (authToken = token) => {
+  const load = async (authToken = token, nextOffset = offset, nextQuery = query, nextLimit = pageSize) => {
     if (!authToken) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/summary", {
+      const params = new URLSearchParams({
+        limit: String(nextLimit),
+        offset: String(nextOffset),
+      });
+      if (nextQuery.trim()) params.set("q", nextQuery.trim());
+      const res = await fetch(`/api/admin/summary?${params}`, {
         headers: { Authorization: `Basic ${authToken}` },
       });
       if (!res.ok) {
@@ -137,24 +150,17 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    if (token) void load(token);
+    if (!token) return;
+    const id = window.setTimeout(() => void load(token, offset, query, pageSize), 180);
+    return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!summary || !needle) return summary?.users ?? [];
-    return summary.users.filter((u) =>
-      [u.name, String(u.id), String(u.group_id ?? ""), u.timezone ?? "", u.location_label].some((v) =>
-        v.toLowerCase().includes(needle)
-      )
-    );
-  }, [summary, query]);
+  }, [token, offset, query, pageSize]);
 
   const login = (e: FormEvent) => {
     e.preventDefault();
     const next = btoa(`${username}:${password}`);
-    void load(next);
+    setOffset(0);
+    void load(next, 0, query, pageSize);
   };
 
   const signOut = () => {
@@ -225,16 +231,41 @@ export default function AdminPanel() {
             <div className="admin-users-head">
               <div>
                 <h2>Users</h2>
-                <p className="muted">Last updated {compactDate(summary.generated_at)}</p>
+                <p className="muted">
+                  {summary.pagination.total === 0
+                    ? "No users found"
+                    : `${summary.pagination.offset + 1}-${Math.min(
+                        summary.pagination.offset + summary.users.length,
+                        summary.pagination.total
+                      )} of ${summary.pagination.total}`}
+                  {" · "}Last updated {compactDate(summary.generated_at)}
+                </p>
               </div>
               <div className="admin-actions">
                 <input
                   className="field"
                   value={query}
                   placeholder="Search users..."
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setOffset(0);
+                  }}
                 />
-                <button className="btn" type="button" onClick={() => load()}>
+                <select
+                  className="field admin-page-size"
+                  value={pageSize}
+                  aria-label="Rows per page"
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setOffset(0);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <button className="btn" type="button" onClick={() => load(token, offset, query, pageSize)}>
                   {loading ? "Refreshing..." : "Refresh"}
                 </button>
               </div>
@@ -259,7 +290,7 @@ export default function AdminPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((u) => (
+                  {summary.users.map((u) => (
                     <tr key={u.id}>
                       <td>
                         <div className="admin-user">
@@ -293,6 +324,27 @@ export default function AdminPanel() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="admin-pagination">
+              <button
+                className="btn ghost"
+                type="button"
+                disabled={summary.pagination.offset <= 0 || loading}
+                onClick={() => setOffset(Math.max(0, summary.pagination.offset - summary.pagination.limit))}
+              >
+                Previous
+              </button>
+              <span className="muted">
+                Page {Math.floor(summary.pagination.offset / summary.pagination.limit) + 1}
+              </span>
+              <button
+                className="btn ghost"
+                type="button"
+                disabled={!summary.pagination.has_more || loading}
+                onClick={() => setOffset(summary.pagination.offset + summary.pagination.limit)}
+              >
+                Next
+              </button>
             </div>
           </section>
         </>

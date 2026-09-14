@@ -650,25 +650,45 @@ test("admin summary is protected and returns sanitized user stats", async () => 
     },
   });
 
-  const ok = await fetch(`${base}/admin/summary`, {
+  const ok = await fetch(`${base}/admin/summary?limit=2`, {
     headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
   });
   assert.equal(ok.status, 200);
   const body = await ok.json();
 
   assert.equal(body.totals.total_users, (await call("GET", "/stats")).body.users);
+  assert.equal(body.pagination.limit, 2);
+  assert.equal(body.pagination.offset, 0);
+  assert.ok(body.pagination.total >= body.users.length);
+  assert.ok(body.users.length <= 2, "admin user rows are paginated");
   assert.ok(body.totals.new_users_today >= 0);
   assert.ok(body.totals.new_users_7_days >= body.totals.new_users_today);
-  assert.ok(body.users.some((u) => u.name === "Adith"));
   assert.ok(body.charts.locations.some((r) => r.label === "Kochi, KL, IN"));
   assert.ok(body.charts.countries.some((r) => r.label === "IN"));
   assert.equal(body.charts.signup_days.length, 7);
 
-  const adithRow = body.users.find((u) => u.name === "Adith");
+  const search = await fetch(`${base}/admin/summary?limit=10&q=Adith`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  assert.equal(search.status, 200);
+  const searched = await search.json();
+  assert.ok(searched.pagination.total >= 1);
+  assert.ok(searched.users.every((u) => /adith/i.test(u.name) || String(u.id).includes("Adith")));
+
+  const adithRow = searched.users.find((u) => u.name === "Adith");
+  assert.ok(adithRow);
   assert.equal("pin_hash" in adithRow, false, "admin rows never expose PIN hashes");
   assert.equal("share_token" in adithRow, false, "admin rows never expose share tokens");
   assert.equal("last_ip" in adithRow, false, "admin rows never expose raw IPs");
   assert.equal(adithRow.location_label, "Kochi, KL, IN");
   assert.equal(typeof adithRow.streak, "number");
   assert.equal(typeof adithRow.task_count, "number");
+
+  const secondPage = await fetch(`${base}/admin/summary?limit=2&offset=2`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  assert.equal(secondPage.status, 200);
+  const pageTwo = await secondPage.json();
+  assert.equal(pageTwo.pagination.offset, 2);
+  assert.ok(pageTwo.users.length <= 2);
 });
