@@ -10,7 +10,7 @@ import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
 import DashLeaderboard from "./components/DashLeaderboard";
 import Coach from "./components/Coach";
-import CoachChat from "./components/CoachChat";
+import LevelRing from "./components/LevelRing";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 // The Phaser migration's first slice (see src/game/'s PhaserGame.ts) -- only
@@ -18,12 +18,13 @@ import ForestScene from "./components/forest/ForestScene";
 // lazy-loaded so the ~1MB Phaser runtime never reaches anyone who hasn't
 // opted in.
 const PhaserForestScene = lazy(() => import("./components/forest/PhaserForestScene"));
+const CoachChat = lazy(() => import("./components/CoachChat"));
+const Minigames = lazy(() => import("./components/Minigames"));
+const WeekMap = lazy(() => import("./components/forest/WeekMap"));
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCountdown from "./components/forest/DayCountdown";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
-import Minigames from "./components/Minigames";
 import StoryLauncher from "./components/forest/StoryLauncher";
-import WeekMap from "./components/forest/WeekMap";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
@@ -351,40 +352,6 @@ const storedCharacters = (): Record<number, CharacterId> => {
     return {};
   }
 };
-
-export function LevelRing({ p }: { p: Progress }) {
-  const span = (p.level_ceiling ?? p.xp) - p.level_floor;
-  const pct = p.level_ceiling === null ? 1 : span > 0 ? (p.xp - p.level_floor) / span : 0;
-  const r = 44;
-  const c = 2 * Math.PI * r;
-
-  return (
-    <div className="ring">
-      <svg width="108" height="108">
-        <circle cx="54" cy="54" r={r} fill="none" stroke="var(--line-soft)" strokeWidth="6" />
-        <circle
-          cx="54"
-          cy="54"
-          r={r}
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - Math.min(1, Math.max(0, pct)))}
-          style={{ transition: "stroke-dashoffset .5s ease" }}
-        />
-      </svg>
-      <div className="ring-mid">
-        <div className="lv">Lv {p.level}</div>
-        <div className="name">{p.level_name}</div>
-        <div className="xp">
-          {p.level_ceiling === null ? `${p.xp} xp` : `${p.xp}/${p.level_ceiling}`}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ShareDialog({
   name,
@@ -1642,25 +1609,29 @@ export default function App() {
       )}
       {showPeek && <PandaPeekPrompt onDone={() => setShowPeek(false)} />}
       {runnerOpen && myCharacter && (
-        <Minigames
-          key={meId}
-          character={myCharacter}
-          userId={meId}
-          calendar={me.calendar}
-          onClose={() => setRunnerOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <Minigames
+            key={meId}
+            character={myCharacter}
+            userId={meId}
+            calendar={me.calendar}
+            onClose={() => setRunnerOpen(false)}
+          />
+        </Suspense>
       )}
       {weekMapOpen && myCharacter && (
-        <WeekMap
-          character={myCharacter}
-          calendar={me.calendar}
-          onClose={() => setWeekMapOpen(false)}
-          onOpenWorld={(w) => {
-            setWeekMapOpen(false);
-            setStoryWorld(w);
-            setStoryOpen(true);
-          }}
-        />
+        <Suspense fallback={<div className="weekmap-screen" aria-busy="true" />}>
+          <WeekMap
+            character={myCharacter}
+            calendar={me.calendar}
+            onClose={() => setWeekMapOpen(false)}
+            onOpenWorld={(w) => {
+              setWeekMapOpen(false);
+              setStoryWorld(w);
+              setStoryOpen(true);
+            }}
+          />
+        </Suspense>
       )}
       {storyOpen && myCharacter && (
         <StoryLauncher
@@ -1962,7 +1933,11 @@ export default function App() {
                 </button>
               </div>
               <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
-              {meId != null && <CoachChat key={meId} userId={meId} report={coach} />}
+              {meId != null && (
+                <Suspense fallback={<div className="card panel-section muted">Loading coach chat...</div>}>
+                  <CoachChat key={meId} userId={meId} report={coach} />
+                </Suspense>
+              )}
             </div>
           )}
 

@@ -72,6 +72,13 @@ export default defineConfig({
           // eager install-time precache or every visitor downloads it
           // regardless of ever opting in. Same reasoning as Adventure above.
           "**/PhaserForestScene-*.js",
+          // User-triggered panels. CoachChat carries WebLLM (~6MB), and the
+          // minigame / week map sit behind explicit taps, so cache them when
+          // opened rather than pulling them during service-worker install.
+          "**/CoachChat-*.js",
+          "**/Minigames-*.js",
+          "**/WeekMap-*.js",
+          "**/WeekMap-*.css",
         ],
         // Sized to admit the current app shell plus the ~1.05MB model-viewer
         // runtime. Deliberately lazy story/Phaser assets are excluded by name
@@ -96,6 +103,14 @@ export default defineConfig({
             options: {
               cacheName: "panda-adventure-assets",
               expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
+          },
+          {
+            urlPattern: /\/assets\/(?:CoachChat|Minigames|WeekMap)-[^/]+\.(?:js|css)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "on-demand-ui",
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 60 },
             },
           },
           {
