@@ -1210,6 +1210,7 @@ export default function App() {
     // already out, park the new value and send it when that one settles.
     if (pendingToggles.current.has(t.id)) {
       queuedToggles.current.set(t.id, next);
+      outbox.remember({ userId: meId, taskId: t.id, day, done: next, ts: Date.now() });
       return;
     }
     sendToggle(t.id, next);
@@ -1228,46 +1229,54 @@ export default function App() {
     const wasPerfect = latestMe.current?.perfect_today ?? false;
     const curTasks = latestDetail.current?.tasks ?? [];
     const wasFullClear = curTasks.length > 0 && curTasks.every((x) => x.done);
-    const t = { id: taskId };
 
     api
       .toggle(meId, taskId, day, next)
       .then((res) => {
-        // The write was accepted (a non-2xx would have thrown), so `next` is
-        // what the box must show. The day payload that comes back with it is a
-        // convenience read, and a convenience read is not worth overruling the
-        // user's own action: anything that made it disagree -- a stale read
-        // after the write, a racing request, a proxy serving a cached body --
-        // would show up as the box silently flipping back on its own, which is
-        // precisely the fault being chased here. Take the rest of the payload,
-        // keep our value for the task we just wrote, and keep the optimistic
-        // value for any sibling whose own write is still in flight.
-        if (res.day.tasks.find((x) => x.id === t.id)?.done !== next) {
+        const queued = queuedToggles.current.get(taskId);
+        const hasNewerIntent = queued !== undefined && queued !== next;
+
+        // The write was accepted (a non-2xx would have thrown), so its value is
+        // authoritative only if the user has not tapped again meanwhile. The
+        // day payload that comes back with it is a convenience read, and a
+        // convenience read is not worth overruling the user's newest action:
+        // anything stale would show up as the box silently flipping back on its
+        // own, which is precisely the fault being chased here. Take the rest of
+        // the payload, keep the latest local value for this task, and keep the
+        // optimistic value for any sibling whose own write is still in flight.
+        if (res.day.tasks.find((x) => x.id === taskId)?.done !== next) {
           console.warn("[toggle] server echoed a different value than written", {
-            taskId: t.id,
+            taskId,
             wrote: next,
-            echoed: res.day.tasks.find((x) => x.id === t.id)?.done,
+            echoed: res.day.tasks.find((x) => x.id === taskId)?.done,
           });
         }
+        const mergeTasks = (currentTasks: TaskItem[] = []) =>
+          res.day.tasks.map((x) => {
+            if (x.id === taskId && hasNewerIntent) {
+              return { ...x, done: currentTasks.find((c) => c.id === x.id)?.done ?? queued };
+            }
+            if (x.id === taskId) return { ...x, done: next };
+            if (pendingToggles.current.has(x.id)) {
+              return { ...x, done: currentTasks.find((c) => c.id === x.id)?.done ?? x.done };
+            }
+            return x;
+          });
+        const visibleTasks = mergeTasks(latestDetail.current?.tasks);
         setDetail((cur) => {
-          if (!cur) return res.day;
+          if (!cur) return { ...res.day, tasks: visibleTasks };
           return {
             ...res.day,
-            tasks: res.day.tasks.map((x) => {
-              if (x.id === t.id) return { ...x, done: next };
-              if (pendingToggles.current.has(x.id)) {
-                return { ...x, done: cur.tasks.find((c) => c.id === x.id)?.done ?? x.done };
-              }
-              return x;
-            }),
+            tasks: mergeTasks(cur.tasks),
           };
         });
         setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
         setSaveError(null);
-        // Confirmed by the server -- nothing left to replay for this task.
-        outbox.forget({ userId: meId, taskId, day });
+        // Confirmed by the server unless the user already tapped again; in
+        // that case the parked outbox value is newer and still needs replay.
+        if (!hasNewerIntent) outbox.forget({ userId: meId, taskId, day });
 
-        const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
+        const nowFullClear = visibleTasks.length > 0 && visibleTasks.every((x) => x.done);
         const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
         if (day === todayISO() && !wasPerfect && res.progress.perfect_today) {
           const hit = res.progress.badges.find((x) => x.day === res.progress.streak && x.earned);
@@ -1285,14 +1294,16 @@ export default function App() {
         // there would show the user a false "didn't save" for a write that
         // does, in fact, still save.
         if (isPermanentFailure(e)) {
-          outbox.forget({ userId: meId, taskId, day });
+          const queued = queuedToggles.current.get(taskId);
+          const hasNewerIntent = queued !== undefined && queued !== next;
+          if (!hasNewerIntent) outbox.forget({ userId: meId, taskId, day });
           // Undo only this task, and only if the user has not since asked for
           // something else -- a queued intent is newer than this failure, so
           // reverting to the pre-request value would fight the person tapping.
-          if (!queuedToggles.current.has(t.id)) {
+          if (!hasNewerIntent) {
             setDetail((cur) =>
               cur
-                ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
+                ? { ...cur, tasks: cur.tasks.map((x) => (x.id === taskId ? { ...x, done: !next } : x)) }
                 : cur
             );
           }
@@ -1302,17 +1313,17 @@ export default function App() {
         setSaveError(msg);
       })
       .finally(() => {
-        pendingToggles.current.delete(t.id);
-        const queued = queuedToggles.current.get(t.id);
+        pendingToggles.current.delete(taskId);
+        const queued = queuedToggles.current.get(taskId);
         if (queued === undefined) {
           // Settled and nothing outstanding: hand authority back to server state.
-          intendedDone.current.delete(t.id);
+          intendedDone.current.delete(taskId);
           return;
         }
-        queuedToggles.current.delete(t.id);
+        queuedToggles.current.delete(taskId);
         // Only worth a round trip if it actually differs from what we just wrote.
-        if (queued !== next) sendToggle(t.id, queued);
-        else intendedDone.current.delete(t.id);
+        if (queued !== next) sendToggle(taskId, queued);
+        else intendedDone.current.delete(taskId);
       });
   };
 
