@@ -10,8 +10,8 @@ import { playJump } from "../../sound";
 import DashLeaderboard from "../DashLeaderboard";
 import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "../../game/runnerEngine";
 import { drawCoin } from "../../game/coinArt";
-import { WORLDS } from "../../game/adventure/content";
-import { currentWorldIndex } from "../../game/weekSystem";
+import { createSeededRandom } from "../../game/seededRandom";
+import { CHARACTER_RUN_ATLAS, characterRunFrame } from "../../game/characterRunAtlas";
 import type { DayCell } from "../../types";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
@@ -49,6 +49,65 @@ function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numb
   ctx.strokeStyle = "#a9720f";
   ctx.stroke();
   ctx.restore();
+}
+
+type CloudDef = { y: number; scale: number; speed: number; phase: number; opacity: number };
+
+/** Same seeded cloud recipe as the home forest's Clouds.tsx, converted from
+ * CSS percentages/seconds into canvas fractions. */
+function makeClouds(seed: string, count: number): CloudDef[] {
+  const rand = createSeededRandom(`${seed}:clouds`);
+  return Array.from({ length: count }, () => {
+    const scale = 1 + rand() * 1.1;
+    return {
+      y: (4 + rand() * 40) / 100,
+      scale,
+      speed: 1 / (46 - scale * 12 + rand() * 18),
+      phase: rand(),
+      opacity: 0.55 + rand() * 0.35,
+    };
+  });
+}
+
+/**
+ * One pixel-art cloud: a flat body plus a couple of stepped puffs on top,
+ * same silhouette as the DOM forest's .cloud (styles.css) -- box-shadow
+ * stacked rectangles there, drawn rectangles here, so Forest Dash's sky
+ * reads as the same place instead of a flatter, cloudless backdrop.
+ */
+function drawCloud(ctx: CanvasRenderingContext2D, cx: number, cy: number, scale: number, opacity: number) {
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = "#d9e0d0";
+  const w = 42 * scale;
+  const h = 14 * scale;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.14)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 4 * scale;
+  ctx.fillRect(cx, cy, w, h);
+  ctx.shadowColor = "transparent";
+  ctx.fillStyle = "#b9c8b5";
+  ctx.fillRect(cx + 40 * scale, cy + 2 * scale, 8 * scale, h);
+  ctx.fillStyle = "#d9e0d0";
+  ctx.fillRect(cx + 8 * scale, cy - 8 * scale, 10 * scale, h);
+  ctx.fillRect(cx + 20 * scale, cy - 13 * scale, 10 * scale, h);
+  ctx.fillRect(cx + 32 * scale, cy - 7 * scale, 10 * scale, h);
+  ctx.fillStyle = "#eef0dd";
+  ctx.fillRect(cx + w * 0.12, cy - h * 0.9, w * 0.3, h * 1.3);
+  ctx.fillRect(cx + w * 0.62, cy - h * 0.55, w * 0.26, h * 1.05);
+  ctx.restore();
+}
+
+/** Drift the whole cloud layer across the canvas, looping each one from just
+ * off the left edge to just off the right. Runs continuously (not gated on
+ * the run/pause state, per cloudDrift's own accumulator) so the sky is alive
+ * even on the ready/game-over screens, like real weather would be. */
+function drawClouds(ctx: CanvasRenderingContext2D, W: number, H: number, driftMs: number, clouds: CloudDef[]) {
+  for (const c of clouds) {
+    const t = (c.phase + (driftMs / 1000) * c.speed) % 1;
+    const x = (-0.14 + t * 1.26) * W;
+    drawCloud(ctx, x, c.y * H, c.scale, c.opacity);
+  }
 }
 
 /**
@@ -99,7 +158,7 @@ function drawGrassStrip(
 export default function PandaRunner({
   character,
   userId,
-  calendar,
+  calendar: _calendar,
   onClose,
 }: {
   character: CharacterId;
@@ -107,11 +166,6 @@ export default function PandaRunner({
   calendar: DayCell[];
   onClose: () => void;
 }) {
-  // The same environment Story Mode is currently themed in -- shared across
-  // both surfaces so a week of real progress visibly changes more than just
-  // the trail map. Week 1 (world 0) is deliberately the same forest look
-  // this already opened in, so nothing shifts until real progress earns it.
-  const world = WORLDS[currentWorldIndex(calendar)];
   const key = userId ?? "guest";
   const bestDistKey = `75hard.dash.best:${key}`;
   const bestCoinKey = `75hard.dash.coins:${key}`;
@@ -130,6 +184,7 @@ export default function PandaRunner({
   const imgs = useRef<{
     bg?: HTMLImageElement;
     panda?: HTMLImageElement;
+    run?: HTMLImageElement;
     plant?: HTMLImageElement;
     mine?: HTMLImageElement;
     grassLeft?: HTMLImageElement;
@@ -137,6 +192,8 @@ export default function PandaRunner({
     grassRight?: HTMLImageElement;
   }>({});
   const bgShift = useRef(0);
+  const clouds = useRef(makeClouds(String(key), 6));
+  const cloudDrift = useRef(0);
 
   const [phase, setPhase] = useState<"ready" | "running" | "over">("ready");
   const [result, setResult] = useState({ dist: 0, coins: 0 });
@@ -178,6 +235,7 @@ export default function PandaRunner({
     };
     imgs.current.bg = load("/assets/forest-bg-1.webp");
     imgs.current.panda = load(CHARACTER_SPRITE[character]);
+    imgs.current.run = load(CHARACTER_RUN_ATLAS.characters[character].src);
     imgs.current.plant = load("/assets/zombie-plant.webp");
     imgs.current.mine = load("/assets/landmine.webp");
     imgs.current.grassLeft = load("/assets/grass-left.webp");
@@ -221,19 +279,17 @@ export default function PandaRunner({
     const bg = imgs.current.bg;
     if (bg && bg.complete && bg.naturalWidth) {
       const bw = H * (bg.naturalWidth / bg.naturalHeight);
-      ctx.globalAlpha = 0.5;
+      // Full opacity, same as .forest-photo on the home forest. The dark
+      // gradient above is only a loading fallback now, not a permanent wash.
+      ctx.globalAlpha = 1;
       let x = -((bgShift.current * 0.25) % bw);
       for (; x < W; x += bw) ctx.drawImage(bg, x, 0, bw, H);
       ctx.globalAlpha = 1;
     }
-    // World tint -- shared with Story Mode's own per-world wash (render.ts),
-    // so a week of real progress changes this too, not just the trail map.
-    // Barely visible on world 0 (the same forest look this already opens
-    // in); genuinely shifts once a later world is actually earned.
-    ctx.fillStyle = world.tint;
-    ctx.globalAlpha = 0.16;
-    ctx.fillRect(0, 0, W, H);
-    ctx.globalAlpha = 1;
+    // Drifting clouds -- the DOM forest scene's sky layer (Clouds.tsx) has
+    // these; the canvas backdrop didn't, which was the rest of "looks off"
+    // relative to the main game screen.
+    drawClouds(ctx, W, H, cloudDrift.current, clouds.current);
 
     // --- ledges ---
     for (const p of st.platforms) {
@@ -297,6 +353,7 @@ export default function PandaRunner({
 
     // --- panda ---
     const pImg = imgs.current.panda;
+    const runImg = imgs.current.run;
     // "alive" tell: a gentle idle bob, and the same eye-blink as everywhere
     // else -- two fur-toned lids flick shut for ~130ms every ~4.4s.
     const tSec = st.t / 1000;
@@ -339,7 +396,23 @@ export default function PandaRunner({
       ctx.translate(-(px + pw / 2), -(py + ph / 2));
     }
     if (invincible) ctx.filter = `hue-rotate(${(tSec * 220) % 360}deg) saturate(1.6)`;
-    if (pImg && pImg.complete && pImg.naturalWidth) {
+    const runSpec = CHARACTER_RUN_ATLAS.characters[character];
+    const useRunFrame = runningRef.current && st.grounded && !st.over && runImg?.complete && runImg.naturalWidth;
+    if (useRunFrame) {
+      const frameIndex = characterRunFrame(st.t, runSpec.clips.run.frames);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        runImg,
+        frameIndex * CHARACTER_RUN_ATLAS.frameWidth,
+        runSpec.clips.run.row * CHARACTER_RUN_ATLAS.frameHeight,
+        CHARACTER_RUN_ATLAS.frameWidth,
+        CHARACTER_RUN_ATLAS.frameHeight,
+        px,
+        py,
+        pw,
+        ph
+      );
+    } else if (pImg && pImg.complete && pImg.naturalWidth) {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(pImg, px, py, pw, ph);
     } else {
@@ -366,7 +439,7 @@ export default function PandaRunner({
     ctx.beginPath();
     ctx.ellipse((PANDA_X + PANDA_W / 2) * sx, yPx(st.y), pw * 0.45, H * 0.012, 0, 0, Math.PI * 2);
     ctx.fill();
-  }, [character, world]);
+  }, [character]);
 
   const frame = useCallback(
     (ts: number) => {
@@ -374,6 +447,9 @@ export default function PandaRunner({
       if (lastTsRef.current == null) lastTsRef.current = ts;
       const dt = ts - lastTsRef.current;
       lastTsRef.current = ts;
+      // Unconditional (not gated on running/over like bgShift below) --
+      // clouds drift on the ready and game-over screens too, like real sky.
+      cloudDrift.current += dt;
 
       if (runningRef.current && !st.over) {
         const jumped = jumpRef.current;

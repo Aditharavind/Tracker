@@ -2333,10 +2333,7 @@ h3 {
   bottom: 0;
 }
 
-/* Wrapper that bobs (as the old single <img> did); the two mouth frames
-   inside it are pixel-aligned copies of the same crop (built together by
-   scripts/pack-zombie-plant.py) so cross-fading them reads as one sprite
-   snapping its jaw shut and open, not a swap between different art. */
+/* Wrapper that bobs (as the old single <img> did). */
 .plant-sprite {
   position: relative;
   display: block;
@@ -2353,14 +2350,26 @@ h3 {
   image-rendering: pixelated;
 }
 
-.plant-frame-closed {
+/* Mouth-closed look: the lower-jaw layer (scripts/pack-zombie-plant-jaw.py --
+   real teeth/rim/chin pixels cropped from the sprite's own open mouth, not a
+   synthesized frame) rotating around the mouth's back-left corner -- a real
+   hinge, anchored at one end, swinging closed at the other -- rather than a
+   shutter dropping over a fixed mouth. It shares plant-frame's full box (the
+   two layers were split from one canvas so they line up with inset:0, no
+   per-layer offset) and pivots at the hinge point measured in
+   pack-zombie-plant-jaw.py, expressed here as a canvas-relative percentage.
+   PIL's rotate() (used to pick the closed angle) is counter-clockwise-
+   positive; CSS's rotate() is clockwise-positive, so the closed angle here
+   is negative where the packer script's is positive. */
+.plant-mouth-shutter {
   position: absolute;
   inset: 0;
-  animation: plant-chomp-closed 3.4s ease-in-out infinite;
-}
-
-.plant-frame-open {
-  animation: plant-chomp-open 3.4s ease-in-out infinite;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  transform-origin: 47.8% 34.7%;
+  transform: rotate(0deg);
+  animation: plant-mouth-close 3.4s ease-in-out infinite;
 }
 
 @keyframes plant-bob {
@@ -2373,35 +2382,21 @@ h3 {
   }
 }
 
-/* A quick snap shut around the two-thirds mark of the loop, then back open --
-   more "chomp" than a slow chew, matching the guardian's threatening pose. */
-@keyframes plant-chomp-open {
+/* Mouth is open (jaw at its painted resting angle) most of the loop, snaps
+   shut around the two-thirds mark, then reopens -- more "chomp" than a slow
+   chew, matching the guardian's threatening pose. */
+@keyframes plant-mouth-close {
   0%,
   62% {
-    opacity: 1;
+    transform: rotate(0deg);
   }
   70%,
   86% {
-    opacity: 0;
+    transform: rotate(-8deg);
   }
   94%,
   100% {
-    opacity: 1;
-  }
-}
-
-@keyframes plant-chomp-closed {
-  0%,
-  62% {
-    opacity: 0;
-  }
-  70%,
-  86% {
-    opacity: 1;
-  }
-  94%,
-  100% {
-    opacity: 0;
+    transform: rotate(0deg);
   }
 }
 
@@ -2860,48 +2855,10 @@ h3 {
   animation: panda-sleep-mark 2.4s ease-out infinite;
 }
 
-/* Faked running legs: two little dark feet under the sprite that pump
-   alternately while .panda-running is active (a flat sprite can't frame-
-   animate its own legs). Hidden otherwise. */
-.panda::before,
-.panda::after {
-  content: "";
-  position: absolute;
-  bottom: 1px;
-  width: 22%;
-  height: 9%;
-  border-radius: 40% 40% 45% 45%;
-  background: #1c1c1c;
-  opacity: 0;
-}
-
-.panda::before {
-  left: 24%;
-}
-
-.panda::after {
-  right: 24%;
-}
-
-.panda-running::before {
-  opacity: 1;
-  animation: panda-foot 0.3s ease-in-out infinite;
-}
-
-.panda-running::after {
-  opacity: 1;
-  animation: panda-foot 0.3s ease-in-out infinite reverse;
-}
-
-@keyframes panda-foot {
-  0%,
-  100% {
-    transform: translateX(0) translateY(0) scaleX(1);
-  }
-  50% {
-    transform: translateX(3px) translateY(-4px) scaleX(0.7);
-  }
-}
+/* The old "faked running legs" (two small dark ovals stamped under the
+   sprite, since a single flat <img> couldn't animate its own legs) is gone
+   now that PandaFlat actually cuts real legs out of the character art and
+   swings them at the hip -- see .panda-leg-l/.panda-leg-r below. */
 
 /* ---------- end-of-day victory run ---------- */
 
@@ -3266,13 +3223,13 @@ h3 {
   --poster-color: transparent;
 }
 
-/* The character art is chunky pixel-art on a 360px canvas -- let the browser
-   nearest-neighbour it up so the pixels stay hard-edged instead of smearing
-   into a blur at the size the CSS actually draws it. object-fit keeps the
-   sprite's own proportions whatever box it lands in. */
+/* The character art is chunky pixel-art on a 256x256 canvas -- let the
+   browser nearest-neighbour it up so the pixels stay hard-edged instead of
+   smearing into a blur at the size the CSS actually draws it. Running swaps
+   to a whole-character atlas frame layer, matching Forest Dash, so the
+   character never visually splits into body/leg parts. */
 .panda-flat {
-  object-fit: contain;
-  object-position: center bottom;
+  position: relative;
   image-rendering: pixelated;
   /* The source webp carries a little transparent margin below the feet --
      drop the art a hair so the character reads as standing ON the ground /
@@ -3286,6 +3243,22 @@ h3 {
 .panda-flat-redpanda {
   transform: translateY(5%) scale(1.08);
   transform-origin: center bottom;
+}
+
+.panda-flat-body {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.panda-run-sheet {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background-repeat: no-repeat;
+  background-size: 600% 100%;
+  background-position: 0 0;
+  image-rendering: pixelated;
 }
 
 /* 3D mode: sprite base layer + model-viewer overlay in one box, so the
@@ -3428,7 +3401,16 @@ h3 {
 
 
 .panda-running {
-  animation: panda-run 0.35s ease-in-out infinite;
+  animation: panda-run 0.43s steps(2, end) infinite;
+}
+
+.panda-running .panda-flat-body {
+  opacity: 0;
+}
+
+.panda-running .panda-run-sheet {
+  display: block;
+  animation: panda-run-sheet 0.43s steps(6, end) infinite;
 }
 
 .panda-jumping {
@@ -3453,7 +3435,16 @@ h3 {
     transform: translateY(0) rotate(0deg);
   }
   50% {
-    transform: translateY(-3px) rotate(-3deg);
+    transform: translateY(-4px) rotate(-3deg);
+  }
+}
+
+@keyframes panda-run-sheet {
+  from {
+    background-position-x: 0%;
+  }
+  to {
+    background-position-x: 100%;
   }
 }
 
@@ -3560,13 +3551,12 @@ h3 {
   /* Freeze the guardian plant on its resting (mouth-open, menacing) frame
      instead of looping the bob/chomp/taunt-bubble motion. */
   .plant-sprite,
-  .plant-frame-open,
-  .plant-frame-closed,
+  .plant-mouth-shutter,
   .plant-bubble {
     animation: none;
   }
-  .plant-frame-closed {
-    opacity: 0;
+  .plant-mouth-shutter {
+    transform: rotate(0deg);
   }
 }
 
@@ -3621,48 +3611,8 @@ h3 {
     0 6px 10px rgba(0, 0, 0, 0.6);
 }
 
-/* ---------------------------------------------------------------- panda leg-swing */
-/* The whole-panda bob in .panda-running (above) reads fine at a distance,
-   but the reference calls for visible running legs before each hop -- swap
-   the leg ellipses' own rotation in on top of it, same convention as
-   .sprite.running for the human avatar. */
-
-.panda .panda-leg-l,
-.panda .panda-leg-r {
-  transform-origin: 50% 0%;
-}
-
-.panda-running .panda-leg-l {
-  animation: panda-leg-swing 0.3s ease-in-out infinite;
-}
-
-.panda-running .panda-leg-r {
-  animation: panda-leg-swing-alt 0.3s ease-in-out infinite;
-}
-
-@keyframes panda-leg-swing {
-  0%,
-  100% {
-    transform: rotate(-22deg) translateY(0);
-  }
-  50% {
-    transform: rotate(22deg) translateY(-1px);
-  }
-}
-
-@keyframes panda-leg-swing-alt {
-  0%,
-  100% {
-    transform: rotate(22deg) translateY(-1px);
-  }
-  50% {
-    transform: rotate(-22deg) translateY(0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .panda-running .panda-leg-l,
-  .panda-running .panda-leg-r {
+  .panda-running .panda-run-sheet {
     animation: none;
   }
 }

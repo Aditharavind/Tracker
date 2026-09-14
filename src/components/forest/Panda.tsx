@@ -8,6 +8,7 @@ import {
   DEFAULT_CHARACTER,
   type CharacterId,
 } from "../../game/characters";
+import { CHARACTER_RUN_ATLAS } from "../../game/characterRunAtlas";
 
 /**
  * The eye-blink overlay -- a fur-toned lid over each eye that drops shut for
@@ -125,21 +126,26 @@ function Panda3D({
 /**
  * Flat pixel-art sprite for whichever character is selected -- panda, koala
  * or red panda. All three are cropped from the same reference sheet onto a
- * matching canvas (see .claude/skills/platformer-interface/assets), so they
- * share scale/proportions and can drop into the same `.panda-model` box and
- * the same CSS-transform animation classes below without any per-character
- * tuning.
+ * matching 256x256 canvas (see .claude/skills/platformer-interface/assets),
+ * so they share scale/proportions and can drop into the same `.panda-model`
+ * box and the same CSS-transform animation classes below without any
+ * per-character tuning.
  *
- * Regenerate from the reference sheet if the source art ever changes.
+ * The static sprite is always present for idle/jump/fall states. Running uses
+ * the same whole-character atlas frames as Forest Dash, so every app surface
+ * shows one consistent character instead of separate CSS leg pieces that can
+ * visually split the lower body from the torso.
  */
-const PandaFlat = ({ character }: { character: CharacterId }) => (
-  <img
-    className={`panda-model panda-flat panda-flat-${character}`}
-    src={CHARACTER_SPRITE[character]}
-    alt=""
-    aria-hidden="true"
-  />
-);
+const PandaFlat = ({ character }: { character: CharacterId }) => {
+  const src = CHARACTER_SPRITE[character];
+  const runSrc = CHARACTER_RUN_ATLAS.characters[character].src;
+  return (
+    <div className={`panda-model panda-flat panda-flat-${character}`}>
+      <img className="panda-flat-body" src={src} alt="" aria-hidden="true" />
+      <span className="panda-run-sheet" style={{ backgroundImage: `url(${runSrc})` }} />
+    </div>
+  );
+};
 
 export default function Panda({
   anim,

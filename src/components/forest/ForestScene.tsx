@@ -80,7 +80,7 @@ export default function ForestScene({
   character = DEFAULT_CHARACTER,
   onDayCleared,
   onOpenStory,
-  unlockedWeeks = 1,
+  unlockedArcs = 1,
 }: {
   detail: DayDetail;
   dayNumber: number;
@@ -94,10 +94,10 @@ export default function ForestScene({
    * is ticked.
    */
   onDayCleared?: () => void;
-  /** Opens the weekly trail map -- the gate in front of Story Mode. */
+  /** Opens the 15-day arc trail map -- the gate in front of Story Mode. */
   onOpenStory?: () => void;
-  /** How many week-stones real consistency has unlocked (see game/weekSystem) -- shown on the corner portal's badge. */
-  unlockedWeeks?: number;
+  /** How many arc-stones real consistency has unlocked (see game/weekSystem) -- shown on the corner portal's badge. */
+  unlockedArcs?: number;
 }) {
   const tasks = detail.tasks;
   const total = tasks.length;
@@ -580,7 +580,7 @@ export default function ForestScene({
         )}
       </div>
 
-      {onOpenStory && <StoryPortal unlockedWorlds={unlockedWeeks} onOpen={onOpenStory} />}
+      {onOpenStory && <StoryPortal unlockedWorlds={unlockedArcs} onOpen={onOpenStory} />}
     </div>
   );
 }

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "fps": 14,
+  "characters": {
+    "panda": {
+      "src": "/assets/characters/panda-run-sheet.webp",
+      "clips": {
+        "run": {
+          "row": 0,
+          "frames": 6
+        }
+      }
+    },
+    "koala": {
+      "src": "/assets/characters/koala-run-sheet.webp",
+      "clips": {
+        "run": {
+          "row": 0,
+          "frames": 6
+        }
+      }
+    },
+    "redpanda": {
+      "src": "/assets/characters/redpanda-run-sheet.webp",
+      "clips": {
+        "run": {
+          "row": 0,
+          "frames": 6
+        }
+      }
+    }
+  }
+}

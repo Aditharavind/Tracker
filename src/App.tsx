@@ -26,7 +26,7 @@ import WeekMap from "./components/forest/WeekMap";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
-import { unlockedWeekCount } from "./game/weekSystem";
+import { unlockedArcCount } from "./game/weekSystem";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { useInstallPrompt } from "./installPrompt";
 import CharacterSelect from "./components/CharacterSelect";
@@ -1509,7 +1509,7 @@ export default function App() {
             character={myCharacter}
             onDayCleared={day === todayISO() ? handleDayCleared : undefined}
             onOpenStory={() => setWeekMapOpen(true)}
-            unlockedWeeks={unlockedWeekCount(me.calendar)}
+            unlockedArcs={unlockedArcCount(me.calendar)}
           />
           )}
 

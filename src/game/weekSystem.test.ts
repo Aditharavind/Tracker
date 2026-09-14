@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentWorldIndex, isWeekConsistent, STORY_WEEK_LIMIT, unlockedWeekCount, weekDayRange, WEEK_COUNT } from "./weekSystem";
+import { ARC_COUNT, arcDayRange, currentWorldIndex, isArcConsistent, STORY_ARC_LIMIT, unlockedArcCount } from "./weekSystem";
 import type { DayCell } from "../types";
 
 const cell = (status: DayCell["status"]): DayCell => ({ day: "", index: 0, status, done: status === "done" ? 1 : 0, total: 1 });
@@ -9,43 +9,43 @@ function calendarWith(doneDays: number): DayCell[] {
   return Array.from({ length: 75 }, (_, i) => cell(i < doneDays ? "done" : "future"));
 }
 
-describe("weekDayRange", () => {
-  it("covers 7-day blocks, clamped to the map's range", () => {
-    expect(weekDayRange(1)).toEqual({ start: 1, end: 7 });
-    expect(weekDayRange(2)).toEqual({ start: 8, end: 14 });
-    expect(weekDayRange(0)).toEqual(weekDayRange(1));
-    expect(weekDayRange(99)).toEqual(weekDayRange(WEEK_COUNT));
+describe("arcDayRange", () => {
+  it("covers 15-day blocks, clamped to the map's range", () => {
+    expect(arcDayRange(1)).toEqual({ start: 1, end: 15 });
+    expect(arcDayRange(2)).toEqual({ start: 16, end: 30 });
+    expect(arcDayRange(0)).toEqual(arcDayRange(1));
+    expect(arcDayRange(99)).toEqual(arcDayRange(ARC_COUNT));
   });
 });
 
-describe("isWeekConsistent", () => {
-  it("requires every day in the week to be done, not just most of them", () => {
-    const calendar = calendarWith(6);
-    expect(isWeekConsistent(calendar, 1)).toBe(false);
-    expect(isWeekConsistent(calendarWith(7), 1)).toBe(true);
+describe("isArcConsistent", () => {
+  it("requires every day in the arc to be done, not just most of them", () => {
+    const calendar = calendarWith(14);
+    expect(isArcConsistent(calendar, 1)).toBe(false);
+    expect(isArcConsistent(calendarWith(15), 1)).toBe(true);
   });
-  it("a partial or missed day breaks consistency even mid-week", () => {
-    const calendar = calendarWith(7);
+  it("a partial or missed day breaks consistency even mid-arc", () => {
+    const calendar = calendarWith(15);
     calendar[3] = cell("partial");
-    expect(isWeekConsistent(calendar, 1)).toBe(false);
+    expect(isArcConsistent(calendar, 1)).toBe(false);
   });
 });
 
-describe("unlockedWeekCount", () => {
-  it("week 1 is always open, even with zero progress", () => {
-    expect(unlockedWeekCount(calendarWith(0))).toBe(1);
+describe("unlockedArcCount", () => {
+  it("arc 1 is always open, even with zero progress", () => {
+    expect(unlockedArcCount(calendarWith(0))).toBe(1);
   });
-  it("advances one stone per fully consistent week, in order", () => {
-    expect(unlockedWeekCount(calendarWith(7))).toBe(2);
-    expect(unlockedWeekCount(calendarWith(14))).toBe(3);
+  it("advances one stone (the wormhole) per fully consistent arc, in order", () => {
+    expect(unlockedArcCount(calendarWith(15))).toBe(2);
+    expect(unlockedArcCount(calendarWith(30))).toBe(3);
   });
-  it("a broken week stops the count there even if later days exist", () => {
-    const calendar = calendarWith(21);
-    calendar[8] = cell("missed"); // breaks week 2 (days 8-14)
-    expect(unlockedWeekCount(calendar)).toBe(2);
+  it("a broken arc stops the count there even if later days exist", () => {
+    const calendar = calendarWith(45);
+    calendar[16] = cell("missed"); // breaks arc 2 (days 16-30)
+    expect(unlockedArcCount(calendar)).toBe(2);
   });
-  it("never exceeds the number of worlds", () => {
-    expect(unlockedWeekCount(calendarWith(75))).toBe(WEEK_COUNT);
+  it("never exceeds the number of arcs the 75-day calendar has", () => {
+    expect(unlockedArcCount(calendarWith(75))).toBe(ARC_COUNT);
   });
 });
 
@@ -53,11 +53,11 @@ describe("currentWorldIndex", () => {
   it("starts at world 0 (the same forest the game already opens in)", () => {
     expect(currentWorldIndex(calendarWith(0))).toBe(0);
   });
-  it("advances one world per fully consistent week", () => {
-    expect(currentWorldIndex(calendarWith(7))).toBe(1);
-    expect(currentWorldIndex(calendarWith(14))).toBe(2);
+  it("advances one world per fully consistent arc", () => {
+    expect(currentWorldIndex(calendarWith(15))).toBe(1);
+    expect(currentWorldIndex(calendarWith(30))).toBe(2);
   });
-  it("clamps to the last real world once weeks run past STORY_WEEK_LIMIT", () => {
-    expect(currentWorldIndex(calendarWith(75))).toBe(STORY_WEEK_LIMIT - 1);
+  it("clamps to the last reachable world once arcs run past STORY_ARC_LIMIT", () => {
+    expect(currentWorldIndex(calendarWith(75))).toBe(STORY_ARC_LIMIT - 1);
   });
 });

@@ -1,10 +1,22 @@
 /**
  * The guardian plant at the start of the level (skill §11) -- one only, never
- * scattered. Art is built by scripts/pack-zombie-plant.py from
- * frontend/assets/zombie_plant.png into two aligned frames (open/closed
- * mouth) so the two can be cross-faded in CSS for a snapping-jaw animation,
- * on top of the existing idle bob. A pixel speech bubble taunts the player
- * on a loop.
+ * scattered. Art is scripts/pack-zombie-plant-jaw.py's split of
+ * frontend/assets/zombie_plant.png (one painted frame, mouth open) into two
+ * layers sharing one canvas: `plant-frame` is the head with the lower jaw
+ * cut to transparent, `plant-mouth-shutter` is that lower jaw on its own.
+ * Both are real cropped pixels, not a synthesized closed-mouth frame. The
+ * jaw layer rotates around the mouth's back-left corner (a real hinge, set
+ * as its CSS transform-origin) -- one end anchored at the pivot, the other
+ * swinging up to close the gap and back down to open it. Earlier attempts:
+ * a flat-colour shutter (a plain oval dropped over the mouth) read as a
+ * stray green circle, not a jaw; a version using the un-split
+ * zombie-plant-open.webp as the base left a duplicate jaw always visible
+ * underneath once the real one rotated away. Because the source mouth is
+ * one flat-painted shape rather than two separate anatomical pieces, the
+ * rotation still leaves a hairline seam at the far (non-hinge) end when
+ * closed -- outlined in the sprite's own near-black dye in the packer so it
+ * reads as a gum-line crease rather than a rendering gap. A pixel speech
+ * bubble taunts the player on a loop.
  *
  * In the Forest Dash minigame it's reused as the obstacle: `bare` drops the
  * taunt bubble and `hue` recolours the sprite so each plant looks distinct.
@@ -29,8 +41,8 @@ export default function ZombiePlant({
         </div>
       )}
       <div className="plant-sprite">
-        <img className="plant-frame plant-frame-open" src="/assets/zombie-plant-open.webp" alt="" style={tint} />
-        <img className="plant-frame plant-frame-closed" src="/assets/zombie-plant-closed.webp" alt="" style={tint} />
+        <img className="plant-frame" src="/assets/zombie-plant-head.webp" alt="" style={tint} />
+        <img className="plant-mouth-shutter" src="/assets/zombie-plant-jaw.webp" alt="" style={tint} />
       </div>
     </div>
   );
