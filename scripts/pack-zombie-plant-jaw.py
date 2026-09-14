@@ -46,8 +46,10 @@ OUT_WIDTH = 300  # matches pack-zombie-plant.py's sprite width
 # Lower-jaw region in ORIGINAL image coordinates: just the bottom teeth and
 # lower lip rim, not the chin/drips/stem below it (an earlier, taller crop
 # down to y=800 dragged a big slab of chin flesh along with the rotation,
-# which read as an oversized second jaw rather than a thin lower jaw).
-JAW_BOX = (555, 495, 1010, 670)
+# which read as an oversized second jaw rather than a thin lower jaw). Wider
+# than that first tight crop (x extended both directions) so the jaw reads
+# as a full lower mandible spanning the mouth, not just a thin tooth strip.
+JAW_BOX = (525, 495, 1040, 670)
 
 # The mouth's back-left corner, where the upper and lower lip rims meet --
 # the true pivot of a real jaw hinge.

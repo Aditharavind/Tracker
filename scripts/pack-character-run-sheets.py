@@ -1,5 +1,5 @@
 from pathlib import Path
-from PIL import Image, ImageDraw
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "public" / "assets" / "characters"
@@ -10,64 +10,47 @@ CHARACTERS = {
 }
 
 SIZE = 256
+LEG_TOP = round(SIZE * 0.79)
+LEG_RECTS = {
+    "left": (round(SIZE * 0.31), LEG_TOP, round(SIZE * 0.51), SIZE),
+    "right": (round(SIZE * 0.49), LEG_TOP, round(SIZE * 0.69), SIZE),
+}
 RUN_FRAMES = [
-    ((94, 180), (145, 235), (154, 180), (105, 235)),
-    ((94, 180), (120, 236), (154, 180), (135, 232)),
-    ((94, 180), (106, 231), (154, 180), (152, 235)),
-    ((94, 180), (105, 235), (154, 180), (145, 235)),
-    ((94, 180), (135, 232), (154, 180), (120, 236)),
-    ((94, 180), (152, 235), (154, 180), (106, 231)),
+    (18, -18, 1.1, 0),
+    (9, -9, 1.04, -1),
+    (-16, 16, 1.08, 0),
+    (-18, 18, 1.12, 1),
+    (-8, 8, 1.04, -1),
+    (16, -16, 1.08, 0),
 ]
 
 
-def sampled_leg_color(src: Image.Image) -> tuple[int, int, int, int]:
-    pixels = []
-    for y in range(round(SIZE * 0.70), SIZE):
-        for x in range(round(SIZE * 0.18), round(SIZE * 0.82)):
-            r, g, b, a = src.getpixel((x, y))
-            if a > 80 and r + g + b < 360:
-                pixels.append((r, g, b))
-    if not pixels:
-        return (42, 42, 42, 235)
-    pixels.sort(key=sum)
-    sample = pixels[len(pixels) // 4]
-    return (*sample, 235)
-
-
-def draw_run_pose(src: Image.Image, pose: tuple[tuple[int, int], tuple[int, int], tuple[int, int], tuple[int, int]]) -> Image.Image:
-    leg_color = sampled_leg_color(src)
-    outline = (18, 18, 18, 210)
-    frame = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    legs = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(legs)
-
-    left_hip, left_foot, right_hip, right_foot = pose
-    for hip, foot in ((left_hip, left_foot), (right_hip, right_foot)):
-        draw.line([hip, foot], fill=outline, width=20)
-        draw.line([hip, foot], fill=leg_color, width=14)
-        draw.ellipse((foot[0] - 14, foot[1] - 8, foot[0] + 16, foot[1] + 7), fill=outline)
-        draw.ellipse((foot[0] - 11, foot[1] - 6, foot[0] + 13, foot[1] + 5), fill=leg_color)
-
-    frame.alpha_composite(legs)
-    frame.alpha_composite(src)
-
-    # Repaint the animated feet on top so the stride remains evident after the
-    # original body covers the upper legs. The belly stays untouched.
-    feet = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(feet)
-    for _, foot in ((left_hip, left_foot), (right_hip, right_foot)):
-        draw.ellipse((foot[0] - 14, foot[1] - 8, foot[0] + 16, foot[1] + 7), fill=outline)
-        draw.ellipse((foot[0] - 11, foot[1] - 6, foot[0] + 13, foot[1] + 5), fill=leg_color)
-    frame.alpha_composite(feet)
-    return frame
+def rotated_leg(src: Image.Image, rect: tuple[int, int, int, int], angle: int, stretch: float) -> Image.Image:
+    layer = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    leg = src.crop(rect)
+    leg_w, leg_h = leg.size
+    stretched_h = min(SIZE - rect[1] + 6, round(leg_h * stretch))
+    leg = leg.resize((leg_w, stretched_h), Image.Resampling.NEAREST)
+    # Pull stretched feet slightly upward so the whole paw remains inside the
+    # 256px frame while still reading longer during the stride extension.
+    y = max(0, rect[1] - max(0, stretched_h - leg_h))
+    layer.alpha_composite(leg, (rect[0], y))
+    pivot = ((rect[0] + rect[2]) / 2, rect[1])
+    return layer.rotate(angle, resample=Image.Resampling.NEAREST, center=pivot)
 
 
 def build_sheet(src_path: Path, dest: Path) -> None:
     src = Image.open(src_path).convert("RGBA").resize((SIZE, SIZE), Image.Resampling.NEAREST)
 
     sheet = Image.new("RGBA", (SIZE * len(RUN_FRAMES), SIZE), (0, 0, 0, 0))
-    for i, pose in enumerate(RUN_FRAMES):
-        frame = draw_run_pose(src, pose)
+    for i, (left_angle, right_angle, stretch, lift) in enumerate(RUN_FRAMES):
+        frame = src.copy()
+        frame.alpha_composite(rotated_leg(src, LEG_RECTS["left"], left_angle, stretch))
+        frame.alpha_composite(rotated_leg(src, LEG_RECTS["right"], right_angle, stretch))
+        if lift:
+            grounded = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+            grounded.alpha_composite(frame, (0, lift))
+            frame = grounded
         sheet.alpha_composite(frame, (i * SIZE, 0))
 
     dest.parent.mkdir(parents=True, exist_ok=True)

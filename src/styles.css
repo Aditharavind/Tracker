@@ -627,6 +627,21 @@ h3 {
   background: none;
 }
 
+.invite-in-leaderboard {
+  margin-bottom: 14px;
+}
+
+.btn.danger {
+  background: var(--bad);
+  color: #fff;
+  border-color: transparent;
+}
+
+.btn.danger:hover {
+  filter: brightness(1.08);
+  color: #fff;
+}
+
 /* ---------------------------------------------------------------- note */
 
 .note {
@@ -1504,6 +1519,24 @@ h3 {
   text-align: center;
 }
 
+.confirm-modal {
+  width: 100%;
+  max-width: 340px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  text-align: center;
+}
+
+.confirm-modal h3 {
+  margin: 0 0 6px;
+}
+
+.confirm-modal p {
+  margin: 0 0 16px;
+}
+
 /* ---------------------------------------------------------------- alarm */
 
 .alarm-overlay {
@@ -2369,7 +2402,7 @@ h3 {
   image-rendering: pixelated;
   transform-origin: 47.8% 34.7%;
   transform: rotate(0deg);
-  animation: plant-mouth-close 3.4s ease-in-out infinite;
+  animation: plant-mouth-close 4s ease-in-out infinite;
 }
 
 @keyframes plant-bob {
@@ -2382,19 +2415,20 @@ h3 {
   }
 }
 
-/* Mouth is open (jaw at its painted resting angle) most of the loop, snaps
-   shut around the two-thirds mark, then reopens -- more "chomp" than a slow
-   chew, matching the guardian's threatening pose. */
+/* Mouth is open (jaw at its painted resting angle) most of the loop, then
+   both the close and the reopen take exactly 200ms (5% of the 4s duration)
+   to swing through, with a short closed hold between them -- more "chomp"
+   than a slow chew, matching the guardian's threatening pose. */
 @keyframes plant-mouth-close {
   0%,
-  62% {
+  55% {
     transform: rotate(0deg);
   }
-  70%,
-  86% {
+  60%,
+  67.5% {
     transform: rotate(-8deg);
   }
-  94%,
+  72.5%,
   100% {
     transform: rotate(0deg);
   }
@@ -3249,16 +3283,48 @@ h3 {
   display: block;
   width: 100%;
   height: 100%;
+  /* Bottom 24% (LEG_FRAC) is legs -- drawn separately below so they can
+     swing at the hip. Hiding it here instead of just letting the leg pieces
+     paint over it means there's no static leg art showing through the gap
+     between the two moving leg slices while they're mid-swing. */
+  clip-path: inset(0 0 24% 0);
 }
 
 .panda-run-sheet {
   position: absolute;
   inset: 0;
-  display: none;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  height: 100%;
   background-repeat: no-repeat;
-  background-size: 600% 100%;
   background-position: 0 0;
+  background-size: calc(var(--run-frames, 6) * 100%) 100%;
   image-rendering: pixelated;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+  will-change: background-position;
+}
+
+.panda-leg {
+  position: absolute;
+  top: 76%;
+  width: 22%;
+  height: 24%;
+  background-repeat: no-repeat;
+  background-size: 454.55% 416.67%;
+  background-position-y: 100%;
+}
+
+.panda-leg-l {
+  left: 30%;
+  background-position-x: 38.46%;
+}
+
+.panda-leg-r {
+  left: 48%;
+  background-position-x: 61.54%;
 }
 
 /* 3D mode: sprite base layer + model-viewer overlay in one box, so the
@@ -3401,16 +3467,17 @@ h3 {
 
 
 .panda-running {
-  animation: panda-run 0.43s steps(2, end) infinite;
+  animation: panda-run 0.428571s cubic-bezier(0.3, 0, 0.25, 1) infinite;
 }
 
-.panda-running .panda-flat-body {
+.panda-running .panda-flat-body,
+.panda-running .panda-leg {
   opacity: 0;
 }
 
 .panda-running .panda-run-sheet {
-  display: block;
-  animation: panda-run-sheet 0.43s steps(6, end) infinite;
+  opacity: 1;
+  animation: panda-run-sheet 0.428571s steps(var(--run-steps, 5), end) infinite;
 }
 
 .panda-jumping {
@@ -3432,17 +3499,20 @@ h3 {
 @keyframes panda-run {
   0%,
   100% {
-    transform: translateY(0) rotate(0deg);
+    transform: translateY(1px) rotate(0deg) scale(1.07, 0.93);
+  }
+  25% {
+    transform: translateY(0) rotate(-1.2deg) scale(0.96, 1.07);
   }
   50% {
-    transform: translateY(-4px) rotate(-3deg);
+    transform: translateY(-1px) rotate(-1.8deg) scale(0.94, 1.1);
+  }
+  75% {
+    transform: translateY(0) rotate(1.2deg) scale(0.98, 1.05);
   }
 }
 
 @keyframes panda-run-sheet {
-  from {
-    background-position-x: 0%;
-  }
   to {
     background-position-x: 100%;
   }
@@ -3611,8 +3681,47 @@ h3 {
     0 6px 10px rgba(0, 0, 0, 0.6);
 }
 
+/* ---------------------------------------------------------------- panda leg-swing */
+/* Idle/jump/land still use the lightweight sliced sprite. During running the
+   whole-character tracker atlas above is the visible layer, so these legacy
+   leg rules stay hidden and cannot read as a separately appended effect. */
+
+.panda .panda-leg-l,
+.panda .panda-leg-r {
+  transform-origin: 50% 0%;
+}
+
+.panda-running .panda-leg-l {
+  animation: none;
+}
+
+.panda-running .panda-leg-r {
+  animation: none;
+}
+
+@keyframes panda-leg-swing {
+  0%,
+  100% {
+    transform: rotate(-22deg) translateY(0);
+  }
+  50% {
+    transform: rotate(22deg) translateY(-1px);
+  }
+}
+
+@keyframes panda-leg-swing-alt {
+  0%,
+  100% {
+    transform: rotate(22deg) translateY(-1px);
+  }
+  50% {
+    transform: rotate(-22deg) translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .panda-running .panda-run-sheet {
+  .panda-running .panda-leg-l,
+  .panda-running .panda-leg-r {
     animation: none;
   }
 }

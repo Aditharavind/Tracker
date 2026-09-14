@@ -382,6 +382,41 @@ function ShareDialog({
   );
 }
 
+/** In-game styled stand-in for window.confirm() -- a native browser popup
+ * reads as a "web warning" (jarring chrome, no relation to the pixel-art
+ * game around it) rather than part of the app. Same pin-backdrop overlay
+ * as ShareDialog/PinModal so it matches the rest of the app's modals. */
+function ConfirmDialog({
+  title,
+  message,
+  confirmLabel,
+  danger,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="pin-backdrop" onClick={onCancel}>
+      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{title}</h3>
+        <p className="muted">{message}</p>
+        <button className={`btn wide${danger ? " danger" : " primary"}`} onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+        <button className="btn ghost wide" style={{ marginTop: 8 }} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AlarmOverlay({
   task,
   onDone,
@@ -467,6 +502,7 @@ export default function App() {
   const [adding, setAdding] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [confirmRestartOpen, setConfirmRestartOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile">(null);
   const [habitDraft, setHabitDraft] = useState("");
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
@@ -1134,7 +1170,6 @@ export default function App() {
 
   const restart = () => {
     if (meId == null) return;
-    if (!confirm("Wipe the current run and start again from day 1 today?")) return;
     const id = meId;
     runWithPin(id, async (pin) => {
       try {
@@ -1356,6 +1391,19 @@ export default function App() {
       )}
       {shareUrl && <ShareDialog name={me.name} url={shareUrl} kind="share" onClose={() => setShareUrl(null)} />}
       {inviteUrl && <ShareDialog name={me.name} url={inviteUrl} kind="invite" onClose={() => setInviteUrl(null)} />}
+      {confirmRestartOpen && (
+        <ConfirmDialog
+          title="Reset run?"
+          message="Wipe the current run and start again from day 1 today?"
+          confirmLabel="Wipe & restart"
+          danger
+          onConfirm={() => {
+            setConfirmRestartOpen(false);
+            restart();
+          }}
+          onCancel={() => setConfirmRestartOpen(false)}
+        />
+      )}
       {characterPanelOpen && (
         <CharacterSelect
           mode="switch"
@@ -1517,7 +1565,7 @@ export default function App() {
             <button
               type="button"
               className="daycard-reset daycard-iconbtn pixel-font"
-              onClick={restart}
+              onClick={() => setConfirmRestartOpen(true)}
               title="Reset run — wipe this run and start again from day 1"
               aria-label="Reset run"
             >
@@ -1561,15 +1609,9 @@ export default function App() {
             >
               <IconTrophy />
             </button>
-            <button
-              className={`rail-btn${openPanel === "stats" ? " on" : ""}`}
-              onClick={() => togglePanel("stats")}
-              aria-label="Stats"
-              aria-pressed={openPanel === "stats"}
-              title="Stats"
-            >
-              <IconStats />
-            </button>
+            {/* Stats used to have a rail icon here too, duplicating the
+                bottom nav's STATS tab -- same panel, two entry points for
+                no reason. Removed; the bottom tab is the only way in now. */}
             {/* Settings is already one tap away on the bottom PROFILE tab --
                 this slot used to duplicate that with a gear icon. Now it's
                 the app install shortcut instead, and only shows up when
@@ -1603,6 +1645,21 @@ export default function App() {
                   <IconClose />
                 </button>
               </div>
+              {users.length < 4 && (
+                <button
+                  type="button"
+                  className="btn primary wide invite-in-leaderboard"
+                  title="Get a link that lets a friend join your lobby"
+                  onClick={() => {
+                    const token = users.find((u) => u.id === meId)?.invite_token;
+                    if (!token) return;
+                    setInviteUrl(`${location.origin}${location.pathname}?join=${token}`);
+                  }}
+                >
+                  Invite a player
+                </button>
+              )}
+
               <Rivals board={board} meId={me.user_id} />
 
               {dashBoard.length > 0 && (
@@ -1843,17 +1900,6 @@ export default function App() {
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button
-                    className="btn"
-                    title="Get a link that lets a friend join your lobby"
-                    onClick={() => {
-                      const token = users.find((u) => u.id === meId)?.invite_token;
-                      if (!token) return;
-                      setInviteUrl(`${location.origin}${location.pathname}?join=${token}`);
-                    }}
-                  >
-                    Invite
-                  </button>
                   <button
                     className="btn"
                     title="Get a read-only link to your progress -- no PIN, no editing"

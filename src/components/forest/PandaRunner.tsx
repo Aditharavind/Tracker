@@ -12,6 +12,7 @@ import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "
 import { drawCoin } from "../../game/coinArt";
 import { createSeededRandom } from "../../game/seededRandom";
 import { CHARACTER_RUN_ATLAS, characterRunFrame } from "../../game/characterRunAtlas";
+import { drawPlant, PLANT_SPRITE_ASPECT } from "../../game/plantJaw";
 import type { DayCell } from "../../types";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
@@ -185,7 +186,8 @@ export default function PandaRunner({
     bg?: HTMLImageElement;
     panda?: HTMLImageElement;
     run?: HTMLImageElement;
-    plant?: HTMLImageElement;
+    plantHead?: HTMLImageElement;
+    plantJaw?: HTMLImageElement;
     mine?: HTMLImageElement;
     grassLeft?: HTMLImageElement;
     grassMid?: HTMLImageElement;
@@ -236,7 +238,8 @@ export default function PandaRunner({
     imgs.current.bg = load("/assets/forest-bg-1.webp");
     imgs.current.panda = load(CHARACTER_SPRITE[character]);
     imgs.current.run = load(CHARACTER_RUN_ATLAS.characters[character].src);
-    imgs.current.plant = load("/assets/zombie-plant.webp");
+    imgs.current.plantHead = load("/assets/zombie-plant-head.webp");
+    imgs.current.plantJaw = load("/assets/zombie-plant-jaw.webp");
     imgs.current.mine = load("/assets/landmine.webp");
     imgs.current.grassLeft = load("/assets/grass-left.webp");
     imgs.current.grassMid = load("/assets/grass-mid.webp");
@@ -327,12 +330,15 @@ export default function PandaRunner({
       const hx = h.x * sx;
       const baseY = yPx(h.y) + 1; // a hair into the moss so it reads as planted
       if (h.kind === "plant") {
-        const im = imgs.current.plant;
+        const headIm = imgs.current.plantHead;
+        const jawIm = imgs.current.plantJaw;
         const hh = charH * 1.05;
-        const hw = im?.naturalWidth ? hh * (im.naturalWidth / im.naturalHeight) : hh * 0.85;
-        if (im && im.complete && im.naturalWidth) {
+        const hw = hh / PLANT_SPRITE_ASPECT;
+        if (headIm && headIm.complete && headIm.naturalWidth && jawIm && jawIm.complete && jawIm.naturalWidth) {
           ctx.filter = h.hue ? `hue-rotate(${h.hue}deg) saturate(1.4)` : "none";
-          ctx.drawImage(im, hx - hw / 2, baseY - hh, hw, hh);
+          // Stagger each hazard's chomp phase by its id so a row of plants
+          // doesn't bite in unison.
+          drawPlant(ctx, headIm, jawIm, hx - hw / 2, baseY - hh, hw, st.t, h.id * 137);
           ctx.filter = "none";
         } else {
           ctx.fillStyle = "#6fae4a";

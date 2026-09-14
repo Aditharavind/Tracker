@@ -131,18 +131,29 @@ function Panda3D({
  * box and the same CSS-transform animation classes below without any
  * per-character tuning.
  *
- * The static sprite is always present for idle/jump/fall states. Running uses
- * the same whole-character atlas frames as Forest Dash, so every app surface
- * shows one consistent character instead of separate CSS leg pieces that can
- * visually split the lower body from the torso.
+ * Running uses the same whole-character frame atlas as Forest Dash instead
+ * of a body layer plus separately-rotated leg slices. That keeps the stride
+ * coherent: every frame includes the cleaned feet, body, and tail together,
+ * so no black/empty padding or "appended" leg layer can peek through mid-run.
  */
 const PandaFlat = ({ character }: { character: CharacterId }) => {
   const src = CHARACTER_SPRITE[character];
-  const runSrc = CHARACTER_RUN_ATLAS.characters[character].src;
+  const run = CHARACTER_RUN_ATLAS.characters[character];
   return (
     <div className={`panda-model panda-flat panda-flat-${character}`}>
       <img className="panda-flat-body" src={src} alt="" aria-hidden="true" />
-      <span className="panda-run-sheet" style={{ backgroundImage: `url(${runSrc})` }} />
+      <span className="panda-leg panda-leg-l" style={{ backgroundImage: `url(${src})` }} />
+      <span className="panda-leg panda-leg-r" style={{ backgroundImage: `url(${src})` }} />
+      <span
+        className="panda-run-sheet"
+        style={
+          {
+            backgroundImage: `url(${run.src})`,
+            ["--run-frames" as string]: run.clips.run.frames,
+            ["--run-steps" as string]: Math.max(1, run.clips.run.frames - 1),
+          } as CSSProperties
+        }
+      />
     </div>
   );
 };

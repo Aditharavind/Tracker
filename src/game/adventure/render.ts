@@ -4,11 +4,12 @@ import type { Settings } from "./save";
 import { BOSS_SPRITES, EFFECT_SPRITES, drawBossSprite, drawEffect, type EffectName } from "./sprites";
 import { CHARACTER_EYES, CHARACTER_FUR, CHARACTER_SPRITE } from "../characters";
 import { drawCoin } from "../coinArt";
+import { drawPlant, PLANT_SPRITE_ASPECT } from "../plantJaw";
 
-export type Art = { forest: HTMLImageElement; panda: HTMLImageElement; bush: HTMLImageElement; plant: HTMLImageElement; boss: HTMLImageElement; effects: HTMLImageElement };
+export type Art = { forest: HTMLImageElement; panda: HTMLImageElement; bush: HTMLImageElement; plantHead: HTMLImageElement; plantJaw: HTMLImageElement; boss: HTMLImageElement; effects: HTMLImageElement };
 export function loadArt(world?: number): Art {
   const load = (path: string) => { const image = new Image(); image.src = path; return image; };
-  return { forest: load("/assets/story/forest-journey.webp"), panda: load(CHARACTER_SPRITE.panda), bush: load("/assets/bush.webp"), plant: load("/assets/zombie-plant.webp"), boss: load(world !== undefined && world < 7 ? BOSS_SPRITES[world].src : CHARACTER_SPRITE.panda), effects: load(EFFECT_SPRITES.src) };
+  return { forest: load("/assets/story/forest-journey.webp"), panda: load(CHARACTER_SPRITE.panda), bush: load("/assets/bush.webp"), plantHead: load("/assets/zombie-plant-head.webp"), plantJaw: load("/assets/zombie-plant-jaw.webp"), boss: load(world !== undefined && world < 7 ? BOSS_SPRITES[world].src : CHARACTER_SPRITE.panda), effects: load(EFFECT_SPRITES.src) };
 }
 export type Camera = { x: number; zoom: number };
 export const newCamera = (): Camera => ({ x: 0, zoom: 1 });
@@ -171,7 +172,10 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
     const enemy = s.enemies[i]; if (enemy.hp <= 0 || !onscreen(enemy.x)) continue;
     ctx.save(); if (enemy.hit > 0) ctx.globalAlpha = .5;
     const kind = level.enemies[i].kind;
-    if (kind === "rootling" && ready(art.plant)) ctx.drawImage(art.plant, enemy.x - 23, enemy.y - 42, 46, 46);
+    if (kind === "rootling" && ready(art.plantHead) && ready(art.plantJaw)) {
+      const w = 40, h = w * PLANT_SPRITE_ASPECT; // bottom edge matches the old 46x46 square's
+      drawPlant(ctx, art.plantHead, art.plantJaw, enemy.x - w / 2, enemy.y + 4 - h, w, s.worldTime * 1000, i * 211);
+    }
     else {
       const sway = reduced ? 0 : Math.sin(s.worldTime * 7 + i) * 3;
       oval(ctx, enemy.x, enemy.y - 18, 22, 21, kind === "armored" ? "#797487" : world.tint);
