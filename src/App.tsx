@@ -28,7 +28,7 @@ import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
 import { unlockedArcCount } from "./game/weekSystem";
 import { isAlarmDue, toMinutes } from "./game/alarm";
-import { useInstallPrompt } from "./installPrompt";
+import { isStandalone, useInstallPrompt } from "./installPrompt";
 import CharacterSelect from "./components/CharacterSelect";
 import { CHARACTER_SPRITE, CHARACTERS, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
@@ -483,6 +483,36 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
+  }, []);
+
+  // Prefer landscape for this panel on a mobile PWA -- the clock reads
+  // better wide than tall, and this is the one screen in the app where
+  // that's worth asking for. Scoped to just this panel (not the manifest's
+  // app-wide orientation, which every other screen still ignores) via the
+  // Screen Orientation API, which only works in an already-fullscreen/
+  // standalone context -- so this no-ops for anyone browsing in a normal
+  // mobile tab. It also has zero support on iOS Safari (Apple has never
+  // implemented the lock() method), so there this is silently a no-op too:
+  // the CSS's `@media (orientation: landscape)` layout below still kicks in
+  // if the phone happens to already be held sideways, but nothing here can
+  // force that to happen on iOS. Unlocked again on close so the rest of the
+  // app goes back to rotating freely.
+  useEffect(() => {
+    if (!isStandalone()) return;
+    const orientation = screen.orientation as
+      | (ScreenOrientation & { lock?: (o: string) => Promise<void>; unlock?: () => void })
+      | undefined;
+    if (!orientation?.lock) return;
+    orientation.lock("landscape").catch(() => {
+      /* unsupported context (not fullscreen, or a browser without lock()) -- fine, see comment above */
+    });
+    return () => {
+      try {
+        orientation.unlock?.();
+      } catch {
+        /* ignore */
+      }
+    };
   }, []);
 
   // Re-resolve every tick so a phase boundary crossed while this panel is

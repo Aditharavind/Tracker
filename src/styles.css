@@ -2181,26 +2181,20 @@ h3 {
 
 /* .panel-drawer is already position:absolute; inset:0 -- turning it into a
    column flex box here lets .pomodoro-body claim the remaining height below
-   the header and centre its content both ways in that space, rather than
-   just centring horizontally and sitting at the top. */
+   the header row and centre its content both ways in that space, rather
+   than just centring horizontally and sitting at the top. */
 .pomodoro-drawer {
   display: flex;
   flex-direction: column;
 }
 
-/* Close button pulled out of flow (top-right corner) so the title can sit
-   truly centred in the header instead of centred-minus-half-a-close-button. */
+/* The title now lives inside .pomodoro-body (right above the clock, not
+   pinned to the very top of the panel) -- this row is just the close
+   button now, so pull it to the right instead of space-between with
+   nothing on the left. */
 .pomodoro-drawer .panel-drawer-head {
   flex: none;
-  position: relative;
-  justify-content: center;
-}
-
-.pomodoro-drawer .panel-drawer-head .panel-close {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  justify-content: flex-end;
 }
 
 .pomodoro-body {
@@ -2209,20 +2203,24 @@ h3 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 24px 0 12px;
+  gap: 8px;
+  padding: 12px 0;
 }
 
-/* Bigger, chiselled pixel-art heading -- dark-yellow fill with stacked
-   brown "steps" (each 1px further down/right, each a shade darker) reading
-   as an extruded 3D block in the pixel font, same technique as
-   .brand-rock's carved-rock wordmark elsewhere in this file, just kept in
-   the game's own pixel font instead of switching to Titan One. Scoped to
-   this panel only -- the other panel-drawer headers (Leaderboard/Stats/
-   Habits/Profile) keep their small flat-uppercase style. */
-.pomodoro-drawer .panel-drawer-head h2 {
-  font-size: 32px;
-  color: #d9a83a;
+/* Chiselled pixel-art heading -- bright yellow fill with stacked brown
+   "steps" (each 1px further down/right, each a shade darker) reading as an
+   extruded 3D block in the pixel font, same technique as .brand-rock's
+   carved-rock wordmark elsewhere in this file, just kept in the game's own
+   pixel font instead of switching to Titan One. Sits right above the phase
+   label/clock (part of the same centred group) rather than pinned to the
+   panel's top edge, and rather than dead-centre in the viewport either --
+   the clock is still the visual anchor. Scoped to this panel only -- the
+   other panel-drawer headers (Leaderboard/Stats/Habits/Profile) keep their
+   small flat-uppercase style. */
+.pomodoro-title {
+  margin: 0 0 6px;
+  font-size: 46px;
+  color: #ffd23f;
   text-shadow:
     1px 1px 0 #6b4410,
     2px 2px 0 #5c3a0d,
@@ -2249,6 +2247,36 @@ h3 {
   font-size: clamp(20px, 5vw, 30px);
 }
 
+/* The clock is itself the Start/Pause control (tap the timer to run it,
+   like a physical kitchen timer) instead of a separate button -- see the
+   comment on toggleRunning in PomodoroPanel. Reset from a <button> and
+   given a focus ring since it's a real control now, not decoration. */
+.pomodoro-clock-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.pomodoro-clock-btn:hover .day-clock-frame,
+.pomodoro-clock-btn:focus-visible .day-clock-frame {
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)) brightness(1.12);
+}
+
+.pomodoro-clock-btn:focus-visible {
+  outline: 2px solid var(--forest-gold, #f0c04a);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.pomodoro-tap-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
 .pomodoro-cycle {
   font-size: 12.5px;
 }
@@ -2263,6 +2291,32 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Landscape phones (the orientation the panel now asks for on a mobile PWA
+   -- see PomodoroPanel's orientation-lock effect): a short, wide viewport
+   can't fit the portrait column's stack without scrolling, so wrap it into
+   a row instead. Title becomes a full-width strip above the row rather than
+   its own tall block, keeping vertical space for the part that matters --
+   the clock. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .pomodoro-body {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 10px 20px;
+    padding: 8px 16px;
+  }
+
+  .pomodoro-title {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 26px;
+  }
+
+  .pomodoro-clock {
+    width: clamp(160px, 32vh, 240px);
+  }
 }
 
 /* Ground. Solid through the start area, then absent for the whole platform
