@@ -9,6 +9,12 @@ type AdminUserStats = {
   start_date: string;
   run_start: string;
   timezone: string | null;
+  timezone_region: string | null;
+  last_seen_at: string | null;
+  last_country: string | null;
+  last_region: string | null;
+  last_city: string | null;
+  location_label: string;
   wake_time: string | null;
   day_number: number;
   lives: number;
@@ -45,8 +51,16 @@ type AdminSummary = {
     total_completions: number;
     average_streak: number;
   };
+  charts: {
+    locations: ChartRow[];
+    countries: ChartRow[];
+    timezone_regions: ChartRow[];
+    signup_days: ChartRow[];
+  };
   users: AdminUserStats[];
 };
+
+type ChartRow = { label: string; count: number };
 
 const TOKEN_KEY = "75hard.admin.basic";
 
@@ -62,6 +76,31 @@ const statLabel = (key: string) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (m) => m.toUpperCase())
     .replace("7 Days", "7 Days");
+
+function AdminBarChart({ title, rows }: { title: string; rows: ChartRow[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.count));
+
+  return (
+    <div className="admin-chart">
+      <h2>{title}</h2>
+      <div className="admin-chart-bars">
+        {rows.length === 0 ? (
+          <p className="muted">No data yet</p>
+        ) : (
+          rows.map((row) => (
+            <div className="admin-chart-row" key={row.label}>
+              <span title={row.label}>{row.label}</span>
+              <div className="admin-chart-track">
+                <i style={{ width: `${Math.max(6, (row.count / max) * 100)}%` }} />
+              </div>
+              <strong className="num">{row.count}</strong>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPanel() {
   const [username, setUsername] = useState("");
@@ -106,7 +145,7 @@ export default function AdminPanel() {
     const needle = query.trim().toLowerCase();
     if (!summary || !needle) return summary?.users ?? [];
     return summary.users.filter((u) =>
-      [u.name, String(u.id), String(u.group_id ?? ""), u.timezone ?? ""].some((v) =>
+      [u.name, String(u.id), String(u.group_id ?? ""), u.timezone ?? "", u.location_label].some((v) =>
         v.toLowerCase().includes(needle)
       )
     );
@@ -175,6 +214,13 @@ export default function AdminPanel() {
             ))}
           </section>
 
+          <section className="admin-chart-grid">
+            <AdminBarChart title="Login Places" rows={summary.charts.locations} />
+            <AdminBarChart title="Countries" rows={summary.charts.countries} />
+            <AdminBarChart title="Timezone Regions" rows={summary.charts.timezone_regions} />
+            <AdminBarChart title="New Users - 7 Days" rows={summary.charts.signup_days} />
+          </section>
+
           <section className="admin-users">
             <div className="admin-users-head">
               <div>
@@ -199,7 +245,9 @@ export default function AdminPanel() {
                 <thead>
                   <tr>
                     <th>User</th>
+                    <th>Place</th>
                     <th>Joined</th>
+                    <th>Last Seen</th>
                     <th>Day</th>
                     <th>Streak</th>
                     <th>Today</th>
@@ -222,7 +270,12 @@ export default function AdminPanel() {
                           </div>
                         </div>
                       </td>
+                      <td>
+                        {u.location_label}
+                        <small>{u.last_country ?? u.timezone_region ?? "unknown"}</small>
+                      </td>
                       <td>{compactDate(u.created_at)}</td>
+                      <td>{compactDate(u.last_seen_at)}</td>
                       <td className="num">{u.day_number}/75</td>
                       <td className="num">{u.streak} / {u.best_streak}</td>
                       <td className={u.perfect_today ? "admin-good" : ""}>

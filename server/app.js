@@ -160,6 +160,43 @@ function clientIp(req) {
   return req.socket?.remoteAddress ?? "unknown";
 }
 
+const firstHeader = (req, names) => {
+  for (const name of names) {
+    const raw = req.headers[name];
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+};
+
+const cleanGeo = (value, max = 80) => {
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value).replace(/\+/g, " ").trim().slice(0, max) || null;
+  } catch {
+    return String(value).replace(/\+/g, " ").trim().slice(0, max) || null;
+  }
+};
+
+function geoFromHeaders(req) {
+  return {
+    country: cleanGeo(firstHeader(req, ["x-vercel-ip-country", "cf-ipcountry", "x-country-code"]), 2)?.toUpperCase() ?? null,
+    region: cleanGeo(firstHeader(req, ["x-vercel-ip-country-region", "x-vercel-ip-region", "x-region"]), 80),
+    city: cleanGeo(firstHeader(req, ["x-vercel-ip-city", "x-city"]), 80),
+  };
+}
+
+const timezoneRegion = (timezone) => {
+  const [region] = String(timezone ?? "").split("/", 1);
+  return region || null;
+};
+
+function locationLabel(user) {
+  const parts = [user.last_city, user.last_region, user.last_country].filter(Boolean);
+  if (parts.length) return parts.join(", ");
+  return timezoneRegion(user.timezone) ?? "Unknown";
+}
+
 /**
  * How stale last_seen_at may get before it is worth a write. Ten minutes is
  * far finer than /session/suggest needs -- it only asks "who was last here from
@@ -182,16 +219,32 @@ const SESSION_TOUCH_MS = 10 * 60_000;
  */
 async function touchSession(store, user, req) {
   const ip = clientIp(req);
+  const geo = geoFromHeaders(req);
   const seen = user.last_seen_at ? Date.parse(user.last_seen_at) : NaN;
   const fresh = Number.isFinite(seen) && Date.now() - seen < SESSION_TOUCH_MS;
-  if (fresh && user.last_ip === ip) return;
+  const sameGeo =
+    (user.last_country ?? null) === geo.country &&
+    (user.last_region ?? null) === geo.region &&
+    (user.last_city ?? null) === geo.city;
+  if (fresh && user.last_ip === ip && sameGeo) return;
 
   try {
     await store.updateUser(user.id, {
       last_ip: ip,
       last_seen_at: new Date().toISOString(),
+      last_country: geo.country,
+      last_region: geo.region,
+      last_city: geo.city,
     });
-  } catch {
+  } catch (err) {
+    try {
+      await store.updateUser(user.id, {
+        last_ip: ip,
+        last_seen_at: new Date().toISOString(),
+      });
+    } catch {
+      /* handled below */
+    }
     // A database still on migration-03 has no last_ip column. The suggestion
     // is a nicety -- never fail a board load over it.
   }
@@ -302,6 +355,12 @@ async function adminSummary(store) {
       start_date: startDate,
       run_start: progress.run_start,
       timezone: user.timezone ?? null,
+      timezone_region: timezoneRegion(user.timezone),
+      last_seen_at: user.last_seen_at ?? null,
+      last_country: user.last_country ?? null,
+      last_region: user.last_region ?? null,
+      last_city: user.last_city ?? null,
+      location_label: locationLabel(user),
       wake_time: user.wake_time ?? null,
       day_number: progress.day_number,
       lives: progress.lives,
@@ -340,6 +399,28 @@ async function adminSummary(store) {
   const averageStreak = rows.length
     ? Math.round((rows.reduce((sum, u) => sum + u.streak, 0) / rows.length) * 10) / 10
     : 0;
+  const chart = (items) =>
+    [...items.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .slice(0, 8);
+  const countBy = (pick) => {
+    const map = new Map();
+    for (const row of rows) {
+      const label = pick(row) || "Unknown";
+      map.set(label, (map.get(label) ?? 0) + 1);
+    }
+    return map;
+  };
+  const signupsByDay = new Map();
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    signupsByDay.set(d, 0);
+  }
+  for (const user of users) {
+    const day = String(user.created_at ?? "").slice(0, 10);
+    if (signupsByDay.has(day)) signupsByDay.set(day, (signupsByDay.get(day) ?? 0) + 1);
+  }
 
   return {
     generated_at: now.toISOString(),
@@ -354,6 +435,12 @@ async function adminSummary(store) {
       total_tasks: tasks.length,
       total_completions: completions.length,
       average_streak: averageStreak,
+    },
+    charts: {
+      locations: chart(countBy((u) => u.location_label)),
+      countries: chart(countBy((u) => u.last_country)),
+      timezone_regions: chart(countBy((u) => u.timezone_region)),
+      signup_days: [...signupsByDay.entries()].map(([label, count]) => ({ label, count })),
     },
     users: rows.sort((a, b) => {
       const recent = String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));

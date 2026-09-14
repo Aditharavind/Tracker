@@ -642,6 +642,14 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   });
   assert.equal(wrong.status, 401);
 
+  await fetch(`${base}/users?as=${adith.id}`, {
+    headers: {
+      "x-vercel-ip-country": "IN",
+      "x-vercel-ip-country-region": "KL",
+      "x-vercel-ip-city": "Kochi",
+    },
+  });
+
   const ok = await fetch(`${base}/admin/summary`, {
     headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
   });
@@ -652,10 +660,15 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   assert.ok(body.totals.new_users_today >= 0);
   assert.ok(body.totals.new_users_7_days >= body.totals.new_users_today);
   assert.ok(body.users.some((u) => u.name === "Adith"));
+  assert.ok(body.charts.locations.some((r) => r.label === "Kochi, KL, IN"));
+  assert.ok(body.charts.countries.some((r) => r.label === "IN"));
+  assert.equal(body.charts.signup_days.length, 7);
 
-  const first = body.users[0];
-  assert.equal("pin_hash" in first, false, "admin rows never expose PIN hashes");
-  assert.equal("share_token" in first, false, "admin rows never expose share tokens");
-  assert.equal(typeof first.streak, "number");
-  assert.equal(typeof first.task_count, "number");
+  const adithRow = body.users.find((u) => u.name === "Adith");
+  assert.equal("pin_hash" in adithRow, false, "admin rows never expose PIN hashes");
+  assert.equal("share_token" in adithRow, false, "admin rows never expose share tokens");
+  assert.equal("last_ip" in adithRow, false, "admin rows never expose raw IPs");
+  assert.equal(adithRow.location_label, "Kochi, KL, IN");
+  assert.equal(typeof adithRow.streak, "number");
+  assert.equal(typeof adithRow.task_count, "number");
 });

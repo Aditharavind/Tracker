@@ -47,6 +47,11 @@ create table if not exists public.users (
   -- Grants nothing: every write still needs the PIN.
   last_ip      text,
   last_seen_at timestamptz,
+  -- Coarse geo from hosting-provider request headers, when available. Used
+  -- only in the private admin panel; falls back to timezone when absent.
+  last_country text,
+  last_region  text,
+  last_city    text,
   -- Lets sign-in match on an indexed equality instead of an unindexable ILIKE.
   name_lower  text generated always as (lower(name)) stored,
   created_at  timestamptz not null default now(),
@@ -217,6 +222,9 @@ alter table public.coach_messages enable row level security;
 -- Backs the /session/suggest lookup (most recent user from an address).
 create index if not exists users_last_ip_idx
   on public.users (last_ip, last_seen_at desc);
+
+create index if not exists users_last_geo_idx
+  on public.users (last_country, last_region, last_city);
 
 -- Backs the global Forest Dash leaderboard.
 create index if not exists users_dash_coins_idx
