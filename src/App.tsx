@@ -1646,11 +1646,6 @@ export default function App() {
           onClose={() => setWeekMapOpen(false)}
           onOpenWorld={(w) => {
             setWeekMapOpen(false);
-            // Week 1 / world 0 ("The Sleeping Forest") is the same forest
-            // the daily climb already happens in -- there's nothing
-            // separate to open. Every later world is a genuinely different
-            // environment, so those still launch Story Mode.
-            if (w === 0) return;
             setStoryWorld(w);
             setStoryOpen(true);
           }}

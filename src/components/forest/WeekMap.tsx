@@ -182,7 +182,7 @@ export default function WeekMap({
             const hasWorld = node.arc <= STORY_ARC_LIMIT;
             const world = hasWorld ? WORLDS[node.arc - 1] : null;
             const locked = node.arc > visibleUnlockedArcs;
-            const open = !locked && isArcConsistent(calendar, node.arc);
+            const open = hasWorld && !locked && (node.arc === 1 || isArcConsistent(calendar, node.arc));
             const label = locked
               ? `Arc ${node.arc} locked`
               : !hasWorld
