@@ -10,8 +10,33 @@ const SharedView = React.lazy(() => import("./components/SharedView"));
 const JoinLobby = React.lazy(() => import("./components/JoinLobby"));
 const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
 
-// autoUpdate: a new deploy is picked up on the next launch.
-registerSW({ immediate: true });
+const params = new URLSearchParams(location.search);
+const shareToken = params.get("share");
+const joinToken = params.get("join");
+const isAdminRoute = location.pathname === "/adminpanda";
+const isPrimaryAppRoute = !isAdminRoute && !shareToken && !joinToken;
+
+const w = window as Window & {
+  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void;
+};
+
+const runWhenIdle = (task: () => void, timeout: number) => {
+  if (typeof w.requestIdleCallback === "function") {
+    w.requestIdleCallback(task, { timeout });
+  } else {
+    w.setTimeout(task, Math.min(timeout, 1200));
+  }
+};
+
+// autoUpdate: a new deploy is picked up on the next launch. Registration is
+// delayed until after load/idle so the service worker's install fetches do not
+// compete with the first screen.
+const registerAppServiceWorker = () => runWhenIdle(() => registerSW({ immediate: false }), 2500);
+if (document.readyState === "complete") {
+  registerAppServiceWorker();
+} else {
+  window.addEventListener("load", registerAppServiceWorker, { once: true });
+}
 
 // The forest character is a <model-viewer>, so its ~1MB runtime gets pulled in
 // on the first screen whether or not anything else needs 3D. It is deliberately
@@ -45,24 +70,15 @@ registerSW({ immediate: true });
 // unhandled rejection -- anything rendering a <model-viewer> already falls back
 // to the flat sprite when it never resolves.
 const startViewer = () => void loadModelViewer().catch(() => {});
-const w = window as Window & {
-  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void;
-};
 // The timeout is a ceiling, not a delay: if the phone never goes idle it starts
 // anyway, so a busy device still ends up with the 3D character.
-if (typeof w.requestIdleCallback === "function") {
-  w.requestIdleCallback(startViewer, { timeout: 3000 });
-} else {
-  w.setTimeout(startViewer, 1200);
+if (isPrimaryAppRoute) {
+  runWhenIdle(startViewer, 3000);
 }
-
-const params = new URLSearchParams(location.search);
-const shareToken = params.get("share");
-const joinToken = params.get("join");
 
 function Root() {
   const view =
-    location.pathname === "/adminpanda" ? (
+    isAdminRoute ? (
       <AdminPanel />
     ) : shareToken ? (
       <SharedView token={shareToken} />

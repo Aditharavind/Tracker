@@ -32,30 +32,15 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // The 3D viewer chunk and the character .glb models ARE precached, and
-        // that is deliberate: the forest panda is a <model-viewer>, so both are
-        // on the critical path of the very first screen, not behind a tap.
-        // Leaving them to the runtime CacheFirst rule below meant they were
-        // only ever cached as a side effect of a visit that got far enough to
-        // mount the panda -- so a first visit that was interrupted, or one on a
-        // flaky connection, cached nothing and paid the full ~1.1MB again next
-        // time. Precaching fetches them during service-worker install, off the
-        // critical path, and makes every subsequent load a guaranteed hit with
-        // no revalidation.
-        //
-        // public/avatars/*.glb stays out: 6MB for the old Runner avatars, which
-        // nothing renders any more (Runner's Avatar3D export is unreferenced).
-        // Draco/Basis decoders stay out too -- the character models are plain
-        // glTF with no compression extensions, so model-viewer never asks for
-        // them; the ignore is future-proofing, and one of those chunks is
-        // ~720KB, which would fail the build if it were ever precached.
-        //
-        // The forest background is precached for the same reason: as WebP it is
-        // ~120KB rather than the 1.8MB PNG it replaced, and it is the first
-        // thing you see.
+        // Keep the guaranteed app shell small. Heavy visual files are still
+        // cached on the user's device, but through CacheFirst runtime rules
+        // when a route actually asks for them. That avoids pulling the 3D
+        // viewer, models, story art, or map art during service-worker install
+        // on admin/share/invite pages.
         globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2,glb}"],
         globIgnores: [
-          "**/avatars/*.glb",
+          "**/model-viewer-*.js",
+          "**/*.glb",
           "**/draco_*.js",
           "**/basis_transcoder-*.js",
           "**/Adventure-*.js",
@@ -80,9 +65,8 @@ export default defineConfig({
           "**/WeekMap-*.js",
           "**/WeekMap-*.css",
         ],
-        // Sized to admit the current app shell plus the ~1.05MB model-viewer
-        // runtime. Deliberately lazy story/Phaser assets are excluded by name
-        // above rather than slipping under this cap.
+        // Sized to admit the app shell. Deliberately lazy story/Phaser/model
+        // assets are excluded by name above rather than slipping under this cap.
         maximumFileSizeToCacheInBytes: 7 * 1024 * 1024,
         // The API must never be served from cache -- a stale streak is worse
         // than no streak. Navigation falls back to the shell when offline.
@@ -126,12 +110,8 @@ export default defineConfig({
             handler: "NetworkOnly",
           },
           {
-            // Backstop for the heavy assets that are NOT precached above -- the
-            // Draco/Basis decoders if a compressed model is ever shipped, and
-            // the avatars/*.glb set if anything starts rendering it again. The
-            // precache route is registered first, so anything already in the
-            // precache is served from there and never reaches this rule.
-            // Big, content-hashed, rarely changed: cache once, reuse for weeks.
+            // Big, content-hashed, rarely changed visual dependencies: cache
+            // once on first real use, then reuse for weeks.
             urlPattern: /model-viewer-.*\.js$|draco_.*\.js$|basis_transcoder-.*\.js$|\.glb$/,
             handler: "CacheFirst",
             options: {
