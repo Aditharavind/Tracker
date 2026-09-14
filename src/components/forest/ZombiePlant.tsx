@@ -7,8 +7,10 @@
  * own. Both are real cropped pixels, not a synthesized closed-mouth frame.
  * The jaw layer rotates around the mouth's back-left corner (a real hinge,
  * set as its CSS transform-origin) -- one end anchored at the pivot, the
- * other swinging up to close the gap and back down to open it, 500ms each
- * way (see @keyframes plant-mouth-close in styles.css). Earlier attempts: a
+ * other swinging -14deg to bring the teeth into contact and back down to
+ * open, 200ms each way with a 300ms closed hold and a 200ms open gap before
+ * repeating -- a rapid, repeated bite rather than one occasional chomp (see
+ * @keyframes plant-mouth-close in styles.css). Earlier attempts: a
  * flat-colour shutter (a plain oval dropped over the mouth) read as a stray
  * green circle, not a jaw; a version using the un-split
  * zombie-plant-open.webp as the base left a duplicate jaw always visible

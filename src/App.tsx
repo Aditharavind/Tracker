@@ -34,7 +34,18 @@ import { CHARACTER_SPRITE, CHARACTERS, isCharacterId, type CharacterId } from ".
 import FailureBanner from "./components/forest/FailureBanner";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
-import { isMuted, primeJump, toggleMuted } from "./sound";
+import { isMuted, playPomodoroChime, primeJump, toggleMuted } from "./sound";
+import {
+  isRunning as pomodoroIsRunning,
+  loadPomodoro,
+  pause as pomodoroPause,
+  remainingMs as pomodoroRemainingMs,
+  resolvePomodoro,
+  savePomodoro,
+  startOrResume as pomodoroStartOrResume,
+  stop as pomodoroStop,
+  type PomodoroState,
+} from "./game/pomodoro";
 import { maybeRemind, shouldOfferPrompt } from "./notifications";
 import PandaPeekPrompt from "./components/PandaPeekPrompt";
 
@@ -271,6 +282,31 @@ function IconRestart() {
   );
 }
 
+function IconPlay() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3.5 1.8v12.4l10-6.2Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconPause() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="3" y="2" width="3.4" height="12" rx="0.8" fill="currentColor" />
+      <rect x="9.6" y="2" width="3.4" height="12" rx="0.8" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconStop() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="11" height="11" rx="1.4" fill="currentColor" />
+    </svg>
+  );
+}
+
 const storedAvatars = (): Record<number, AvatarId> => {
   try {
     const raw = localStorage.getItem(AVATAR_KEY);
@@ -417,6 +453,120 @@ function ConfirmDialog({
   );
 }
 
+const formatMMSS = (ms: number): string => {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+};
+
+/**
+ * A standalone focus timer opened from the day-clock badge -- 25min work /
+ * 5min break, repeating until Stop. Per-user (keyed by `userId` in
+ * game/pomodoro.ts's localStorage record) so switching players never shows
+ * or clobbers someone else's running session. Deliberately outside the
+ * 75-day challenge's own state: never touches tasks/lives/coins/streak (see
+ * CLAUDE.md's "coins/animations must never drive challenge state" --
+ * applies just as much to a feature that isn't coins/animation but still
+ * isn't the challenge itself).
+ *
+ * Closing this panel (the X button) does NOT stop a running timer -- same
+ * as DayCountdown, it just stops being shown. The state is re-derived from
+ * the persisted phaseEndAt timestamp next time it's opened (or the app is
+ * reloaded), catching up through however many phases elapsed while it was
+ * closed (game/pomodoro.ts's resolvePomodoro).
+ */
+function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => void }) {
+  const [state, setState] = useState<PomodoroState>(() => loadPomodoro(userId));
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Re-resolve every tick so a phase boundary crossed while this panel is
+  // open (not just while it was closed) still advances phase/cycle, plays
+  // the chime, and persists -- the same resolvePomodoro used for
+  // resume-after-reload, just driven by the live clock instead of mount time.
+  useEffect(() => {
+    setState((prev) => {
+      const resolved = resolvePomodoro(prev, now);
+      if (resolved === prev) return prev;
+      savePomodoro(userId, resolved);
+      if (resolved.phaseEndAt != null) playPomodoroChime();
+      return resolved;
+    });
+  }, [now, userId]);
+
+  const remaining = pomodoroRemainingMs(state, now);
+  const running = pomodoroIsRunning(state);
+  const resuming = !running && state.pausedRemainingMs > 0 && state.pausedRemainingMs < (state.phase === "work" ? 25 * 60 * 1000 : 5 * 60 * 1000);
+
+  const act = (next: PomodoroState) => {
+    setState(next);
+    savePomodoro(userId, next);
+  };
+
+  // Tapping the clock face itself toggles start/pause -- the primary
+  // interaction is "touch the timer to run it", same as tapping a physical
+  // kitchen timer, rather than a separate Start/Pause button competing for
+  // attention with the clock it controls. Stop stays a distinct button
+  // since discarding the session isn't a natural "tap the clock" gesture.
+  const toggleRunning = () =>
+    act(running ? pomodoroPause(state, Date.now()) : pomodoroStartOrResume(state, Date.now()));
+
+  return (
+    <div className="panel-drawer pomodoro-drawer">
+      <div className="panel-drawer-head">
+        <button className="panel-close" aria-label="Close" onClick={onClose}>
+          <IconClose />
+        </button>
+      </div>
+
+      <div
+        className="pomodoro-body"
+        role="timer"
+        aria-label={`${state.phase === "work" ? "Focus" : "Break"} phase, cycle ${state.cycle}, ${formatMMSS(remaining)} remaining, ${running ? "running" : "paused"}`}
+      >
+        <h2 className="pomodoro-title pixel-font" aria-hidden="true">
+          Pomodoro
+        </h2>
+
+        <div className={`pomodoro-phase pixel-font ${state.phase}`} aria-hidden="true">
+          {state.phase === "work" ? "FOCUS" : "BREAK"}
+        </div>
+
+        <button
+          type="button"
+          className="day-clock pomodoro-clock pomodoro-clock-btn"
+          onClick={toggleRunning}
+          aria-label={running ? "Pause the timer" : resuming ? "Resume the timer" : "Start the timer"}
+        >
+          <img className="day-clock-frame" src="/assets/day-clock-frame.webp" alt="" aria-hidden="true" />
+          <div className="day-clock-readout" aria-hidden="true">
+            <span className="day-clock-time pixel-font">{formatMMSS(remaining)}</span>
+          </div>
+        </button>
+        <div className="pomodoro-tap-hint muted" aria-hidden="true">
+          {running ? <IconPause /> : <IconPlay />}
+          {running ? "TAP TO PAUSE" : resuming ? "TAP TO RESUME" : "TAP TO START"}
+        </div>
+
+        <div className="pomodoro-cycle muted" aria-hidden="true">
+          Cycle {state.cycle}
+        </div>
+
+        <div className="pomodoro-controls">
+          <button className="btn ghost" onClick={() => act(pomodoroStop())}>
+            <IconStop /> Stop
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AlarmOverlay({
   task,
   onDone,
@@ -503,7 +653,7 @@ export default function App() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [confirmRestartOpen, setConfirmRestartOpen] = useState(false);
-  const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile">(null);
+  const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile" | "pomodoro">(null);
   const [habitDraft, setHabitDraft] = useState("");
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
   const [waving, setWaving] = useState(false);
@@ -1362,7 +1512,7 @@ export default function App() {
     0
   );
 
-  const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile") =>
+  const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile" | "pomodoro") =>
     setOpenPanel((cur) => (cur === p ? null : p));
 
   return (
@@ -1487,7 +1637,7 @@ export default function App() {
             <img src={CHARACTER_SPRITE[myCharacter]} alt="" aria-hidden="true" className="topbar-character-sprite" />
             <span className="topbar-character-name pixel-font">{myCharacterName.toUpperCase()}</span>
           </button>
-          <DayCountdown compact />
+          <DayCountdown compact onOpenPomodoro={() => togglePanel("pomodoro")} />
           {/* One flex item on the right (instead of four loose ones) so
               justify-content:space-between balances it against the single
               character chip on the left, holding the clock closer to true
@@ -1726,6 +1876,8 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {openPanel === "pomodoro" && <PomodoroPanel key={meId} userId={meId!} onClose={() => setOpenPanel(null)} />}
 
           {openPanel === "habits" && (
             <div className="panel-drawer">

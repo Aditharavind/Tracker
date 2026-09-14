@@ -2104,6 +2104,20 @@ h3 {
   width: clamp(168px, 26vw, 260px);
 }
 
+/* Same box as .day-clock, just reset from a <button> so it's tappable
+   (opens the Pomodoro panel) without looking like a generic button. */
+.day-clock-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.day-clock-btn:hover .day-clock-frame,
+.day-clock-btn:focus-visible .day-clock-frame {
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)) brightness(1.12);
+}
+
 .day-clock-frame {
   display: block;
   width: 100%;
@@ -2161,6 +2175,94 @@ h3 {
   .day-clock-compact .day-clock-time {
     font-size: clamp(6px, 3vw, 8px);
   }
+}
+
+/* ------------------------------------------------------------ pomodoro */
+
+/* .panel-drawer is already position:absolute; inset:0 -- turning it into a
+   column flex box here lets .pomodoro-body claim the remaining height below
+   the header and centre its content both ways in that space, rather than
+   just centring horizontally and sitting at the top. */
+.pomodoro-drawer {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Close button pulled out of flow (top-right corner) so the title can sit
+   truly centred in the header instead of centred-minus-half-a-close-button. */
+.pomodoro-drawer .panel-drawer-head {
+  flex: none;
+  position: relative;
+  justify-content: center;
+}
+
+.pomodoro-drawer .panel-drawer-head .panel-close {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pomodoro-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 0 12px;
+}
+
+/* Bigger, chiselled pixel-art heading -- dark-yellow fill with stacked
+   brown "steps" (each 1px further down/right, each a shade darker) reading
+   as an extruded 3D block in the pixel font, same technique as
+   .brand-rock's carved-rock wordmark elsewhere in this file, just kept in
+   the game's own pixel font instead of switching to Titan One. Scoped to
+   this panel only -- the other panel-drawer headers (Leaderboard/Stats/
+   Habits/Profile) keep their small flat-uppercase style. */
+.pomodoro-drawer .panel-drawer-head h2 {
+  font-size: 32px;
+  color: #d9a83a;
+  text-shadow:
+    1px 1px 0 #6b4410,
+    2px 2px 0 #5c3a0d,
+    3px 3px 0 #4a2f0a,
+    4px 4px 0 #3a2408,
+    4px 6px 10px rgba(0, 0, 0, 0.6);
+}
+
+.pomodoro-phase {
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  color: var(--forest-cream, #f3e6c8);
+}
+
+.pomodoro-phase.break {
+  color: var(--good);
+}
+
+.pomodoro-clock {
+  width: clamp(220px, 60vw, 320px);
+}
+
+.pomodoro-clock .day-clock-time {
+  font-size: clamp(20px, 5vw, 30px);
+}
+
+.pomodoro-cycle {
+  font-size: 12.5px;
+}
+
+.pomodoro-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.pomodoro-controls .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Ground. Solid through the start area, then absent for the whole platform
@@ -2402,7 +2504,7 @@ h3 {
   image-rendering: pixelated;
   transform-origin: 47.8% 34.7%;
   transform: rotate(0deg);
-  animation: plant-mouth-close 4s ease-in-out infinite;
+  animation: plant-mouth-close 0.9s ease-in-out infinite;
 }
 
 @keyframes plant-bob {
@@ -2415,20 +2517,20 @@ h3 {
   }
 }
 
-/* Mouth is open (jaw at its painted resting angle) most of the loop, then
-   both the close and the reopen take exactly 200ms (5% of the 4s duration)
-   to swing through, with a short closed hold between them -- more "chomp"
-   than a slow chew, matching the guardian's threatening pose. */
+/* Repeated biting, not one occasional chomp: close (200ms) -> held shut
+   (300ms, upper and lower teeth interlocked) -> open (200ms) -> a 200ms
+   gap fully open before the next bite starts. -14deg (vs. an earlier
+   -8deg) is deep enough that the teeth actually meet instead of just
+   narrowing the gap. */
 @keyframes plant-mouth-close {
   0%,
-  55% {
+  22.222% {
     transform: rotate(0deg);
   }
-  60%,
-  67.5% {
-    transform: rotate(-8deg);
+  44.444%,
+  77.778% {
+    transform: rotate(-14deg);
   }
-  72.5%,
   100% {
     transform: rotate(0deg);
   }

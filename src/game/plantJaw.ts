@@ -5,8 +5,9 @@
  * animates the same way everywhere it appears, not just in the DOM guardian
  * plant at the start of the main path (ZombiePlant.tsx). Mirrors
  * .plant-mouth-shutter / @keyframes plant-mouth-close in src/styles.css --
- * open hold, then exactly 200ms to close, a short closed hold, then exactly
- * 200ms to reopen, looping every 4s.
+ * repeated biting: 200ms to close, a 300ms closed hold (teeth interlocked),
+ * 200ms to reopen, then a 200ms gap fully open before the next bite,
+ * looping every 900ms.
  *
  * Layout constants (hinge position, sprite aspect ratio) come from
  * scripts/pack-zombie-plant-jaw.py, which crops
@@ -19,12 +20,12 @@ export const PLANT_JAW_HINGE_X = 0.4779; // fraction of sprite width
 export const PLANT_JAW_HINGE_Y = 0.3467; // fraction of sprite height
 export const PLANT_SPRITE_ASPECT = 376 / 300; // height / width
 
-const CYCLE_MS = 4000;
-const CLOSE_START_PCT = 55;
-const CLOSE_END_PCT = 60;
-const OPEN_START_PCT = 67.5;
-const OPEN_END_PCT = 72.5;
-const CLOSED_DEG = -8;
+const CYCLE_MS = 900;
+const CLOSE_START_PCT = 22.222;
+const CLOSE_END_PCT = 44.444;
+const OPEN_START_PCT = 77.778;
+const OPEN_END_PCT = 100;
+const CLOSED_DEG = -14;
 
 /**
  * Jaw rotation in radians at elapsed time `tMs`. `phaseOffsetMs` staggers

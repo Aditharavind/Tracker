@@ -71,6 +71,32 @@ export function playJump() {
   }
 }
 
+/** A gentle rising two-note chime for a Pomodoro phase ending (work-> break
+ * or break->work). Shares companionAudio's AudioContext -- both are short,
+ * one-shot synthesized tones, no reason to keep two contexts alive. */
+export function playPomodoroChime() {
+  if (muted || typeof AudioContext === "undefined") return;
+  try {
+    companionAudio ??= new AudioContext();
+    void companionAudio.resume();
+    const start = companionAudio.currentTime + 0.01;
+    [0, 0.22].forEach((offset, index) => {
+      const osc = companionAudio!.createOscillator();
+      const gain = companionAudio!.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(index === 0 ? 523.25 : 659.25, start + offset); // C5, E5
+      gain.gain.setValueAtTime(0.001, start + offset);
+      gain.gain.exponentialRampToValueAtTime(0.09, start + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + offset + 0.4);
+      osc.connect(gain).connect(companionAudio!.destination);
+      osc.start(start + offset);
+      osc.stop(start + offset + 0.42);
+    });
+  } catch {
+    // Audio is a flourish; an unavailable context must not block the timer.
+  }
+}
+
 /** A tiny, warm two-note laugh for a direct tap on the forest companion. */
 export function playCompanionGiggle() {
   if (muted || typeof AudioContext === "undefined") return;
