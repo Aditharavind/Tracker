@@ -107,3 +107,19 @@ export type CoachReport = {
   source: "ai" | "rule";
   generatedAt: string;
 };
+
+/**
+ * One turn of the Coach *chat* (distinct from CoachReport above) -- the
+ * server only ever stores these, it never generates them. Inference runs
+ * entirely on-device via WebLLM (src/game/coachChat.ts); this is just the
+ * persisted transcript shape.
+ */
+export type CoachMessage = {
+  id: number;
+  /** The user's own local day (server/app.js's userToday), not a UTC slice
+   * of created_at -- this is what the server's daily cap counts against. */
+  day: string;
+  role: "user" | "assistant";
+  text: string;
+  created_at: string;
+};

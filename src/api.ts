@@ -1,4 +1,5 @@
 import type {
+  CoachMessage,
   CoachReport,
   DayDetail,
   InvitePreview,
@@ -155,6 +156,16 @@ export const api = {
     req<CoachReport>(
       `/users/${userId}/coach?today=${todayISO()}${refresh ? "&refresh=1" : ""}`
     ),
+
+  // The Coach *chat* -- distinct from the report above. The server only
+  // stores these; inference runs entirely on-device (src/game/coachChat.ts).
+  coachMessages: (userId: number) => req<CoachMessage[]>(`/users/${userId}/coach/messages`),
+
+  sendCoachMessage: (userId: number, role: "user" | "assistant", text: string, pin?: string) =>
+    req<CoachMessage>(`/users/${userId}/coach/messages`, {
+      method: "POST",
+      body: JSON.stringify({ role, text, pin, today: todayISO() }),
+    }),
 
   toggle: (userId: number, taskId: number, day: string, done: boolean, pin?: string) =>
     req<{ day: DayDetail; progress: Progress }>(`/users/${userId}/toggle`, {

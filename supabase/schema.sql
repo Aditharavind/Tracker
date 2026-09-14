@@ -91,6 +91,21 @@ create table if not exists public.day_notes (
   constraint day_notes_unique_per_day unique (user_id, day)
 );
 
+-- The Coach chat transcript. Inference runs entirely on the user's own
+-- device (WebLLM, in-browser) -- this table only stores the back-and-forth
+-- so the panel still has it after a refresh; the server never calls any
+-- model for this feature. `day` (the user's own local day, same convention
+-- as day_notes/completions) drives the daily message cap in app.js, not a
+-- raw UTC timestamp slice.
+create table if not exists public.coach_messages (
+  id         bigint generated always as identity primary key,
+  user_id    bigint      not null references public.users(id) on delete cascade,
+  day        date        not null,
+  role       text        not null check (role in ('user', 'assistant')),
+  text       text        not null,
+  created_at timestamptz not null default now()
+);
+
 -- Upgrading a database made from an older copy of this file? Run
 -- supabase/migration-02.sql instead, which adds the newer columns in place.
 
@@ -107,6 +122,11 @@ create index if not exists tasks_user_active_idx
 
 create index if not exists day_notes_user_day_idx
   on public.day_notes (user_id, day);
+
+-- the hot path: load a user's whole transcript, oldest first; the daily cap
+-- check filters this same index down to one user_id + day + role
+create index if not exists coach_messages_user_day_idx
+  on public.coach_messages (user_id, day);
 
 -- the board query: every member of one group, in join order
 create index if not exists users_group_idx
@@ -182,6 +202,7 @@ alter table public.users       enable row level security;
 alter table public.tasks       enable row level security;
 alter table public.completions enable row level security;
 alter table public.day_notes   enable row level security;
+alter table public.coach_messages enable row level security;
 
 -- No policies are created on purpose -- see the note at the top of the file.
 -- With RLS enabled and zero policies, anon and authenticated roles are denied

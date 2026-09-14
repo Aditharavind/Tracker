@@ -385,5 +385,35 @@ export function createSupabaseStore({ url, key }) {
           .single()
       );
     },
+
+    /** The Coach chat's message log -- runs entirely on the user's own
+     * device (WebLLM), this table only stores the transcript so it's still
+     * there next time the panel opens; the server never calls a model for
+     * this feature. Oldest first, capped by the caller (app.js). */
+    async listCoachMessages(userId) {
+      return unwrap(
+        await db.from("coach_messages").select("*").eq("user_id", userId).order("id", { ascending: true })
+      );
+    },
+
+    async addCoachMessage(userId, day, role, text) {
+      return unwrap(
+        await db.from("coach_messages").insert({ user_id: userId, day, role, text }).select().single()
+      );
+    },
+
+    /** Count of the user's own messages (not the assistant's replies) on
+     * `today` -- app.js's daily cap, judged against the user's own local
+     * day like every other day-boundary check, not the server's UTC clock. */
+    async countCoachMessagesToday(userId, today) {
+      const { count, error } = await db
+        .from("coach_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("day", today)
+        .eq("role", "user");
+      if (error) throw Object.assign(new Error(error.message), { supabase: error });
+      return count ?? 0;
+    },
   };
 }

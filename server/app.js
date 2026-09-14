@@ -659,6 +659,50 @@ export function createRouter() {
     })
   );
 
+  /**
+   * The Coach *chat* (distinct from the report above): inference runs
+   * entirely in the user's own browser via WebLLM, so this server never
+   * calls a model for it -- these two routes just persist the transcript.
+   */
+  r.get(
+    "/users/:id/coach/messages",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const user = await loadUser(store, req.params.id);
+      res.json(await store.listCoachMessages(user.id));
+    })
+  );
+
+  const COACH_CHAT_DAILY_LIMIT = 10;
+
+  r.post(
+    "/users/:id/coach/messages",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const { role, text } = req.body ?? {};
+      if (role !== "user" && role !== "assistant") throw new HttpError(400, "bad role");
+      const clean = String(text ?? "").trim().slice(0, 4000);
+      if (!clean) throw new HttpError(400, "empty message");
+
+      const user = await loadUser(store, req.params.id);
+      requirePin(user, req.body?.pin);
+      const today = userToday(user, req.body?.today);
+
+      // Only the user's own messages count against the cap -- the model's
+      // replies don't, so one exchange is always exactly one "turn" spent,
+      // not two.
+      if (role === "user") {
+        const used = await store.countCoachMessagesToday(user.id, today);
+        if (used >= COACH_CHAT_DAILY_LIMIT) {
+          throw new HttpError(429, `That's today's ${COACH_CHAT_DAILY_LIMIT} messages -- back tomorrow.`);
+        }
+      }
+
+      const row = await store.addCoachMessage(user.id, today, role, clean);
+      res.json(row);
+    })
+  );
+
   r.post(
     "/users/:id/toggle",
     wrap(async (req, res) => {

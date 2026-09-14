@@ -15,7 +15,8 @@ export function createMemoryStore() {
   const tasks = [];
   const completions = [];
   const notes = [];
-  const seq = { group: 0, user: 0, task: 0, completion: 0, note: 0 };
+  const coachMessages = [];
+  const seq = { group: 0, user: 0, task: 0, completion: 0, note: 0, coachMessage: 0 };
 
   const clone = (row) => (row ? { ...row } : null);
 
@@ -286,6 +287,39 @@ export function createMemoryStore() {
       const row = { id: (seq.note += 1), user_id: Number(userId), day, text };
       notes.push(row);
       return clone(row);
+    },
+
+    /** The Coach chat's message log -- runs entirely on the user's own
+     * device (WebLLM), the server only stores the transcript so it's still
+     * there next time the panel opens. Oldest first, capped by the caller
+     * (app.js) rather than here. */
+    async listCoachMessages(userId) {
+      return coachMessages
+        .filter((m) => m.user_id === Number(userId))
+        .sort((a, b) => a.id - b.id)
+        .map(clone);
+    },
+
+    async addCoachMessage(userId, day, role, text) {
+      const row = {
+        id: (seq.coachMessage += 1),
+        user_id: Number(userId),
+        day,
+        role,
+        text,
+        created_at: new Date().toISOString(),
+      };
+      coachMessages.push(row);
+      return clone(row);
+    },
+
+    /** Count of the user's own messages (not the assistant's replies) on
+     * `today` -- app.js's daily cap, judged against the user's own local
+     * day like every other day-boundary check, not the server's UTC clock. */
+    async countCoachMessagesToday(userId, today) {
+      return coachMessages.filter(
+        (m) => m.user_id === Number(userId) && m.role === "user" && m.day === today
+      ).length;
     },
   };
 }

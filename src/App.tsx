@@ -10,6 +10,7 @@ import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
 import DashLeaderboard from "./components/DashLeaderboard";
 import Coach from "./components/Coach";
+import CoachChat from "./components/CoachChat";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 // The Phaser migration's first slice (see src/game/'s PhaserGame.ts) -- only
@@ -1480,7 +1481,7 @@ export default function App() {
   // read. Only looks at days before today, so ticking today's boxes can't
   // change it -- no refetch on every tap.
   useEffect(() => {
-    if (!shellVisible || openPanel !== "habits" || meId == null) return;
+    if (!shellVisible || openPanel !== "coach" || meId == null) return;
     let live = true;
     api
       .coach(meId)
@@ -1806,6 +1807,15 @@ export default function App() {
             >
               <IconTrophy />
             </button>
+            <button
+              className={`rail-btn${openPanel === "coach" ? " on" : ""}`}
+              onClick={() => togglePanel("coach")}
+              aria-label="Coach"
+              aria-pressed={openPanel === "coach"}
+              title="Coach"
+            >
+              <IconCoach />
+            </button>
             {/* Stats used to have a rail icon here too, duplicating the
                 bottom nav's STATS tab -- same panel, two entry points for
                 no reason. Removed; the bottom tab is the only way in now. */}
@@ -1926,6 +1936,19 @@ export default function App() {
 
           {openPanel === "pomodoro" && <PomodoroPanel key={meId} userId={meId!} onClose={() => setOpenPanel(null)} />}
 
+          {openPanel === "coach" && (
+            <div className="panel-drawer">
+              <div className="panel-drawer-head">
+                <h2>Coach</h2>
+                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                  <IconClose />
+                </button>
+              </div>
+              <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
+              {meId != null && <CoachChat key={meId} userId={meId} report={coach} />}
+            </div>
+          )}
+
           {openPanel === "habits" && (
             <div className="panel-drawer">
               <div className="panel-drawer-head">
@@ -1934,7 +1957,6 @@ export default function App() {
                   <IconClose />
                 </button>
               </div>
-              <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
               <div className="card panel-section">
                 <div className="card-head">
                   <h2>Manage tasks</h2>

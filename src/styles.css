@@ -2232,12 +2232,14 @@ h3 {
    with it -- but still legible: a muted warm brown-gold rather than the
    readout's bright cream, not just a faded copy of the same colour. Kept
    well under the time's own font-size so it can't be the thing that
-   outgrows the wood panel's blank area. Roughly half the size of the
-   previous pass (was clamp(2.4px, 0.45vw, 3.2px)) -- floored around 2px
-   since pixel fonts stop rendering as legible letterforms much below that,
-   just blur into noise. */
+   outgrows the wood panel's blank area. Halved twice now (was
+   clamp(2.4px, 0.45vw, 3.2px), then clamp(2px, 0.3vw, 2.6px)) -- at 1-1.3px
+   this reads as a thin gold line/texture under the time rather than actual
+   letterforms; most browsers won't render meaningfully smaller than this
+   regardless of the font-size value, so this is close to the practical
+   floor. */
 .day-clock-compact .day-clock-label {
-  font-size: clamp(2px, 0.3vw, 2.6px);
+  font-size: clamp(1px, 0.15vw, 1.3px);
   color: #c9a15c;
   opacity: 0.75;
 }
@@ -2250,7 +2252,7 @@ h3 {
     font-size: clamp(6px, 3vw, 8px);
   }
   .day-clock-compact .day-clock-label {
-    font-size: clamp(1.8px, 0.5vw, 2.2px);
+    font-size: clamp(0.9px, 0.25vw, 1.1px);
   }
 }
 
@@ -2886,6 +2888,49 @@ h3 {
   opacity: 0;
   transform: translate(-50%, 50%) scale(0.4);
   animation: none;
+}
+
+/* Sparkle burst on collection (Coin.tsx's `collecting`, ~650ms) -- a ring of
+   small gold points flying outward and fading, centred on the coin and
+   outliving its own 0.3s fade/shrink so the flourish reads as its own
+   moment rather than vanishing together with the coin. Each point's angle
+   comes from --i/--n (its index / the total count) rather than being
+   hand-written per point, so SPARKLE_COUNT can change without touching CSS. */
+.coin-sparkle-burst {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.coin-sparkle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 50%;
+  background: #fff3c9;
+  box-shadow: 0 0 4px 1px var(--forest-gold, #f0c04a);
+  transform: rotate(calc(360deg / var(--n) * var(--i))) translateY(0) scale(0);
+  animation: coin-sparkle-fly 0.65s ease-out forwards;
+}
+
+@keyframes coin-sparkle-fly {
+  0% {
+    transform: rotate(calc(360deg / var(--n) * var(--i))) translateY(0) scale(0.4);
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(calc(360deg / var(--n) * var(--i))) translateY(-26px) scale(1);
+    opacity: 0;
+  }
 }
 
 @keyframes coin-absorb {
@@ -4597,6 +4642,65 @@ h3 {
   font-size: 12px;
   color: var(--dim);
   margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------- coach chat */
+
+.coach-chat-remaining {
+  font-size: 11px;
+}
+
+.coach-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 2px;
+  margin: 10px 0;
+}
+
+.coach-chat-msg {
+  max-width: 85%;
+  padding: 8px 11px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.coach-chat-msg-user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-bottom-right-radius: 3px;
+}
+
+.coach-chat-msg-assistant {
+  align-self: flex-start;
+  background: var(--raised);
+  color: var(--text);
+  border-bottom-left-radius: 3px;
+}
+
+.coach-chat-pending {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.coach-chat-error {
+  color: var(--bad);
+  font-size: 12.5px;
+  margin: 0 0 8px;
+}
+
+.coach-chat-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.coach-chat-input-row .field {
+  flex: 1;
 }
 
 .habit-row .title {
