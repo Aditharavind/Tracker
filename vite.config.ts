@@ -73,9 +73,10 @@ export default defineConfig({
           // regardless of ever opting in. Same reasoning as Adventure above.
           "**/PhaserForestScene-*.js",
         ],
-        // Sized to admit the ~1.05MB model-viewer runtime. Anything genuinely
-        // huge is excluded by name above rather than by slipping under a cap.
-        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+        // Sized to admit the current app shell plus the ~1.05MB model-viewer
+        // runtime. Deliberately lazy story/Phaser assets are excluded by name
+        // above rather than slipping under this cap.
+        maximumFileSizeToCacheInBytes: 7 * 1024 * 1024,
         // The API must never be served from cache -- a stale streak is worse
         // than no streak. Navigation falls back to the shell when offline.
         navigateFallback: "/index.html",

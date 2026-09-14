@@ -11,9 +11,18 @@ export const POWERS: Record<Power, { name: string; icon: string; meaning: string
 export type World = {
   name: string; emotion: string; motto: string; color: string; sky: string; tint: string;
   boss: string; reward: Power | null; mechanic: string; intro: string[]; reflection: string[];
-  titles: [string, string, string]; notes: number[];
+  titles: string[]; notes: number[];
 };
-export const WORLDS: World[] = [
+export const STORY_WORLD_COUNT = 6;
+export const LEVELS_PER_WORLD = 15;
+export const MAIN_LEVELS = STORY_WORLD_COUNT * LEVELS_PER_WORLD;
+export const LEVEL_COUNT = MAIN_LEVELS;
+export const FINAL_LEVEL_ID = MAIN_LEVELS - 1;
+export const finalLevelForWorld = (world: number) => world * LEVELS_PER_WORLD + LEVELS_PER_WORLD - 1;
+export const firstLevelForWorld = (world: number) => world * LEVELS_PER_WORLD;
+export const levelIdsForWorld = (world: number) => Array.from({ length: LEVELS_PER_WORLD }, (_, stage) => firstLevelForWorld(world) + stage);
+
+export const WORLDS: World[] = ([
   { name: "The Sleeping Forest", emotion: "Laziness", motto: "Just start.", color: "#a8d93c", sky: "#183a32", tint: "#cfb864",
     boss: "The Lazy Giant", reward: "dash", mechanic: "Smash fallen wood. Jump roots. Strike the hanging bell when the giant sleeps.",
     intro: ["I used to have a dream. Then tomorrow became my favorite word. The path disappeared under all the days I didn't begin.", "Today I found the old trail. I don't feel ready. Will you take the first step with me?", "We can already walk, run, jump, crouch, and use Panda Smash. Let's clear the fallen wood before we face what's sleeping here."],
@@ -46,7 +55,7 @@ export const WORLDS: World[] = [
     boss: "The Old Panda", reward: null, mechanic: "Your old self remembers every obstacle. Read the pattern, use your full moveset, and find a way forward.",
     intro: ["It's the same trail. The same trees. But now I can see the space between them.", "Someone is waiting at the summit. He looks like me on the day I gave up. We don't have to hate him. We just don't have to follow him anymore."],
     reflection: ["You may not see the whole road yet. Keep walking.", "Hope isn't a promise that nothing will hurt. It's a reason to take the next step.", "Thank you for walking with me. The path is yours, too."], titles: ["The Trail We Remember", "Light Through the Leaves", "The Old Panda"], notes: [48, 55, 60, 64, 67, 72, 67, 64] },
-];
+] as World[]).slice(0, STORY_WORLD_COUNT);
 // Short, verbatim translation excerpts, verified against the linked translator's publication.
 // Panda's dialogue is original interpretation, not a verse translation.
 export const WISDOM = [
@@ -79,15 +88,16 @@ export type Level = { id: number; world: number; stage: number; title: string; l
 // Authored sections: safe introduction, practice, combination, checkpoint, escalation,
 // final challenge. Main routes use only powers earned BEFORE this world's boss.
 export function makeLevel(id: number): Level {
-  const mastery = id >= 24;
-  const world = mastery ? 7 : Math.floor(id / 3); const stage = mastery ? id - 24 : id % 3;
-  const boss = mastery ? stage === 2 : stage === 2;
+  const boundedId = Math.max(0, Math.min(LEVEL_COUNT - 1, Math.floor(id)));
+  const world = Math.floor(boundedId / LEVELS_PER_WORLD); const stage = boundedId % LEVELS_PER_WORLD;
+  const stagePattern = stage % 3;
+  const boss = stage === LEVELS_PER_WORLD - 1;
   const variants = [
     [0, 24, 10, 44, 0, 30, 0, 38, 10],
     [0, 30, 55, 10, 0, 42, 65, 18, 0],
     [0, 22, 0, 38, 0, 22, 0, 0, 0],
-  ][stage];
-  const count = boss ? 5 : world >= 4 ? 9 : 8;
+  ][stagePattern];
+  const count = boss ? 5 : Math.min(9, 6 + Math.floor(stage / 3));
   const platforms: Platform[] = []; const things: Thing[] = []; const hazards: Hazard[] = []; const enemies: EnemySpec[] = []; const objects: Obstacle[] = [];
   let edge = 0; let nextId = 1;
   for (let i = 0; i < count; i++) {
@@ -114,7 +124,7 @@ export function makeLevel(id: number): Level {
     if (i === 3) {
       const gatePower: Power = ["dash", "second", "focus", "shield", "momentum", "strength", "hope", "hope"][world] as Power;
       platforms.push({ id: nextId++, x: x + 80, y: y - 145, w: 170, kind: "stone" });
-      things.push({ id: nextId++, x: x + 155, y: y - 180, kind: "lore", power: gatePower, text: ["An old sketch: a panda reaching a summit. Someone believed in you once. It was you.", "A note beneath the moss: 'Come back when you've learned to try again.'", "The quietest branch held the thing worth finding."][stage] });
+      things.push({ id: nextId++, x: x + 155, y: y - 180, kind: "lore", power: gatePower, text: ["An old sketch: a panda reaching a summit. Someone believed in you once. It was you.", "A note beneath the moss: 'Come back when you've learned to try again.'", "The quietest branch held the thing worth finding."][stagePattern] });
       // The lower shortcut is revisitable with the newly earned ability.
       things.push({ id: nextId++, x: x + 230, y: y - 50, kind: "lore", power: gatePower, text: "A trail marker reads: 'The path didn't change. You did.'" });
       if (gatePower === "dash" || gatePower === "strength") objects.push({ id: nextId++, x: x + 195, y: y - 115, kind: gatePower, optional: true });
@@ -133,18 +143,15 @@ export function makeLevel(id: number): Level {
     edge = arena + 1050;
   }
   const checkpoints = [70, checkpointPlatform.x + 30, ...(boss ? [arena + 40] : [])];
-  return { id, world, stage, title: mastery ? ["The Unbroken Sprint", "Steps Above the Clouds", "Echoes of the Old Self"][stage] : WORLDS[world].titles[stage], length: edge, platforms, things, hazards, enemies, objects, checkpoints, boss, arena, mastery: mastery ? ["speed", "precision", "boss"][stage] : undefined, par: boss ? 150 : 55 + world * 7 };
+  const titleRoot = WORLDS[world].titles[stagePattern] ?? WORLDS[world].titles[0];
+  const title = boss ? titleRoot : `${titleRoot} ${stage + 1}`;
+  return { id: boundedId, world, stage, title, length: edge, platforms, things, hazards, enemies, objects, checkpoints, boss, arena, par: boss ? 150 : 55 + world * 7 + Math.floor(stage / 3) * 5 };
 }
-export const LEVEL_COUNT = 27;
-export const MAIN_LEVELS = 24;
 
-// Story Mode is a chapter of the same 75-day run, not a separate minigame --
-// each world opens as the challenge itself progresses, one every 7 days,
-// starting with World 1 on Day 1 so there's something to play immediately.
-// A world unlocking is still gated by its previous world's boss (see
-// save.ts's canPlay) so the powers a level assumes are always already
-// earned; this only adds the day-based ceiling on top of that.
-export const STORY_WORLD_UNLOCK_DAYS: number[] = WORLDS.map((_, i) => 1 + i * 7);
+// World access is earned by clearing all 15 levels in the previous world.
+// This legacy export stays as a harmless day-1 floor for week-map callers;
+// the active time gate is the 7-day failure penalty stored in save.ts.
+export const STORY_WORLD_UNLOCK_DAYS: number[] = WORLDS.map(() => 1);
 export function storyWorldUnlockDay(world: number): number {
   const clamped = Math.max(0, Math.min(WORLDS.length - 1, world));
   return STORY_WORLD_UNLOCK_DAYS[clamped];

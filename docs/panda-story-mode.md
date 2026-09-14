@@ -4,18 +4,15 @@ Open the **STORY** signpost in the main forest game (top-right of the
 gameplay area) -- it is a chapter of the same 75-day run, not a separate
 minigame, so it lives outside the Minigames picker (Forest Dash only there
 now). The young panda returns to an abandoned trail, learning movement and
-emotional resilience together. Every world has two traversal levels and a
-boss encounter; completing a boss unlocks the next world.
+emotional resilience together. The campaign now has six worlds, each with 15
+sequential levels. Clearing level 15 completes that world and unlocks the next
+world.
 
-Each world also carries its own day-number floor, tied to the habit
-challenge's own progress rather than the story's: World 1 opens on Day 1,
-then a new world unlocks every 7 days (Day 8, 15, 22, 29, 36, 43, 50 for
-Worlds 2-8). A world still additionally requires the previous world's boss
-defeated -- the day floor is a ceiling on top of that, not a replacement for
-it, so a level's route never assumes a power the player couldn't have earned
-yet. See `storyWorldUnlockDay` / `STORY_WORLD_UNLOCK_DAYS` in
-`src/game/adventure/content.ts`, and `canPlay`'s `dayNumber` parameter in
-`src/game/adventure/save.ts`.
+Story progress is no longer opened by a per-world day floor. The save gate is
+strictly sequential, and the habit `dayNumber` is only used for the penalty:
+one failed story attempt locks Story Mode until seven habit days later. See
+`LEVELS_PER_WORLD` / `STORY_WORLD_COUNT` in `src/game/adventure/content.ts`,
+and `recordFailure` / `canPlay` in `src/game/adventure/save.ts`.
 
 | World | Boss | Reward |
 | --- | --- | --- |
@@ -25,22 +22,20 @@ yet. See `storyWorldUnlockDay` / `STORY_WORLD_UNLOCK_DAYS` in
 | Fear | The Beast of Fear | Courage Shield |
 | Inconsistency | The Quitter | Momentum |
 | Frustration | Chaos | Inner Strength |
-| Discipline | The Old Habit | Hope Awakening |
-| Hope | The Old Panda | Ending and mastery trails |
 
 Panda starts with walking, running, variable-height jumping, crouching, and
 Smash. Bosses expose telegraphed recovery windows that can be punished with
 Smash; none requires its own reward. The first boss also has a sleeping phase
-and an environmental bell. The final boss has five phases. Returning with new
-powers reveals optional memories. Collecting 2, 4, 6, and 8 unique memories
+and an environmental bell. Returning with new powers reveals optional memories.
+Collecting 2, 4, 6, and 8 unique memories
 unlocks Extended Dash, Air Dash, Reflect, and Wall Jump respectively.
 
 ## Implementation
 
 - `src/components/forest/Adventure.tsx`: world map, scene flow, HUD, lifecycle,
   checkpoint persistence, and the fixed-step loop.
-- `src/game/adventure/content.ts`: worlds, dialogue, powers, 24 campaign levels,
-  and three mastery variants. Levels combine authored platform and hazard sections.
+- `src/game/adventure/content.ts`: worlds, dialogue, powers, and 90 campaign
+  levels. Levels combine authored platform and hazard sections.
 - `src/game/adventure/engine.ts`: 120 Hz physics, buffered/coyote jumps, collisions,
   combat, enemies, boss phases, checkpoints, projectiles, and reusable particles.
 - `src/game/adventure/render.ts`: original Panda sprite animation, world grading,
@@ -61,7 +56,7 @@ demand and enter a service-worker runtime cache after a visit.
 
 ## Save behavior
 
-The key is `75hard.panda.adventure.v2:<player-id>` (`guest` when no player is
+The key is `75hard.panda.adventure.v3:<player-id>` (`guest` when no player is
 selected). Saves cover lantern index, current attempt time and collectibles,
 defeated enemies, cleared obstacles, cutscene page, cumulative unique coins and
 memories, level/boss completion, powers, upgrades, best times, and settings.
@@ -133,7 +128,7 @@ frame-rate targets are not certified.
 
 ## Distinct boss sprites and combat effects
 
-The first seven bosses now use different animated creatures from Craftpix's
+The six campaign bosses use different animated creatures from Craftpix's
 free packs, downloaded through the publisher's official itch.io listings:
 
 | World | Creature |
@@ -144,8 +139,6 @@ free packs, downloaded through the publisher's official itch.io listings:
 | Fear | Dragon: wings, claws, and falling-stone attacks |
 | Inconsistency | Lizard: spear thrusts and charging attacks |
 | Frustration | Centipede: segmented body and mixed attack patterns |
-| Discipline | Demon: horned warrior and weapon attacks |
-| Hope | Original Panda sprite, darkened as the Old Panda |
 
 The new art includes idle, windup, attack, hurt, and death frames. Boss animation
 clocks reset at combat transitions, so attacks play once during the damaging
@@ -172,7 +165,7 @@ ZIPs and unused characters are excluded from the distributed project.
 
 Verification for this update: 110 existing frontend/game tests plus three new
 sprite-timing tests passed. Production build and lint passed. Atlas bounds were
-checked against decoded WebP dimensions. Chrome checks loaded all eight boss
+checked against decoded WebP dimensions. Chrome checks loaded every boss
 appearances, advanced attack frames, switched world artwork in the real story
 component, and reloaded during a boss defeat to verify immediate completion and
 power persistence. Portrait rendering was also checked. The victory check used
