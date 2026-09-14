@@ -149,7 +149,7 @@ export function createSupabaseStore({ url, key }) {
     },
 
     async listUsers() {
-      return unwrap(await db.from("users").select("*").order("id"));
+      return readAll(() => db.from("users").select("*").order("id"));
     },
 
     async listUsersInGroup(groupId, page) {

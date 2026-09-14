@@ -632,3 +632,30 @@ test("GET /stats leaks nothing but the number", async () => {
   );
   assert.equal(typeof res.body.users, "number");
 });
+
+test("admin summary is protected and returns sanitized user stats", async () => {
+  const locked = await fetch(`${base}/admin/summary`);
+  assert.equal(locked.status, 401);
+
+  const wrong = await fetch(`${base}/admin/summary`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:nope").toString("base64")}` },
+  });
+  assert.equal(wrong.status, 401);
+
+  const ok = await fetch(`${base}/admin/summary`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  assert.equal(ok.status, 200);
+  const body = await ok.json();
+
+  assert.equal(body.totals.total_users, (await call("GET", "/stats")).body.users);
+  assert.ok(body.totals.new_users_today >= 0);
+  assert.ok(body.totals.new_users_7_days >= body.totals.new_users_today);
+  assert.ok(body.users.some((u) => u.name === "Adith"));
+
+  const first = body.users[0];
+  assert.equal("pin_hash" in first, false, "admin rows never expose PIN hashes");
+  assert.equal("share_token" in first, false, "admin rows never expose share tokens");
+  assert.equal(typeof first.streak, "number");
+  assert.equal(typeof first.task_count, "number");
+});

@@ -1,12 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
-import SharedView from "./components/SharedView";
-import JoinLobby from "./components/JoinLobby";
 import { registerSW } from "virtual:pwa-register";
 import "@fontsource/press-start-2p";
 import "./styles.css";
 import { loadModelViewer } from "./modelViewer";
+
+const App = React.lazy(() => import("./App"));
+const SharedView = React.lazy(() => import("./components/SharedView"));
+const JoinLobby = React.lazy(() => import("./components/JoinLobby"));
+const AdminPanel = React.lazy(() => import("./components/AdminPanel"));
 
 // autoUpdate: a new deploy is picked up on the next launch.
 registerSW({ immediate: true });
@@ -59,9 +61,17 @@ const shareToken = params.get("share");
 const joinToken = params.get("join");
 
 function Root() {
-  if (shareToken) return <SharedView token={shareToken} />;
-  if (joinToken) return <JoinLobby token={joinToken} />;
-  return <App />;
+  const view =
+    location.pathname === "/adminpanda" ? (
+      <AdminPanel />
+    ) : shareToken ? (
+      <SharedView token={shareToken} />
+    ) : joinToken ? (
+      <JoinLobby token={joinToken} />
+    ) : (
+      <App />
+    );
+  return <React.Suspense fallback={<div className="shell muted">loading...</div>}>{view}</React.Suspense>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
