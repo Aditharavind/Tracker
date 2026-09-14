@@ -25,25 +25,24 @@ function formatRemaining(ms: number): string {
  * The full-size version no longer has a mount site of its own but stays
  * available for a future non-navbar placement.
  *
- * `onOpenPomodoro`, when passed, makes the badge a button that opens the
- * Pomodoro focus-timer panel (App.tsx's PomodoroPanel) -- same clock-frame
- * art, a separate 25/5min timer that never reads or writes this countdown
- * or any challenge state. There's nothing on the clock itself hinting that
- * it's tappable beyond a tiny "pomodoro" label under it -- deliberately a
- * near-hidden feature rather than another HUD element competing for
- * attention: no 5th bottom-nav tab (the four are a fixed, already-tuned
- * set), no badge/pulse drawing the eye to it. Someone who never notices the
- * label still gets a perfectly normal countdown clock; someone who does
- * gets a small discovery.
+ * `zoomable`, when passed, makes the badge a button that zooms the SAME
+ * clock up in a centred overlay instead of opening a separate screen --
+ * Pomodoro used to live behind a tap here, but now has its own bottom-nav
+ * FOCUS tab, so tapping the clock just shows the clock, bigger. The overlay
+ * scales the artwork up a lot; the time/label text deliberately does NOT
+ * scale with it (day-clock-zoomed's own fixed, minimal font-size) so it
+ * reads as "the same small readout, now easier to see" rather than blown-up
+ * pixel-font blocks.
  */
 export default function DayCountdown({
   compact,
-  onOpenPomodoro,
+  zoomable,
 }: {
   compact?: boolean;
-  onOpenPomodoro?: () => void;
+  zoomable?: boolean;
 }) {
   const [remaining, setRemaining] = useState(msUntilLocalMidnight);
+  const [zoomed, setZoomed] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setRemaining(msUntilLocalMidnight()), 1000);
@@ -54,28 +53,37 @@ export default function DayCountdown({
     <>
       <img className="day-clock-frame" src="/assets/day-clock-frame.webp" alt="" aria-hidden="true" />
       <div className="day-clock-readout" aria-hidden="true">
-        <span className="day-clock-label pixel-font">{compact ? "LEFT TODAY" : "TIME LEFT TODAY"}</span>
         <span className="day-clock-time pixel-font">{formatRemaining(remaining)}</span>
+        <span className="day-clock-label pixel-font">{compact ? "LEFT TODAY" : "TIME LEFT TODAY"}</span>
       </div>
     </>
   );
 
-  if (onOpenPomodoro) {
+  if (zoomable) {
     return (
-      <div className="day-clock-wrap">
+      <>
         <button
           type="button"
           className={`day-clock day-clock-btn${compact ? " day-clock-compact" : ""}`}
-          title="75 Day Hard Challenge -- tap for the Pomodoro focus timer"
-          aria-label={`75 Day Hard Challenge. Time left today: ${formatRemaining(remaining)}. Open the Pomodoro focus timer.`}
-          onClick={onOpenPomodoro}
+          title="75 Day Hard Challenge -- tap to zoom in on the time left"
+          aria-label={`75 Day Hard Challenge. Time left today: ${formatRemaining(remaining)}. Tap to zoom in.`}
+          onClick={() => setZoomed(true)}
         >
           {frame}
         </button>
-        <span className="day-clock-pomo-hint pixel-font" aria-hidden="true">
-          pomodoro
-        </span>
-      </div>
+        {zoomed && (
+          <div className="day-clock-zoom-backdrop" onClick={() => setZoomed(false)}>
+            <div
+              className="day-clock day-clock-zoomed"
+              role="timer"
+              aria-label={`Time left today: ${formatRemaining(remaining)}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {frame}
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 

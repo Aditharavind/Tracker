@@ -1685,7 +1685,7 @@ export default function App() {
             <img src={CHARACTER_SPRITE[myCharacter]} alt="" aria-hidden="true" className="topbar-character-sprite" />
             <span className="topbar-character-name pixel-font">{myCharacterName.toUpperCase()}</span>
           </button>
-          <DayCountdown compact onOpenPomodoro={() => togglePanel("pomodoro")} />
+          <DayCountdown compact zoomable />
           {/* One flex item on the right (instead of four loose ones) so
               justify-content:space-between balances it against the single
               character chip on the left, holding the clock closer to true

@@ -66,10 +66,19 @@ export default function ZombiePlant({
 
   useEffect(() => {
     if (near && !wasNear.current) {
+      wasNear.current = true;
       setBiteNow(true);
       const t = window.setTimeout(() => setBiteNow(false), NEAR_BITE_MS);
-      wasNear.current = near;
-      return () => window.clearTimeout(t);
+      // Undo the ref flip in cleanup too, not just the timeout -- otherwise
+      // React 18 StrictMode's dev-only mount/cleanup/mount replay leaves
+      // wasNear.current stuck true after the *first* (discarded) mount's
+      // cleanup fires, so the real mount's effect sees "already near" and
+      // never schedules a new clear, leaving biteNow (and the mouth) stuck
+      // shut forever.
+      return () => {
+        window.clearTimeout(t);
+        wasNear.current = false;
+      };
     }
     wasNear.current = !!near;
   }, [near]);

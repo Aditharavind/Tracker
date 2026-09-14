@@ -521,7 +521,7 @@ export default function ForestScene({
               <Platform left={left} bottom={bottom} cleared={t.done} title={t.title} wide={wide} />
               <Coin
                 left={left}
-                bottom={bottom + 6}
+                bottom={bottom + 14}
                 visible={i >= safeVisualIndex}
                 multiplier={bonus ? 5 : undefined}
               />

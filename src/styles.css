@@ -394,6 +394,12 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Pulled outward into most of .card's own 18px padding (down to ~4px)
+     so each row's rounded background sits close to the card's edge instead
+     of floating with a visible gap on both sides. .task is width:100% of
+     this container, so it automatically fills the widened box -- no change
+     needed on .task itself. */
+  margin: 0 -14px;
 }
 
 .task {
@@ -427,15 +433,21 @@ h3 {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-/* Completed = the row itself becomes the accent-orange "button", not the
-   checkbox -- black text on an orange, rounded pill. */
+/* Completed = the row itself becomes a coloured "button", not the checkbox
+   -- was the same bright orange as --accent elsewhere (buttons, character
+   select), which made a completed task read as an alert rather than a
+   calm "done". A dark forest green (the board's own palette) instead,
+   light cream text -- --done-ink, scoped to this row, replaces the
+   dark-on-accent ink the tags/checkbox below borrowed from --on-accent,
+   which would be unreadable on a dark background. */
 .task.done {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--good) 32%, #0b1a10);
+  color: #eef5ea;
+  --done-ink: #eef5ea;
 }
 
 .task.done:hover {
-  background: var(--accent);
+  background: color-mix(in srgb, var(--good) 40%, #0b1a10);
 }
 
 .box {
@@ -470,9 +482,9 @@ h3 {
    "on-accent" chip -- it still visibly changes state, just without
    competing with the row for the same orange. */
 .task.done .box {
-  background: var(--on-accent);
-  border-color: var(--on-accent);
-  color: var(--accent);
+  background: var(--done-ink);
+  border-color: var(--done-ink);
+  color: color-mix(in srgb, var(--good) 55%, #0b1a10);
 }
 
 .box svg {
@@ -506,9 +518,9 @@ h3 {
 }
 
 /* No more strikethrough/dimming -- a done task reads as "complete" from the
-   row's own orange background now, not from fading its own title out. */
+   row's own dark-green background now, not from fading its own title out. */
 .task.done .title {
-  color: var(--on-accent);
+  color: var(--done-ink);
   font-weight: 600;
 }
 
@@ -528,17 +540,17 @@ h3 {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-/* Both tags are normally tuned for a dark row background -- on the orange
-   "done" pill they'd wash out (grey-on-orange, orange-on-orange), so give
-   them the same on-accent ink the row's own text uses. */
+/* Both tags are normally tuned for a dark row background -- on the done
+   row's own dark green they'd wash out (grey-on-dark, orange-on-dark), so
+   give them the same light ink the row's own text uses. */
 .task.done .tag {
-  color: var(--on-accent);
-  border-color: color-mix(in srgb, var(--on-accent) 45%, transparent);
+  color: var(--done-ink);
+  border-color: color-mix(in srgb, var(--done-ink) 45%, transparent);
 }
 
 .task.done .tag.locked {
-  color: var(--on-accent);
-  border-color: color-mix(in srgb, var(--on-accent) 55%, transparent);
+  color: var(--done-ink);
+  border-color: color-mix(in srgb, var(--done-ink) 55%, transparent);
 }
 
 /* Deleting a task sits inches from checking one, so this needs to be big
@@ -2140,12 +2152,14 @@ h3 {
 }
 
 /* Same box as .day-clock, just reset from a <button> so it's tappable
-   (opens the Pomodoro panel) without looking like a generic button. */
+   (zooms the clock, see .day-clock-zoom-backdrop) without looking like a
+   generic button. */
 .day-clock-btn {
   padding: 0;
   border: none;
   background: none;
   cursor: pointer;
+  flex: none;
 }
 
 .day-clock-btn:hover .day-clock-frame,
@@ -2153,25 +2167,40 @@ h3 {
   filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)) brightness(1.12);
 }
 
-/* Wraps the clickable clock plus its near-invisible "pomodoro" hint (see
-   DayCountdown's doc comment) so the hint sits right under the clock
-   without disrupting .game-topbar's own flex layout -- this wrapper is the
-   flex item now, the clock button inside it. */
-.day-clock-wrap {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  flex: none;
+/* Tapping the topbar clock (DayCountdown's `zoomable`) opens this instead
+   of the old Pomodoro panel -- Pomodoro now lives behind its own bottom-nav
+   FOCUS tab. A dimmed full-screen backdrop (tap it, or the clock itself, to
+   close) with real padding on every side so the zoomed clock never touches
+   the viewport edge even on a small phone. */
+.day-clock-zoom-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(0, 0, 0, 0.65);
+  cursor: pointer;
 }
 
-.day-clock-pomo-hint {
-  margin-top: 2px;
-  font-size: 5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--forest-cream, #f3e6c8);
-  opacity: 0.28;
-  pointer-events: none;
+.day-clock-zoomed {
+  width: min(78vw, 420px);
+  cursor: default;
+}
+
+/* The artwork scales up a lot (up to 420px, vs. the ~110-160px topbar
+   chip) -- the text scales too, but relatively (vw-based clamps, same
+   technique day-clock-compact uses), not by the same factor as the image,
+   so it stays readable-but-modest rather than either a tiny fixed size lost
+   in the huge frame or blocky pixel-font slabs blown up 1:1 with it. Time
+   stays clearly the larger of the two, same relationship as the compact
+   chip. */
+.day-clock-zoomed .day-clock-time {
+  font-size: clamp(16px, 4vw, 22px);
+}
+
+.day-clock-zoomed .day-clock-label {
+  font-size: clamp(7px, 1.8vw, 9px);
 }
 
 .day-clock-frame {
@@ -2228,20 +2257,16 @@ h3 {
   font-size: clamp(7px, 1.7vw, 10px);
 }
 
-/* Small and dim -- a quiet caption sitting above the time, not competing
-   with it -- but still legible: a muted warm brown-gold rather than the
-   readout's bright cream, not just a faded copy of the same colour. Kept
-   well under the time's own font-size so it can't be the thing that
-   outgrows the wood panel's blank area. Halved twice now (was
-   clamp(2.4px, 0.45vw, 3.2px), then clamp(2px, 0.3vw, 2.6px)) -- at 1-1.3px
-   this reads as a thin gold line/texture under the time rather than actual
-   letterforms; most browsers won't render meaningfully smaller than this
-   regardless of the font-size value, so this is close to the practical
-   floor. */
+/* Small and dim -- a quiet caption sitting below the time (order swapped in
+   DayCountdown.tsx -- the time is what matters, so it reads first) -- muted
+   warm brown-gold rather than the readout's bright cream. A flat 5px (not a
+   vw-based clamp like the time gets) so it stays clearly, consistently
+   smaller than the time's own 7-10px at every viewport width, never
+   competing with it. */
 .day-clock-compact .day-clock-label {
-  font-size: clamp(1px, 0.15vw, 1.3px);
+  font-size: 5px;
   color: #c9a15c;
-  opacity: 0.75;
+  opacity: 0.85;
 }
 
 @media (max-width: 560px) {
@@ -2250,9 +2275,6 @@ h3 {
   }
   .day-clock-compact .day-clock-time {
     font-size: clamp(6px, 3vw, 8px);
-  }
-  .day-clock-compact .day-clock-label {
-    font-size: clamp(0.9px, 0.25vw, 1.1px);
   }
 }
 
@@ -4038,7 +4060,13 @@ h3 {
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  background: #020806;
+  /* Was #020806, a near-pure black -- .game-topbar has no fill of its own
+     (see that rule), so this colour was the actual thing showing through as
+     a "black bar" up top, in the gap above the forest-scene card. A dark
+     forest green instead (close to the scene's own --forest-bg-top/-far)
+     so that gap, and every other margin around a card, reads as part of the
+     same world instead of a flat black backdrop. */
+  background: #0a160f;
 }
 
 /* Mirrors .game-shell's own flex settings so nesting it (needed to scope
