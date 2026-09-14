@@ -2250,11 +2250,11 @@ h3 {
    too. */
 .day-clock-compact {
   flex: none;
-  width: clamp(110px, 18vw, 160px);
+  width: clamp(150px, 24vw, 220px);
 }
 
 .day-clock-compact .day-clock-time {
-  font-size: clamp(7px, 1.7vw, 10px);
+  font-size: clamp(11px, 2.4vw, 16px);
 }
 
 /* Small and dim -- a quiet caption sitting below the time (order swapped in
@@ -2271,10 +2271,10 @@ h3 {
 
 @media (max-width: 560px) {
   .day-clock-compact {
-    width: clamp(90px, 30vw, 122px);
+    width: clamp(120px, 38vw, 160px);
   }
   .day-clock-compact .day-clock-time {
-    font-size: clamp(6px, 3vw, 8px);
+    font-size: clamp(9px, 4vw, 12px);
   }
 }
 
@@ -4077,6 +4077,7 @@ h3 {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  position: relative;
 }
 
 .game-topbar {
@@ -4086,7 +4087,17 @@ h3 {
   gap: 12px;
   padding: 22px 32px 14px;
   z-index: 30;
-  position: relative;
+  /* Taken out of flow so it floats directly over the forest scene instead
+     of sitting on its own flat-colour row above it -- .stage-area below
+     reclaims that row's height (its only flex sibling now) and its own
+     forest-scene layer bleeds up behind this same amount (see
+     --topbar-reserve on .stage-area) so what shows through the topbar's
+     transparent background is the actual scene (sky/trees/platforms), not
+     a solid colour standing in for it. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   /* No fill of its own -- was a flat, fully opaque #020806 (inherited from
      .game-shell), then a fading gradient, both of which still read as a
      separate black bar sitting on top of the game. Fully transparent now:
@@ -4205,12 +4216,28 @@ h3 {
   position: relative;
   flex: 1;
   min-height: 0;
+  /* Reserve room the now-absolute .game-topbar used to occupy in flow (its
+     tallest measured height, desktop 1280px width, plus a little slack) so
+     the day card / side rail / panels -- all absolutely positioned within
+     this element -- still clear its controls. .forest-scene below ignores
+     this padding and bleeds back up behind it instead. */
+  --topbar-reserve: 118px;
+  /* margin, not padding: absolutely-positioned children (day-card-float,
+     side-rail, panel drawers) use this element's padding-box edge as their
+     `top`/`bottom` origin, and padding doesn't move that edge -- only
+     margin does. This reproduces the exact geometry the old in-flow topbar
+     produced (everything below it shifts down by its height); .forest-scene
+     below is the one exception, bleeding back up past this margin. */
+  margin-top: var(--topbar-reserve);
 }
 
 .stage-area .forest-scene {
   position: absolute;
-  inset: 0;
-  height: 100%;
+  top: calc(-1 * var(--topbar-reserve));
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(100% + var(--topbar-reserve));
   margin-top: 0;
   border-radius: 0;
   border: none;
@@ -4966,6 +4993,9 @@ h3 {
   .stage-area {
     display: flex;
     flex-direction: column;
+    /* The topbar wraps to a shorter row at this width (no "FOREST DASH"
+       label, tighter gaps) than the 118px desktop measurement. */
+    --topbar-reserve: 100px;
   }
 
   .stage-area .forest-scene {
@@ -4974,8 +5004,14 @@ h3 {
        shrunk hard on a phone to avoid overlapping -- keep them close to the
        desktop size. */
     --step-scale: clamp(0.68, calc(8 / var(--step-count, 7)), 1);
+    /* Back to a normal in-flow item here (stacked under the day card, per
+       .day-card-float's own mobile override above) instead of the desktop
+       rule's negative-top bleed behind the topbar -- there's no absolute
+       positioning context left for that trick to bleed into. */
     position: relative;
     inset: auto;
+    top: auto;
+    height: auto;
     flex: 1;
     /* Task count no longer drives height (the level spreads sideways, not
        up) -- a fixed band is enough, floored at the old 180px so the scene

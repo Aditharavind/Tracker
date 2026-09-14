@@ -1728,9 +1728,9 @@ export default function App() {
                 type="button"
                 className="dash-launch pixel-font"
                 onClick={() => setRunnerOpen(true)}
-                title="Play Forest Dash"
+                title="Play the minigame"
               >
-                ▶ FOREST DASH
+                ▶ MINIGAME
               </button>
             )}
           </div>
@@ -1756,6 +1756,17 @@ export default function App() {
             onDayCleared={day === todayISO() ? handleDayCleared : undefined}
             onOpenStory={() => setWeekMapOpen(true)}
             unlockedArcs={unlockedArcCount(me.calendar)}
+            returnToStart={
+              detail.tasks.length > 0 &&
+              detail.tasks.every((t) => t.done) &&
+              openPanel === null &&
+              !characterPanelOpen &&
+              !runnerOpen &&
+              !storyOpen &&
+              !weekMapOpen &&
+              !confirmRestartOpen &&
+              !dayCompleteOpen
+            }
           />
           )}
 

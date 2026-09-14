@@ -81,6 +81,7 @@ export default function ForestScene({
   onDayCleared,
   onOpenStory,
   unlockedArcs = 1,
+  returnToStart,
 }: {
   detail: DayDetail;
   dayNumber: number;
@@ -98,6 +99,20 @@ export default function ForestScene({
   onOpenStory?: () => void;
   /** How many arc-stones real consistency has unlocked (see game/weekSystem) -- shown on the corner portal's badge. */
   unlockedArcs?: number;
+  /**
+   * True once today's tasks are all done AND every overlay/panel App renders
+   * on top of the scene (victory board, leaderboard, habits, coach, story
+   * map, character picker, minigame, reset-confirm...) is closed again. The
+   * end-of-day run parks the follow-cam on the exit bush at the level's far
+   * right (see frozenCamX below) so the run-off reads clearly -- left there,
+   * anyone coming back to look at the scene after clearing out those windows
+   * would just see empty forest and an idle bush, not the game's own start
+   * point. This pans the camera back to the START sign / guardian plant, the
+   * same resting frame as a fresh day, without touching pandaIndex or any
+   * other real progress state -- purely a camera position, per CLAUDE.md
+   * §22 (never use animation/visual state as application state).
+   */
+  returnToStart?: boolean;
 }) {
   const tasks = detail.tasks;
   const total = tasks.length;
@@ -225,6 +240,11 @@ export default function ForestScene({
   // always clear the card's right edge (skill §21 "let task cards cover the
   // gameplay path" -> don't).
   if (atStartRest) camX = Math.max(camX, 40);
+  // Overrides the victory freeze above once App reports the day's fully
+  // wrapped up (see the `returnToStart` prop doc) -- same camera target
+  // atStartRest already uses, so this reads as "back to the resting frame",
+  // not a new position of its own.
+  if (returnToStart) camX = 40;
 
   const prevDone = useRef(doneCount);
   const prevResets = useRef(resets);
