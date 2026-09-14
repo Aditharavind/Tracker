@@ -299,14 +299,6 @@ function IconPause() {
   );
 }
 
-function IconStop() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="2.5" y="2.5" width="11" height="11" rx="1.4" fill="currentColor" />
-    </svg>
-  );
-}
-
 function IconTimer() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -314,6 +306,18 @@ function IconTimer() {
       <path d="M9 3.3V5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <circle cx="9" cy="10.5" r="6" stroke="currentColor" strokeWidth="1.6" />
       <path d="M9 7.3V10.5L11.3 12.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconCoach() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path
+        d="M9 1.5 10.2 5.8 14.5 7 10.2 8.2 9 12.5 7.8 8.2 3.5 7 7.8 5.8Z"
+        fill="currentColor"
+      />
+      <path d="M14.5 11.5 15.1 13.4 17 14 15.1 14.6 14.5 16.5 13.9 14.6 12 14 13.9 13.4Z" fill="currentColor" />
     </svg>
   );
 }
@@ -600,7 +604,7 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
 
         <div className="pomodoro-controls">
           <button className="btn ghost" onClick={() => act(pomodoroStop())}>
-            <IconStop /> Stop
+            <IconRestart /> Reset
           </button>
         </div>
       </div>
@@ -694,7 +698,9 @@ export default function App() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [confirmRestartOpen, setConfirmRestartOpen] = useState(false);
-  const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile" | "pomodoro">(null);
+  const [openPanel, setOpenPanel] = useState<null | "leaderboard" | "stats" | "habits" | "profile" | "pomodoro" | "coach">(
+    null
+  );
   const [habitDraft, setHabitDraft] = useState("");
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
   const [waving, setWaving] = useState(false);
@@ -1553,7 +1559,7 @@ export default function App() {
     0
   );
 
-  const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile" | "pomodoro") =>
+  const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile" | "pomodoro" | "coach") =>
     setOpenPanel((cur) => (cur === p ? null : p));
 
   return (
