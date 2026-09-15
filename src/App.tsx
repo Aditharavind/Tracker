@@ -10,7 +10,7 @@ import Badges from "./components/Badges";
 import Rivals from "./components/Rivals";
 import DashLeaderboard from "./components/DashLeaderboard";
 import Coach from "./components/Coach";
-import CoachChat from "./components/CoachChat";
+import LevelRing from "./components/LevelRing";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 // The Phaser migration's first slice (see src/game/'s PhaserGame.ts) -- only
@@ -18,12 +18,13 @@ import ForestScene from "./components/forest/ForestScene";
 // lazy-loaded so the ~1MB Phaser runtime never reaches anyone who hasn't
 // opted in.
 const PhaserForestScene = lazy(() => import("./components/forest/PhaserForestScene"));
+const CoachChat = lazy(() => import("./components/CoachChat"));
+const Minigames = lazy(() => import("./components/Minigames"));
+const WeekMap = lazy(() => import("./components/forest/WeekMap"));
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCountdown from "./components/forest/DayCountdown";
 import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
-import Minigames from "./components/Minigames";
 import StoryLauncher from "./components/forest/StoryLauncher";
-import WeekMap from "./components/forest/WeekMap";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { getStage, type StageMeta } from "./game/stageSystem";
@@ -351,40 +352,6 @@ const storedCharacters = (): Record<number, CharacterId> => {
     return {};
   }
 };
-
-export function LevelRing({ p }: { p: Progress }) {
-  const span = (p.level_ceiling ?? p.xp) - p.level_floor;
-  const pct = p.level_ceiling === null ? 1 : span > 0 ? (p.xp - p.level_floor) / span : 0;
-  const r = 44;
-  const c = 2 * Math.PI * r;
-
-  return (
-    <div className="ring">
-      <svg width="108" height="108">
-        <circle cx="54" cy="54" r={r} fill="none" stroke="var(--line-soft)" strokeWidth="6" />
-        <circle
-          cx="54"
-          cy="54"
-          r={r}
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - Math.min(1, Math.max(0, pct)))}
-          style={{ transition: "stroke-dashoffset .5s ease" }}
-        />
-      </svg>
-      <div className="ring-mid">
-        <div className="lv">Lv {p.level}</div>
-        <div className="name">{p.level_name}</div>
-        <div className="xp">
-          {p.level_ceiling === null ? `${p.xp} xp` : `${p.xp}/${p.level_ceiling}`}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ShareDialog({
   name,
@@ -1085,7 +1052,11 @@ export default function App() {
       if (nowDay !== todayRef.current) {
         todayRef.current = nowDay;
         // Follow the rollover unless the user has deliberately opened a past day.
-        setDay((d) => (followToday.current ? nowDay : d));
+        if (followToday.current) {
+          setDay(nowDay);
+          setDayCompleteOpen(false);
+          setOpenPanel((panel) => (panel === "leaderboard" ? null : panel));
+        }
         if (meId != null) loadBoard(meId);
       } else if (followToday.current) {
         // Defensive: even without a detected date change, if we're meant to be
@@ -1210,6 +1181,7 @@ export default function App() {
     // already out, park the new value and send it when that one settles.
     if (pendingToggles.current.has(t.id)) {
       queuedToggles.current.set(t.id, next);
+      outbox.remember({ userId: meId, taskId: t.id, day, done: next, ts: Date.now() });
       return;
     }
     sendToggle(t.id, next);
@@ -1228,46 +1200,54 @@ export default function App() {
     const wasPerfect = latestMe.current?.perfect_today ?? false;
     const curTasks = latestDetail.current?.tasks ?? [];
     const wasFullClear = curTasks.length > 0 && curTasks.every((x) => x.done);
-    const t = { id: taskId };
 
     api
       .toggle(meId, taskId, day, next)
       .then((res) => {
-        // The write was accepted (a non-2xx would have thrown), so `next` is
-        // what the box must show. The day payload that comes back with it is a
-        // convenience read, and a convenience read is not worth overruling the
-        // user's own action: anything that made it disagree -- a stale read
-        // after the write, a racing request, a proxy serving a cached body --
-        // would show up as the box silently flipping back on its own, which is
-        // precisely the fault being chased here. Take the rest of the payload,
-        // keep our value for the task we just wrote, and keep the optimistic
-        // value for any sibling whose own write is still in flight.
-        if (res.day.tasks.find((x) => x.id === t.id)?.done !== next) {
+        const queued = queuedToggles.current.get(taskId);
+        const hasNewerIntent = queued !== undefined && queued !== next;
+
+        // The write was accepted (a non-2xx would have thrown), so its value is
+        // authoritative only if the user has not tapped again meanwhile. The
+        // day payload that comes back with it is a convenience read, and a
+        // convenience read is not worth overruling the user's newest action:
+        // anything stale would show up as the box silently flipping back on its
+        // own, which is precisely the fault being chased here. Take the rest of
+        // the payload, keep the latest local value for this task, and keep the
+        // optimistic value for any sibling whose own write is still in flight.
+        if (res.day.tasks.find((x) => x.id === taskId)?.done !== next) {
           console.warn("[toggle] server echoed a different value than written", {
-            taskId: t.id,
+            taskId,
             wrote: next,
-            echoed: res.day.tasks.find((x) => x.id === t.id)?.done,
+            echoed: res.day.tasks.find((x) => x.id === taskId)?.done,
           });
         }
+        const mergeTasks = (currentTasks: TaskItem[] = []) =>
+          res.day.tasks.map((x) => {
+            if (x.id === taskId && hasNewerIntent) {
+              return { ...x, done: currentTasks.find((c) => c.id === x.id)?.done ?? queued };
+            }
+            if (x.id === taskId) return { ...x, done: next };
+            if (pendingToggles.current.has(x.id)) {
+              return { ...x, done: currentTasks.find((c) => c.id === x.id)?.done ?? x.done };
+            }
+            return x;
+          });
+        const visibleTasks = mergeTasks(latestDetail.current?.tasks);
         setDetail((cur) => {
-          if (!cur) return res.day;
+          if (!cur) return { ...res.day, tasks: visibleTasks };
           return {
             ...res.day,
-            tasks: res.day.tasks.map((x) => {
-              if (x.id === t.id) return { ...x, done: next };
-              if (pendingToggles.current.has(x.id)) {
-                return { ...x, done: cur.tasks.find((c) => c.id === x.id)?.done ?? x.done };
-              }
-              return x;
-            }),
+            tasks: mergeTasks(cur.tasks),
           };
         });
         setBoard((b) => b.map((p) => (p.user_id === meId ? res.progress : p)));
         setSaveError(null);
-        // Confirmed by the server -- nothing left to replay for this task.
-        outbox.forget({ userId: meId, taskId, day });
+        // Confirmed by the server unless the user already tapped again; in
+        // that case the parked outbox value is newer and still needs replay.
+        if (!hasNewerIntent) outbox.forget({ userId: meId, taskId, day });
 
-        const nowFullClear = res.day.tasks.length > 0 && res.day.tasks.every((x) => x.done);
+        const nowFullClear = visibleTasks.length > 0 && visibleTasks.every((x) => x.done);
         const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
         if (day === todayISO() && !wasPerfect && res.progress.perfect_today) {
           const hit = res.progress.badges.find((x) => x.day === res.progress.streak && x.earned);
@@ -1285,14 +1265,16 @@ export default function App() {
         // there would show the user a false "didn't save" for a write that
         // does, in fact, still save.
         if (isPermanentFailure(e)) {
-          outbox.forget({ userId: meId, taskId, day });
+          const queued = queuedToggles.current.get(taskId);
+          const hasNewerIntent = queued !== undefined && queued !== next;
+          if (!hasNewerIntent) outbox.forget({ userId: meId, taskId, day });
           // Undo only this task, and only if the user has not since asked for
           // something else -- a queued intent is newer than this failure, so
           // reverting to the pre-request value would fight the person tapping.
-          if (!queuedToggles.current.has(t.id)) {
+          if (!hasNewerIntent) {
             setDetail((cur) =>
               cur
-                ? { ...cur, tasks: cur.tasks.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) }
+                ? { ...cur, tasks: cur.tasks.map((x) => (x.id === taskId ? { ...x, done: !next } : x)) }
                 : cur
             );
           }
@@ -1302,17 +1284,17 @@ export default function App() {
         setSaveError(msg);
       })
       .finally(() => {
-        pendingToggles.current.delete(t.id);
-        const queued = queuedToggles.current.get(t.id);
+        pendingToggles.current.delete(taskId);
+        const queued = queuedToggles.current.get(taskId);
         if (queued === undefined) {
           // Settled and nothing outstanding: hand authority back to server state.
-          intendedDone.current.delete(t.id);
+          intendedDone.current.delete(taskId);
           return;
         }
-        queuedToggles.current.delete(t.id);
+        queuedToggles.current.delete(taskId);
         // Only worth a round trip if it actually differs from what we just wrote.
-        if (queued !== next) sendToggle(t.id, queued);
-        else intendedDone.current.delete(t.id);
+        if (queued !== next) sendToggle(taskId, queued);
+        else intendedDone.current.delete(taskId);
       });
   };
 
@@ -1631,30 +1613,29 @@ export default function App() {
       )}
       {showPeek && <PandaPeekPrompt onDone={() => setShowPeek(false)} />}
       {runnerOpen && myCharacter && (
-        <Minigames
-          key={meId}
-          character={myCharacter}
-          userId={meId}
-          calendar={me.calendar}
-          onClose={() => setRunnerOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <Minigames
+            key={meId}
+            character={myCharacter}
+            userId={meId}
+            calendar={me.calendar}
+            onClose={() => setRunnerOpen(false)}
+          />
+        </Suspense>
       )}
       {weekMapOpen && myCharacter && (
-        <WeekMap
-          character={myCharacter}
-          calendar={me.calendar}
-          onClose={() => setWeekMapOpen(false)}
-          onOpenWorld={(w) => {
-            setWeekMapOpen(false);
-            // Week 1 / world 0 ("The Sleeping Forest") is the same forest
-            // the daily climb already happens in -- there's nothing
-            // separate to open. Every later world is a genuinely different
-            // environment, so those still launch Story Mode.
-            if (w === 0) return;
-            setStoryWorld(w);
-            setStoryOpen(true);
-          }}
-        />
+        <Suspense fallback={<div className="weekmap-screen" aria-busy="true" />}>
+          <WeekMap
+            character={myCharacter}
+            calendar={me.calendar}
+            onClose={() => setWeekMapOpen(false)}
+            onOpenWorld={(w) => {
+              setWeekMapOpen(false);
+              setStoryWorld(w);
+              setStoryOpen(true);
+            }}
+          />
+        </Suspense>
       )}
       {storyOpen && myCharacter && (
         <StoryLauncher
@@ -1956,7 +1937,11 @@ export default function App() {
                 </button>
               </div>
               <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
-              {meId != null && <CoachChat key={meId} userId={meId} report={coach} />}
+              {meId != null && (
+                <Suspense fallback={<div className="card panel-section muted">Loading coach chat...</div>}>
+                  <CoachChat key={meId} userId={meId} report={coach} />
+                </Suspense>
+              )}
             </div>
           )}
 

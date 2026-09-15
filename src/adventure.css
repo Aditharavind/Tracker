@@ -25,7 +25,7 @@
 .adventure-totals b { color: #e1dcb7; font-size: 16px; font-weight: 500; margin-right: 4px; }
 .adventure-resume { margin-top: 12px; text-align: left; }
 .adventure-resume small { display: block; margin-top: 6px; font-size: 10px; font-weight: 400; opacity: .8; }
-.adventure-world-path { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; position: relative; margin: 36px 0; }
+.adventure-world-path { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; position: relative; margin: 36px 0; }
 .adventure-world-path::before { content: ''; position: absolute; top: 25px; left: 6%; right: 6%; border-top: 1px dashed #92b6a855; }
 .adventure-world-path button { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0; border: none; background: transparent; color: #93a89b; position: relative; }
 .adventure-world-path button span { display: grid; place-items: center; border: 1px solid #71897d66; background: #152c26; border-radius: 50%; width: 52px; height: 52px; font-size: 14px; }
@@ -39,7 +39,9 @@
 .adventure-world-heading h2 { margin: 8px 0; font-size: 33px; color: #f4e5c8; }
 .adventure-world-heading p { color: #acbc9f; margin: 5px 0; }
 .adventure-world-heading .story-eyebrow { color: var(--world-accent); }
-.adventure-levels { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+.adventure-penalty { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 18px; padding: 13px 15px; border: 1px solid #e1c07a66; background: #3f2d1988; border-radius: 8px; color: #f5ddb0; font-size: 12px; }
+.adventure-penalty span { color: #decaa5; }
+.adventure-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 15px; }
 .adventure-level { display: flex; flex-direction: column; gap: 14px; padding: 23px; background: #0f231e88; border: 1px solid #a9c39c22; border-radius: 10px; }
 .adventure-level h3 { margin: 0; color: #eee8ce; font-size: 18px; }
 .adventure-level p { margin: 0; color: #acbdb1; font-size: 12px; line-height: 1.8; flex: 1; }

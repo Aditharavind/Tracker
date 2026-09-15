@@ -148,6 +148,11 @@ export function createMemoryStore() {
         dash_best_dist: 0,
         group_id: group_id ?? null,
         share_token: share_token ?? null,
+        last_country: null,
+        last_region: null,
+        last_city: null,
+        last_ip: null,
+        last_seen_at: null,
         created_at: new Date().toISOString(),
       };
       users.push(user);

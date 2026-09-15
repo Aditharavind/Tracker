@@ -240,11 +240,12 @@ export default function ForestScene({
   // always clear the card's right edge (skill §21 "let task cards cover the
   // gameplay path" -> don't).
   if (atStartRest) camX = Math.max(camX, 40);
-  // Overrides the victory freeze above once App reports the day's fully
-  // wrapped up (see the `returnToStart` prop doc) -- same camera target
-  // atStartRest already uses, so this reads as "back to the resting frame",
-  // not a new position of its own.
-  if (returnToStart) camX = 40;
+  // Overrides the victory freeze above only after the clear callback has
+  // fired. App's `returnToStart` prop is already true during the last dash
+  // because every task is done and no overlay is open yet; applying it then
+  // yanks the camera back to the main/start frame while the character is
+  // supposed to be running into the exit bush.
+  if (returnToStart && victoryPhase === "done" && clearedFired.current) camX = 40;
 
   const prevDone = useRef(doneCount);
   const prevResets = useRef(resets);

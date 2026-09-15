@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CHARACTER_SPRITE, type CharacterId } from "../../game/characters";
-import { MAIN_LEVELS, POWERS, WISDOM, WORLDS, makeLevel, storyWorldUnlockDay, wisdomUrl, type Power } from "../../game/adventure/content";
+import { FINAL_LEVEL_ID, LEVELS_PER_WORLD, MAIN_LEVELS, POWERS, WISDOM, WORLDS, firstLevelForWorld, levelIdsForWorld, makeLevel, wisdomUrl, type Power } from "../../game/adventure/content";
 import { createState, HEIGHT, snapshot, step, WIDTH } from "../../game/adventure/engine";
 import { Controls, PerformanceGovernor, type InputMethod } from "../../game/adventure/controls";
-import { canPlay, completeLevel, emptySave, parseSave, recordAttempt, saveKey, type Attempt, type Save } from "../../game/adventure/save";
+import { canPlay, completeLevel, emptySave, parseSave, penaltyActive, recordAttempt, recordFailure, saveKey, type Attempt, type Save } from "../../game/adventure/save";
 import { loadArt, newCamera, render, type Art } from "../../game/adventure/render";
 import { AdventureAudio } from "../../game/adventure/audio";
 import AdventureSettings from "./AdventureSettings";
@@ -26,7 +26,7 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
   // The week map (skill's WeekMap) opens Adventure with the tapped world
   // pre-selected -- otherwise this falls back to wherever the last session
   // left off, same as always.
-  const [worldIndex, setWorldIndex] = useState(initialWorld ?? Math.floor(Math.min(levelId, 23) / 3));
+  const [worldIndex, setWorldIndex] = useState(Math.max(0, Math.min(WORLDS.length - 1, initialWorld ?? Math.floor(Math.min(levelId, FINAL_LEVEL_ID) / LEVELS_PER_WORLD))));
   const level = useMemo(() => makeLevel(levelId), [levelId]);
   const [initialState] = useState(() => createState(level, save));
   const state = useRef(initialState);
@@ -81,8 +81,8 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
   // the week is unlocked), begin() is a no-op and this falls back to the map.
   useLayoutEffect(() => {
     if (initialWorld === undefined) return;
-    const trailId = initialWorld * 3;
-    const resumeId = saved.current.attempts[trailId + 1] ? trailId + 1 : trailId;
+    const ids = levelIdsForWorld(Math.max(0, Math.min(WORLDS.length - 1, initialWorld)));
+    const resumeId = ids.find(id => saved.current.attempts[id]) ?? ids.find(id => !saved.current.completed.includes(id)) ?? ids[0];
     begin(resumeId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -92,17 +92,14 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
     const finishedId = idRef.current; const finishedLevel = makeLevel(finishedId);
     const attempts = { ...saved.current.attempts }; delete attempts[finishedId];
     persist({ ...saved.current, attempts, lastLevel: null }); active.current = false;
-    // The two regular trails and the boss read as one continuous push through
-    // a world, not three separate errands back to the map -- clearing a
-    // regular trail (not the boss) runs straight into the next stage instead.
-    // Guarded by world equality so this never reaches past the boss into the
-    // next world's stage 0, and by MAIN_LEVELS so the optional mastery trails
-    // (24-26, each its own standalone bonus run) keep the old map-return.
+    // A world is a 15-level run. Clearing a non-boss level moves straight to
+    // the next level in the same world; clearing level 15 returns to the map
+    // with the next world unlocked by completion.
     if (!finishedLevel.boss && finishedId + 1 < MAIN_LEVELS && makeLevel(finishedId + 1).world === finishedLevel.world) {
       begin(finishedId + 1, true);
       return;
     }
-    setWorldIndex(Math.min(7, Math.floor(Math.min(23, finishedId + 1) / 3))); moveTo("map");
+    setWorldIndex(Math.min(WORLDS.length - 1, Math.floor(Math.min(FINAL_LEVEL_ID, finishedId + 1) / LEVELS_PER_WORLD))); moveTo("map");
   };
   const openSettings = () => { storeAttempt(); previousPhase.current = phaseRef.current === "play" ? "paused" : phaseRef.current; moveTo("settings"); };
 
@@ -190,10 +187,18 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
         if (victoryAt === null) { victoryAt = now; persist(completeLevel(saved.current, level.id, snapshot(s))); refreshHud(); controls.current.clear(); }
         if (s.boss) s.boss.animationTime += Math.min(.1, rawDt);
         if (!s.boss || saved.current.settings.reducedMotion || systemMotion.matches || now - victoryAt >= 850) {
-          ended = true; moveTo(level.id === 23 ? "ending" : "reflection");
+          ended = true; moveTo(level.id === FINAL_LEVEL_ID ? "ending" : "reflection");
         }
       }
-      else { if (s.revision !== revision.current || now - lastSave > 2000) { storeAttempt("play"); revision.current = s.revision; lastSave = now; } if (s.status === "dead") { ended = true; moveTo("dead"); } }
+      else {
+        if (s.revision !== revision.current || now - lastSave > 2000) { storeAttempt("play"); revision.current = s.revision; lastSave = now; }
+        if (s.status === "dead") {
+          persist(recordFailure(saved.current, dayNumber));
+          active.current = false;
+          ended = true;
+          moveTo("dead");
+        }
+      }
       draw(Math.min(.1, rawDt || 1 / 60)); if (!ended) raf = requestAnimationFrame(frame);
     };
     // Art also carries plantNearTrackers (a Map, not an image) alongside the
@@ -209,64 +214,46 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
   const wisdom = WISDOM[level.world === 5 ? 3 : level.world]; const reward = world.reward;
   const available = save.powers.filter(p => ["focus", "shield", "strength", "hope"].includes(p));
   const totalCoins = Object.values(save.collectibles).reduce((n, ids) => n + ids.length, 0); const totalLore = Object.values(save.lore).reduce((n, ids) => n + ids.length, 0);
-  const continueReflection = () => { if (level.boss && reward && levelId < MAIN_LEVELS) { storeAttempt("reward", 0); moveTo("reward"); } else finishMoment(); };
+  const lockedByPenalty = penaltyActive(save, dayNumber);
+  const penaltyDays = save.penaltyUntilDay === null ? 0 : Math.max(0, save.penaltyUntilDay - dayNumber);
+  const continueReflection = () => { if (level.boss && reward && levelId !== FINAL_LEVEL_ID) { storeAttempt("reward", 0); moveTo("reward"); } else finishMoment(); };
 
   return <div ref={root} className="story-mode panda-adventure" role="dialog" aria-modal="true" aria-label="Panda Story Mode: Find the path again" style={{ "--adventure-ui": settings.uiScale, "--world-accent": (phase === "map" ? mapWorld : world).color } as React.CSSProperties}>
     {phase === "map" ? <div className="adventure-map">
       <header className="adventure-map-top"><button className="story-text-button" onClick={onClose}>← Forest</button><span className="story-eyebrow">PANDA / STORY MODE</span><button className="story-text-button" onClick={openSettings}>Settings</button></header>
       <div className="adventure-map-hero"><div><p className="story-eyebrow">A JOURNEY BACK TO YOURSELF</p><h1>Find the<br /><em>path again.</em></h1><p>Not a different panda.<br />The one you were always becoming.</p>
         {save.lastLevel !== null && save.attempts[save.lastLevel] && <button className="story-button adventure-resume" data-story-primary onClick={() => begin(save.lastLevel!)}>Continue your journey →<small>{makeLevel(save.lastLevel).title} · {save.attempts[save.lastLevel].checkpoint > 0 ? `Lantern ${save.attempts[save.lastLevel].checkpoint}` : "The first steps"}</small></button>}
-        <div className="adventure-totals"><span><b>{save.bosses.length}/8</b> worlds healed</span><span><b>{totalCoins}</b> coins</span><span><b>{totalLore}</b> memories</span></div>
-      </div><div className="adventure-map-panda"><img src={CHARACTER_SPRITE.panda} alt="A young panda, ready to begin again" /><span>{save.bosses.length === 8 ? "THE PATH IS YOURS" : "ONE STEP AT A TIME"}</span></div></div>
+        <div className="adventure-totals"><span><b>{save.bosses.length}/{WORLDS.length}</b> worlds healed</span><span><b>{totalCoins}</b> coins</span><span><b>{totalLore}</b> memories</span></div>
+      </div><div className="adventure-map-panda"><img src={CHARACTER_SPRITE.panda} alt="A young panda, ready to begin again" /><span>{save.bosses.length === WORLDS.length ? "THE PATH IS YOURS" : lockedByPenalty ? "REST, THEN RETURN" : "ONE STEP AT A TIME"}</span></div></div>
       <nav className="adventure-world-path" aria-label="Worlds">{WORLDS.map((w, i) => {
-        const dayLocked = dayNumber < storyWorldUnlockDay(i);
-        const sequenceLocked = i > 0 && !save.bosses.includes(i - 1);
-        return <button key={w.name} className={`${worldIndex === i ? "selected" : ""} ${save.bosses.includes(i) ? "healed" : ""}`} disabled={sequenceLocked || dayLocked} onClick={() => setWorldIndex(i)} style={{ "--node-color": w.color } as React.CSSProperties}><span>{save.bosses.includes(i) ? "✦" : `0${i + 1}`}</span><b>{w.emotion}</b>{!sequenceLocked && dayLocked && <small>Day {storyWorldUnlockDay(i)}</small>}</button>;
+        const sequenceLocked = i > 0 && !save.completed.includes(firstLevelForWorld(i) - 1);
+        return <button key={w.name} className={`${worldIndex === i ? "selected" : ""} ${save.bosses.includes(i) ? "healed" : ""}`} disabled={sequenceLocked || lockedByPenalty} onClick={() => setWorldIndex(i)} style={{ "--node-color": w.color } as React.CSSProperties}><span>{save.bosses.includes(i) ? "✦" : `0${i + 1}`}</span><b>{w.emotion}</b>{sequenceLocked && <small>Clear World {i}</small>}{lockedByPenalty && !sequenceLocked && <small>Day {save.penaltyUntilDay}</small>}</button>;
       })}</nav>
       <section className="adventure-world-detail"><div className="adventure-world-heading"><div><p className="story-eyebrow">WORLD {worldIndex + 1} / {mapWorld.emotion}</p><h2>{mapWorld.name}</h2><p>“{mapWorld.motto}”</p></div><button className="story-text-button" onClick={() => setJournal(!journal)}>{journal ? "Close journal" : "Powers & memories"}</button></div>
+        {lockedByPenalty && <div className="adventure-penalty" role="status"><b>Story penalty active</b><span>Try again on Day {save.penaltyUntilDay}. {penaltyDays} day{penaltyDays === 1 ? "" : "s"} left.</span></div>}
         {journal && <div className="adventure-journal"><h3>What you've learned</h3><div className="adventure-power-grid">{Object.entries(POWERS).map(([id, p]) => <div key={id} className={save.powers.includes(id as Power) ? "earned" : "locked"}><b>{p.icon} {p.name}</b><p>{save.powers.includes(id as Power) ? p.help : p.meaning}</p></div>)}</div><p>Memories unlock Extended Dash (2), Air Dash (4), Reflect (6), and Wall Jump (8). Return to earlier paths with new powers.</p>{Object.entries(save.lore).flatMap(([id, ids]) => makeLevel(Number(id)).things.filter(t => ids.includes(t.id)).map(t => <blockquote key={`${id}-${t.id}`}>{t.text}</blockquote>))}</div>}
         <div className="adventure-levels">
-          {(() => {
-            // The two regular trails merged into one card/one continuous run
-            // (see finishMoment's auto-chain) -- "Begin" always lands on
-            // stage 0, and resumes whichever half was left mid-run.
-            const trailId = worldIndex * 3; const trail2Id = trailId + 1;
-            const chapter = makeLevel(trailId); const chapter2 = makeLevel(trail2Id);
-            const trailDone = save.completed.includes(trail2Id);
-            const resumeId = save.attempts[trail2Id] ? trail2Id : trailId;
-            const attempt = save.attempts[resumeId];
-            const playable = canPlay(save, trailId, dayNumber);
-            const dayLocked = !playable && dayNumber < storyWorldUnlockDay(worldIndex);
-            const coinsDone = (save.collectibles[trailId]?.length ?? 0) + (save.collectibles[trail2Id]?.length ?? 0);
-            const coinsTotal = chapter.things.filter(t => t.kind === "coin").length + chapter2.things.filter(t => t.kind === "coin").length;
-            return <div className={`adventure-level ${trailDone ? "finished" : ""}`} key={trailId}>
-              <span className="story-eyebrow">TRAIL</span>
-              <h3>{chapter.title} · {chapter2.title}</h3>
-              <p>Learn the trail, then put it to work -- one continuous run, straight through to {mapWorld.boss}.</p>
-              {trailDone && <small>{coinsDone}/{coinsTotal} coins · Best {Math.round((save.bestTimes[trailId] ?? 0) + (save.bestTimes[trail2Id] ?? 0))}s</small>}
-              <button className="story-button" data-story-primary={save.lastLevel === null && playable && !trailDone ? "" : undefined} disabled={!playable} onClick={() => begin(resumeId)}>{attempt ? `Resume ${attempt.checkpoint ? "checkpoint" : "journey"} →` : trailDone ? "Walk this path again →" : playable ? "Begin →" : dayLocked ? `Unlocks on Day ${storyWorldUnlockDay(worldIndex)}` : "Complete the previous trail"}</button>
-            </div>;
-          })()}
-          {(() => {
-            const id = worldIndex * 3 + 2; const chapter = makeLevel(id); const attempt = save.attempts[id]; const done = save.completed.includes(id);
+          {levelIdsForWorld(worldIndex).map((id) => {
+            const chapter = makeLevel(id); const attempt = save.attempts[id]; const done = save.completed.includes(id);
             const playable = canPlay(save, id, dayNumber);
+            const coinsDone = save.collectibles[id]?.length ?? 0;
+            const coinsTotal = chapter.things.filter(t => t.kind === "coin").length;
             return <div className={`adventure-level ${done ? "finished" : ""}`} key={id}>
-              <span className="story-eyebrow">BOSS ENCOUNTER</span>
+              <span className="story-eyebrow">{chapter.boss ? "LEVEL 15 / BOSS" : `LEVEL ${chapter.stage + 1}`}</span>
               <h3>{chapter.title}</h3>
-              <p>Face {mapWorld.boss}. {mapWorld.reward ? `Earn ${POWERS[mapWorld.reward].name}.` : "Find the way forward."}</p>
-              {done && <small>{save.collectibles[id]?.length ?? 0}/{chapter.things.filter(t => t.kind === "coin").length} coins · Best {Math.round(save.bestTimes[id] ?? 0)}s</small>}
-              <button className="story-button" disabled={!playable} onClick={() => begin(id)}>{attempt ? `Resume ${attempt.checkpoint ? "checkpoint" : "journey"} →` : done ? "Walk this path again →" : playable ? "Begin →" : "Clear the trail first"}</button>
+              <p>{chapter.boss ? `Face ${mapWorld.boss}. Clear it to open the next world.` : "Clear this stretch to unlock the next level in the world."}</p>
+              {done && <small>{coinsDone}/{coinsTotal} coins · Best {Math.round(save.bestTimes[id] ?? 0)}s</small>}
+              <button className="story-button" data-story-primary={save.lastLevel === null && playable && !done ? "" : undefined} disabled={!playable} onClick={() => begin(id)}>{attempt ? `Resume ${attempt.checkpoint ? "checkpoint" : "journey"} →` : done ? "Walk this path again →" : playable ? "Begin →" : lockedByPenalty ? `Locked until Day ${save.penaltyUntilDay}` : id > 0 ? "Clear the previous level" : "Begin →"}</button>
             </div>;
-          })()}
+          })}
         </div>
-        {save.completed.includes(23) && <div className="adventure-master"><h3>The journey continues</h3><p>Optional mastery trails · Beat the par time, explore high routes, or face your old self again.</p>{[24, 25, 26].map(id => <button className="story-text-button" key={id} onClick={() => begin(id)}>{makeLevel(id).title} · {makeLevel(id).par}s</button>)}</div>}
       </section><p className="story-footnote">Lanterns, powers, memories and settings save on this device. Your habit challenge has its own path.</p>
     </div> : phase === "settings" ? <AdventureSettings settings={settings} onChange={next => persist({ ...saved.current, settings: next })} onClose={() => moveTo(previousPhase.current)} />
       : ["intro", "reflection", "reward", "ending"].includes(phase) ? <div className={`adventure-story-moment moment-${phase}`}>
         <header className="adventure-map-top"><button className="story-text-button" onClick={leaveLevel}>← World map</button><span className="story-eyebrow">{world.emotion} / {level.title}</span>{phase === "intro" && <button className="story-text-button" onClick={play}>Skip to trail →</button>}</header>
         <AdventureCinema world={phase === "ending" ? 0 : level.world} mood={phase === "intro" ? "intro" : phase === "reward" ? "power" : "peace"} endingPage={phase === "ending" ? page : undefined} reducedMotion={settings.reducedMotion} />
         <div className="adventure-dialogue">{phase === "intro" ? <><p className="story-eyebrow">PANDA / {page + 1} OF {world.intro.length}</p><h2>{world.motto}</h2><p className="adventure-spoken" aria-live="polite">{world.intro[page]}</p><p className="adventure-mechanic">{world.mechanic}</p><button className="story-button" data-story-primary onClick={() => { if (page + 1 < world.intro.length) { storeAttempt("intro", page + 1); moveTo("intro", page + 1); } else play(); }}>{page + 1 < world.intro.length ? "I'm with you →" : "Take the first step →"}</button></>
-          : phase === "reflection" ? <><p className="story-eyebrow">A QUIET MOMENT / BHAGAVAD GITA {wisdom.verse}</p><blockquote className="adventure-verse">“{wisdom.quote}”</blockquote><a className="adventure-source" href={wisdomUrl(wisdom.verse)} target="_blank" rel="noreferrer">Translation excerpt · Swami Mukundananda · Read the full verse ↗</a><p className="story-eyebrow adventure-panda-label">PANDA'S REFLECTION</p><p className="adventure-spoken">{world.reflection[level.stage]}</p><p className="story-footnote">{hud.coins} coins · {Math.round(state.current.elapsed)}s {level.mastery && state.current.elapsed <= level.par ? "· Mastery time achieved ✦" : ""}</p><button className="story-button" data-story-primary onClick={continueReflection}>Keep walking →</button></>
+          : phase === "reflection" ? <><p className="story-eyebrow">A QUIET MOMENT / BHAGAVAD GITA {wisdom.verse}</p><blockquote className="adventure-verse">“{wisdom.quote}”</blockquote><a className="adventure-source" href={wisdomUrl(wisdom.verse)} target="_blank" rel="noreferrer">Translation excerpt · Swami Mukundananda · Read the full verse ↗</a><p className="story-eyebrow adventure-panda-label">PANDA'S REFLECTION</p><p className="adventure-spoken">{world.reflection[level.stage % world.reflection.length]}</p><p className="story-footnote">{hud.coins} coins · {Math.round(state.current.elapsed)}s</p><button className="story-button" data-story-primary onClick={continueReflection}>Keep walking →</button></>
           : phase === "reward" && reward ? <><p className="story-eyebrow">YOU EARNED THIS</p><h2>{POWERS[reward].icon} {POWERS[reward].name}</h2><p className="adventure-spoken">{POWERS[reward].meaning}</p><p className="adventure-mechanic">{POWERS[reward].help}</p><button className="story-button" data-story-primary onClick={finishMoment}>A new way forward →</button></>
           : <><p className="story-eyebrow">BACK ON THE ORIGINAL TRAIL</p><h2>{page === 3 ? "The journey doesn't end here." : "A little light returns."}</h2>{page !== 3 && <p className="adventure-spoken" aria-live="polite">{ENDING[page]}</p>}<button className="story-button" data-story-primary onClick={() => { if (page < 3) { storeAttempt("ending", page + 1); moveTo("ending", page + 1); } else { storeAttempt("reflection", 0); moveTo("reflection"); } }}>{page < 3 ? "…" : "Walk forward →"}</button></>}</div>
       </div> : <div className="adventure-play">
@@ -275,7 +262,7 @@ export default function Adventure({ userId, dayNumber, initialWorld, onClose }: 
         <div className="adventure-viewport"><canvas ref={canvas} className="adventure-canvas" tabIndex={0} aria-label="Panda adventure. Move, jump and smash. Escape pauses. Control bindings are available in Settings." onPointerDown={e => { if (phase !== "play" || e.pointerType === "touch") return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controls.current.press(e.button === 2 ? "ability" : "attack"); }} onPointerUp={() => { controls.current.release("attack"); controls.current.release("ability"); }} onLostPointerCapture={() => { controls.current.release("attack"); controls.current.release("ability"); }} onContextMenu={e => e.preventDefault()} />
           {hud.bossHp > 0 && <div className="adventure-boss-bar"><div><span>{world.boss}</span><small>Phase {hud.bossPhase}</small></div><progress max={hud.bossMax} value={hud.bossHp} aria-label={`${world.boss} health`} /></div>}
           {toast && phase === "play" && <div className="adventure-toast" role="status">{toast}</div>}
-          {(phase === "paused" || phase === "dead") && <div className="adventure-overlay"><div className="adventure-pause"><p className="story-eyebrow">{phase === "dead" ? "TRY AGAIN" : "REST IS PART OF THE JOURNEY"}</p><h2>{phase === "dead" ? "The path is still here." : "Take a breath."}</h2><p>{phase === "dead" ? state.current.reason : "Your progress is saved at the last lantern. Continue when you're ready."}</p><button className="story-button" data-story-primary onClick={phase === "dead" ? retry : play}>{phase === "dead" ? "Return to the lantern →" : "I'm ready →"}</button>{phase === "paused" && <button className="story-text-button" onClick={retry}>Retry from lantern {state.current.checkpoint}</button>}<button className="story-text-button" onClick={leaveLevel}>World map</button></div></div>}
+          {(phase === "paused" || phase === "dead") && <div className="adventure-overlay"><div className="adventure-pause"><p className="story-eyebrow">{phase === "dead" ? "7-DAY PENALTY" : "REST IS PART OF THE JOURNEY"}</p><h2>{phase === "dead" ? "The path will wait." : "Take a breath."}</h2><p>{phase === "dead" ? `${state.current.reason} Story Mode reopens on Day ${save.penaltyUntilDay}.` : "Your progress is saved at the last lantern. Continue when you're ready."}</p>{phase === "paused" && <button className="story-button" data-story-primary onClick={play}>I'm ready →</button>}{phase === "paused" && <button className="story-text-button" onClick={retry}>Retry from lantern {state.current.checkpoint}</button>}<button className="story-text-button" onClick={leaveLevel}>World map</button></div></div>}
         </div>
         <div className="adventure-power-strip"><span className="adventure-rotate">Rotate your device for the best adventure.</span>{available.length > 0 && <label>Power<select aria-label="Current power" value={selected} onChange={e => selectPower(e.target.value as Power)}>{available.map(p => <option key={p} value={p}>{POWERS[p].name}</option>)}</select></label>}<div className="adventure-meters">{save.powers.includes("momentum") && <label>Momentum<progress max="100" value={hud.momentum} /></label>}{save.powers.includes("strength") && <label>Resolve<progress max="100" value={hud.resolve} /></label>}{available.length > 0 && <small>{hud.cooldown > 0 ? `${hud.cooldown.toFixed(1)}s` : (selected === "strength" || selected === "hope") && hud.resolve < 60 ? "Need 60 resolve" : "Ready"}</small>}</div></div>
         <AdventureTouch controls={controls.current} settings={settings} disabled={phase !== "play"} dash={save.powers.includes("dash")} ability={available.length > 0} />

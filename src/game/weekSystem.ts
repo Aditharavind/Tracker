@@ -1,20 +1,16 @@
 import type { DayCell } from "../types";
 import { WORLDS } from "./adventure/content";
 
-// The stone-path map (skill: WeekMap) gates Story Mode's worlds by real
-// day-by-day consistency instead of Adventure's own day-number ceiling (see
-// content.ts's storyWorldUnlockDay) -- completing every day of a 15-day arc
-// is always reached on or after that world's day-based ceiling, so this is
-// strictly the harder of the two gates and Adventure's own gate never has
-// to change.
+// The stone-path map (skill: WeekMap) still paints the 75-day habit trail in
+// 15-day arcs. Adventure's own world progression is now local to Story Mode:
+// clear all 15 story levels in a world to unlock the next world, with dayNumber
+// only used there for the 7-day failure penalty.
 //
 // ARC_DAYS is the Candy-Crush-style stone count per arc -- 15 stones, the
 // 15th a "wormhole" into the next world. ARC_COUNT tracks the challenge's
 // own calendar (75 days / 15 -- exact, no partial arc). STORY_ARC_LIMIT is
-// how many arcs actually have a world behind them right now (one per world,
-// in order): with 5 arcs in a single 75-day run and 8 worlds authored, only
-// the first 5 are reachable in one run -- worlds 6-8 wait for a longer/
-// future run rather than being renumbered or dropped.
+// how many habit arcs currently point at a story world. Story now authors six
+// worlds, while the 75-day habit trail contains five complete 15-day arcs.
 export const ARC_DAYS = 15;
 export const ARC_COUNT = Math.ceil(75 / ARC_DAYS);
 export const STORY_ARC_LIMIT = Math.min(WORLDS.length, ARC_COUNT);

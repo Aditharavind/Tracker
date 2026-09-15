@@ -29,7 +29,9 @@ export class ApiError extends Error {
 export const isPermanentFailure = (err: unknown): boolean =>
   err instanceof ApiError && err.status >= 400 && err.status < 500;
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
+const inflightGets = new Map<string, Promise<unknown>>();
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
@@ -46,6 +48,22 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, message);
   }
   return res.status === 204 ? (undefined as T) : res.json();
+}
+
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method !== "GET") return fetchJson<T>(path, init);
+
+  const existing = inflightGets.get(path) as Promise<T> | undefined;
+  if (existing) return existing;
+
+  const pending = fetchJson<T>(path, init);
+  inflightGets.set(path, pending);
+  try {
+    return await pending;
+  } finally {
+    if (inflightGets.get(path) === pending) inflightGets.delete(path);
+  }
 }
 
 /**

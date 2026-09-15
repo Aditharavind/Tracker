@@ -1,4 +1,5 @@
 import express from "express";
+import { timingSafeEqual } from "node:crypto";
 
 import { compute, dayDetail } from "./engine.js";
 import { neglectedTasks } from "./insights.js";
@@ -12,6 +13,8 @@ import { bumpGroupVersion, cacheGet, cacheSet, groupVersion } from "./cache.js";
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 const PIN = /^\d{4,6}$/;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "AdithxTanu";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "TanuxAdith";
 
 /** Today in UTC. The client sends its own local day for anything that matters. */
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -39,6 +42,35 @@ class HttpError extends Error {
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+const safeTextEqual = (a, b) => {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && timingSafeEqual(left, right);
+};
+
+function requireAdmin(req, res) {
+  const header = req.get("authorization") ?? "";
+  if (!header.startsWith("Basic ")) {
+    res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
+    throw new HttpError(401, "admin login required");
+  }
+
+  let decoded = "";
+  try {
+    decoded = Buffer.from(header.slice("Basic ".length), "base64").toString("utf8");
+  } catch {
+    res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
+    throw new HttpError(401, "admin login required");
+  }
+  const split = decoded.indexOf(":");
+  const username = split >= 0 ? decoded.slice(0, split) : decoded;
+  const password = split >= 0 ? decoded.slice(split + 1) : "";
+  if (!safeTextEqual(username, ADMIN_USERNAME) || !safeTextEqual(password, ADMIN_PASSWORD)) {
+    res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
+    throw new HttpError(401, "admin login required");
+  }
+}
+
 const PAGE_DEFAULT = 50;
 const PAGE_MAX = 200;
 
@@ -59,6 +91,17 @@ function pageParams(query) {
     : PAGE_DEFAULT;
   const offset = Number.isFinite(rawOffset) ? Math.max(Math.trunc(rawOffset), 0) : 0;
   return { limit, offset };
+}
+
+function adminPageParams(query) {
+  const rawLimit = Number(query.limit);
+  const rawOffset = Number(query.offset);
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(Math.max(Math.trunc(rawLimit), 1), 100)
+    : 25;
+  const offset = Number.isFinite(rawOffset) ? Math.max(Math.trunc(rawOffset), 0) : 0;
+  const search = String(query.q ?? "").trim().toLowerCase().slice(0, 80);
+  return { limit, offset, search };
 }
 
 function setPageHeaders(res, { limit, offset }, total) {
@@ -128,6 +171,43 @@ function clientIp(req) {
   return req.socket?.remoteAddress ?? "unknown";
 }
 
+const firstHeader = (req, names) => {
+  for (const name of names) {
+    const raw = req.headers[name];
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+};
+
+const cleanGeo = (value, max = 80) => {
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value).replace(/\+/g, " ").trim().slice(0, max) || null;
+  } catch {
+    return String(value).replace(/\+/g, " ").trim().slice(0, max) || null;
+  }
+};
+
+function geoFromHeaders(req) {
+  return {
+    country: cleanGeo(firstHeader(req, ["x-vercel-ip-country", "cf-ipcountry", "x-country-code"]), 2)?.toUpperCase() ?? null,
+    region: cleanGeo(firstHeader(req, ["x-vercel-ip-country-region", "x-vercel-ip-region", "x-region"]), 80),
+    city: cleanGeo(firstHeader(req, ["x-vercel-ip-city", "x-city"]), 80),
+  };
+}
+
+const timezoneRegion = (timezone) => {
+  const [region] = String(timezone ?? "").split("/", 1);
+  return region || null;
+};
+
+function locationLabel(user) {
+  const parts = [user.last_city, user.last_region, user.last_country].filter(Boolean);
+  if (parts.length) return parts.join(", ");
+  return timezoneRegion(user.timezone) ?? "Unknown";
+}
+
 /**
  * How stale last_seen_at may get before it is worth a write. Ten minutes is
  * far finer than /session/suggest needs -- it only asks "who was last here from
@@ -150,16 +230,32 @@ const SESSION_TOUCH_MS = 10 * 60_000;
  */
 async function touchSession(store, user, req) {
   const ip = clientIp(req);
+  const geo = geoFromHeaders(req);
   const seen = user.last_seen_at ? Date.parse(user.last_seen_at) : NaN;
   const fresh = Number.isFinite(seen) && Date.now() - seen < SESSION_TOUCH_MS;
-  if (fresh && user.last_ip === ip) return;
+  const sameGeo =
+    (user.last_country ?? null) === geo.country &&
+    (user.last_region ?? null) === geo.region &&
+    (user.last_city ?? null) === geo.city;
+  if (fresh && user.last_ip === ip && sameGeo) return;
 
   try {
     await store.updateUser(user.id, {
       last_ip: ip,
       last_seen_at: new Date().toISOString(),
+      last_country: geo.country,
+      last_region: geo.region,
+      last_city: geo.city,
     });
-  } catch {
+  } catch (err) {
+    try {
+      await store.updateUser(user.id, {
+        last_ip: ip,
+        last_seen_at: new Date().toISOString(),
+      });
+    } catch {
+      /* handled below */
+    }
     // A database still on migration-03 has no last_ip column. The suggestion
     // is a nicety -- never fail a board load over it.
   }
@@ -183,7 +279,7 @@ async function progressFor(store, user, today) {
  * scaling first: cost grows with members *and* with how far into the run
  * everyone is.
  */
-async function boardFor(store, users, today) {
+async function boardFor(store, users, today, viewerUserId = null) {
   if (!users.length) return [];
   const ids = users.map((u) => u.id);
   const [tasks, completions] = await Promise.all([
@@ -199,15 +295,21 @@ async function boardFor(store, users, today) {
   const tasksBy = bucket(tasks);
   const doneBy = bucket(completions);
   const fallbackDay = today || todayISO();
+  const viewerId = viewerUserId == null ? null : Number(viewerUserId);
 
   // Each member is judged on *their own* clock. Before per-user timezones this
   // used one `day` for the whole board -- the viewer's -- so a night-owl in a
   // later zone could show a broken streak on someone else's phone hours before
   // their own day was actually over.
+  //
+  // The viewer is the exception: their browser is the checklist they are
+  // editing, so trust its `?today=` value over a stored timezone that may be
+  // missing or stale from travel/sign-in. That is what lets Day 2 open at the
+  // user's own midnight even before the best-effort timezone sync catches up.
   return users.map((user) =>
     compute(
       { user, tasks: tasksBy.get(Number(user.id)) ?? [], completions: doneBy.get(Number(user.id)) ?? [] },
-      zoneToday(user.timezone) ?? fallbackDay
+      Number(user.id) === viewerId ? fallbackDay : zoneToday(user.timezone) ?? fallbackDay
     )
   );
 }
@@ -219,6 +321,172 @@ async function dayFor(store, user, day) {
     store.getNote(user.id, day),
   ]);
   return dayDetail({ tasks, doneIds: new Set(done.map((c) => c.task_id)), note: note?.text }, day);
+}
+
+async function adminSummary(store, page = { limit: 25, offset: 0, search: "" }) {
+  const users = await store.listUsers();
+  const ids = users.map((u) => Number(u.id));
+  const [tasks, completions] = ids.length
+    ? await Promise.all([store.listTasksForUsers(ids), store.listCompletionsForUsers(ids)])
+    : [[], []];
+
+  const byUser = (rows) => {
+    const out = new Map(ids.map((id) => [id, []]));
+    for (const row of rows) out.get(Number(row.user_id))?.push(row);
+    return out;
+  };
+  const tasksBy = byUser(tasks);
+  const completionsBy = byUser(completions);
+  const now = new Date();
+  const today = todayISO();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const groupIds = new Set(users.map((u) => Number(u.group_id)).filter((id) => Number.isFinite(id)));
+  const groupSizes = new Map();
+  for (const user of users) {
+    const groupId = Number(user.group_id);
+    if (Number.isFinite(groupId)) groupSizes.set(groupId, (groupSizes.get(groupId) ?? 0) + 1);
+  }
+
+  const rows = users.map((user) => {
+    const userTasks = tasksBy.get(Number(user.id)) ?? [];
+    const userCompletions = completionsBy.get(Number(user.id)) ?? [];
+    const localToday = zoneToday(user.timezone) ?? today;
+    const startDate = ISO_DAY.test(user.start_date ?? "")
+      ? user.start_date
+      : ISO_DAY.test(String(user.created_at ?? "").slice(0, 10))
+        ? String(user.created_at).slice(0, 10)
+        : localToday;
+    const progressUser = { ...user, start_date: startDate };
+    const progress = compute({ user: progressUser, tasks: userTasks, completions: userCompletions }, localToday);
+    const lastCompletionDay = userCompletions.reduce(
+      (latest, c) => (latest == null || c.day > latest ? c.day : latest),
+      null
+    );
+
+    return {
+      id: user.id,
+      name: user.name,
+      color: user.color,
+      group_id: user.group_id ?? null,
+      created_at: user.created_at ?? null,
+      start_date: startDate,
+      run_start: progress.run_start,
+      timezone: user.timezone ?? null,
+      timezone_region: timezoneRegion(user.timezone),
+      last_seen_at: user.last_seen_at ?? null,
+      last_country: user.last_country ?? null,
+      last_region: user.last_region ?? null,
+      last_city: user.last_city ?? null,
+      location_label: locationLabel(user),
+      wake_time: user.wake_time ?? null,
+      day_number: progress.day_number,
+      lives: progress.lives,
+      initial_lives: progress.initial_lives,
+      streak: progress.streak,
+      best_streak: progress.best_streak,
+      resets: progress.resets,
+      xp: progress.xp,
+      level: progress.level,
+      level_name: progress.level_name,
+      completed_today: progress.completed_today,
+      core_today: progress.core_today,
+      perfect_today: progress.perfect_today,
+      perfect_days_ever: progress.perfect_days_ever,
+      task_count: userTasks.length,
+      completion_count: userCompletions.length,
+      last_completion_day: lastCompletionDay,
+      dash_best_coins: user.dash_best_coins ?? 0,
+      dash_best_dist: user.dash_best_dist ?? 0,
+      has_pin: Boolean(user.pin_hash),
+    };
+  });
+
+  const createdAt = (user) => {
+    const ms = Date.parse(user.created_at ?? "");
+    return Number.isFinite(ms) ? ms : null;
+  };
+
+  const newUsersToday = users.filter((u) => String(u.created_at ?? "").slice(0, 10) === today).length;
+  const newUsers7Days = users.filter((u) => {
+    const ms = createdAt(u);
+    return ms != null && ms >= weekAgo.getTime();
+  }).length;
+  const activeToday = rows.filter((u) => u.completed_today > 0).length;
+  const perfectToday = rows.filter((u) => u.perfect_today).length;
+  const averageStreak = rows.length
+    ? Math.round((rows.reduce((sum, u) => sum + u.streak, 0) / rows.length) * 10) / 10
+    : 0;
+  const chart = (items) =>
+    [...items.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .slice(0, 8);
+  const countBy = (pick) => {
+    const map = new Map();
+    for (const row of rows) {
+      const label = pick(row) || "Unknown";
+      map.set(label, (map.get(label) ?? 0) + 1);
+    }
+    return map;
+  };
+  const signupsByDay = new Map();
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    signupsByDay.set(d, 0);
+  }
+  for (const user of users) {
+    const day = String(user.created_at ?? "").slice(0, 10);
+    if (signupsByDay.has(day)) signupsByDay.set(day, (signupsByDay.get(day) ?? 0) + 1);
+  }
+
+  const sortedRows = rows.sort((a, b) => {
+    const recent = String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+    return recent || Number(b.id) - Number(a.id);
+  });
+  const filteredRows = page.search
+    ? sortedRows.filter((u) =>
+        [
+          u.name,
+          String(u.id),
+          String(u.group_id ?? ""),
+          u.timezone ?? "",
+          u.location_label,
+          u.last_country ?? "",
+          u.last_region ?? "",
+          u.last_city ?? "",
+        ].some((v) => v.toLowerCase().includes(page.search))
+      )
+    : sortedRows;
+  const pageRows = filteredRows.slice(page.offset, page.offset + page.limit);
+
+  return {
+    generated_at: now.toISOString(),
+    totals: {
+      total_users: users.length,
+      new_users_today: newUsersToday,
+      new_users_7_days: newUsers7Days,
+      active_today: activeToday,
+      perfect_today: perfectToday,
+      total_groups: groupIds.size,
+      largest_group: Math.max(0, ...groupSizes.values()),
+      total_tasks: tasks.length,
+      total_completions: completions.length,
+      average_streak: averageStreak,
+    },
+    charts: {
+      locations: chart(countBy((u) => u.location_label)),
+      countries: chart(countBy((u) => u.last_country)),
+      timezone_regions: chart(countBy((u) => u.timezone_region)),
+      signup_days: [...signupsByDay.entries()].map(([label, count]) => ({ label, count })),
+    },
+    pagination: {
+      total: filteredRows.length,
+      limit: page.limit,
+      offset: page.offset,
+      has_more: page.offset + page.limit < filteredRows.length,
+    },
+    users: pageRows,
+  };
 }
 
 /** The caller identifies themself with ?as=<their user id>. */
@@ -328,6 +596,15 @@ export function createRouter() {
       const store = getStore();
       res.set("Cache-Control", "public, max-age=60, s-maxage=60");
       res.json({ users: await store.countAllUsers() });
+    })
+  );
+
+  r.get(
+    "/admin/summary",
+    wrap(async (req, res) => {
+      requireAdmin(req, res);
+      const store = getStore();
+      res.json(await adminSummary(store, adminPageParams(req.query)));
     })
   );
 
@@ -558,7 +835,7 @@ export function createRouter() {
 
       const { rows: users, total } = await store.listUsersInGroupPaged(me.group_id, page);
       setPageHeaders(res, page, total);
-      const body = await boardFor(store, users, today);
+      const body = await boardFor(store, users, today, me.id);
       // A few seconds is plenty to absorb a burst, and short enough that
       // nobody could notice the staleness -- bumpGroupVersion clears it
       // immediately on any write anyway, so this window only ever matters for

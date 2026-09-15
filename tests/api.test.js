@@ -10,6 +10,7 @@ import { createApp } from "../server/app.js";
 import { createMemoryStore } from "../server/store/memory.js";
 import { getStore, setStore } from "../server/store/index.js";
 import { hashSecret } from "../server/security.js";
+import { addDays } from "../server/engine.js";
 import { todayISO } from "./helpers.js";
 
 let base;
@@ -422,6 +423,31 @@ test("a valid timezone is stored on the user; a bogus one is dropped", async () 
   assert.match(prog.run_start, /^\d{4}-\d{2}-\d{2}$/);
 });
 
+test("the board opens the viewer's next day from the browser date even if their stored zone lags", async () => {
+  const start = TODAY;
+  const tomorrow = addDays(start, 1);
+  const user = (
+    await call("POST", "/users", {
+      name: "Rollover",
+      pin: "4545",
+      start_date: start,
+      timezone: "Pacific/Honolulu",
+    })
+  ).body;
+
+  const store = getStore();
+  const tasks = await store.listTasks(user.id);
+  for (const t of tasks) {
+    await store.addCompletion({ user_id: user.id, task_id: t.id, day: start });
+  }
+
+  const board = (await call("GET", `/board?as=${user.id}&today=${tomorrow}`)).body;
+  assert.equal(board[0].day_number, 2);
+  assert.equal(board[0].calendar[0].status, "done");
+  assert.equal(board[0].calendar[1].status, "today");
+  assert.equal(board[0].perfect_today, false, "tomorrow starts as a fresh checklist");
+});
+
 test("health check reports the store and its schema", async () => {
   const { status, body } = await call("GET", "/health");
   assert.equal(status, 200);
@@ -631,4 +657,64 @@ test("GET /stats leaks nothing but the number", async () => {
     "no names, ids, colours or tokens -- it must not be an enumeration route"
   );
   assert.equal(typeof res.body.users, "number");
+});
+
+test("admin summary is protected and returns sanitized user stats", async () => {
+  const locked = await fetch(`${base}/admin/summary`);
+  assert.equal(locked.status, 401);
+
+  const wrong = await fetch(`${base}/admin/summary`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:nope").toString("base64")}` },
+  });
+  assert.equal(wrong.status, 401);
+
+  await fetch(`${base}/users?as=${adith.id}`, {
+    headers: {
+      "x-vercel-ip-country": "IN",
+      "x-vercel-ip-country-region": "KL",
+      "x-vercel-ip-city": "Kochi",
+    },
+  });
+
+  const ok = await fetch(`${base}/admin/summary?limit=2`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  assert.equal(ok.status, 200);
+  const body = await ok.json();
+
+  assert.equal(body.totals.total_users, (await call("GET", "/stats")).body.users);
+  assert.equal(body.pagination.limit, 2);
+  assert.equal(body.pagination.offset, 0);
+  assert.ok(body.pagination.total >= body.users.length);
+  assert.ok(body.users.length <= 2, "admin user rows are paginated");
+  assert.ok(body.totals.new_users_today >= 0);
+  assert.ok(body.totals.new_users_7_days >= body.totals.new_users_today);
+  assert.ok(body.charts.locations.some((r) => r.label === "Kochi, KL, IN"));
+  assert.ok(body.charts.countries.some((r) => r.label === "IN"));
+  assert.equal(body.charts.signup_days.length, 7);
+
+  const search = await fetch(`${base}/admin/summary?limit=10&q=Adith`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  assert.equal(search.status, 200);
+  const searched = await search.json();
+  assert.ok(searched.pagination.total >= 1);
+  assert.ok(searched.users.every((u) => /adith/i.test(u.name) || String(u.id).includes("Adith")));
+
+  const adithRow = searched.users.find((u) => u.name === "Adith");
+  assert.ok(adithRow);
+  assert.equal("pin_hash" in adithRow, false, "admin rows never expose PIN hashes");
+  assert.equal("share_token" in adithRow, false, "admin rows never expose share tokens");
+  assert.equal("last_ip" in adithRow, false, "admin rows never expose raw IPs");
+  assert.equal(adithRow.location_label, "Kochi, KL, IN");
+  assert.equal(typeof adithRow.streak, "number");
+  assert.equal(typeof adithRow.task_count, "number");
+
+  const secondPage = await fetch(`${base}/admin/summary?limit=2&offset=2`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  assert.equal(secondPage.status, 200);
+  const pageTwo = await secondPage.json();
+  assert.equal(pageTwo.pagination.offset, 2);
+  assert.ok(pageTwo.users.length <= 2);
 });

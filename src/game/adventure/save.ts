@@ -1,4 +1,4 @@
-import { LEVEL_COUNT, MAIN_LEVELS, makeLevel, storyWorldUnlockDay, WORLDS, type Power } from "./content";
+import { FINAL_LEVEL_ID, LEVEL_COUNT, MAIN_LEVELS, finalLevelForWorld, makeLevel, WORLDS, type Power } from "./content";
 
 export type Action = "left" | "right" | "jump" | "attack" | "dash" | "ability" | "cycle" | "crouch" | "walk";
 export type Settings = {
@@ -17,21 +17,22 @@ export type Attempt = {
   elapsed: number; scene: "intro" | "play" | "reflection" | "reward" | "ending"; page: number;
 };
 export type Save = {
-  version: 2; completed: number[]; bosses: number[]; powers: Power[]; upgrades: string[];
+  version: 3; completed: number[]; bosses: number[]; powers: Power[]; upgrades: string[];
   collectibles: Record<string, number[]>; lore: Record<string, number[]>;
-  attempts: Record<string, Attempt>; bestTimes: Record<string, number>; lastLevel: number | null; settings: Settings;
+  attempts: Record<string, Attempt>; bestTimes: Record<string, number>; lastLevel: number | null;
+  failures: number; penaltyUntilDay: number | null; settings: Settings;
 };
-export const saveKey = (userId: number | null) => `75hard.panda.adventure.v2:${userId ?? "guest"}`;
-export const emptySave = (): Save => ({ version: 2, completed: [], bosses: [], powers: [], upgrades: [], collectibles: {}, lore: {}, attempts: {}, bestTimes: {}, lastLevel: null, settings: { ...DEFAULT_SETTINGS, keys: { ...DEFAULT_SETTINGS.keys } } });
+export const saveKey = (userId: number | null) => `75hard.panda.adventure.v3:${userId ?? "guest"}`;
+export const emptySave = (): Save => ({ version: 3, completed: [], bosses: [], powers: [], upgrades: [], collectibles: {}, lore: {}, attempts: {}, bestTimes: {}, lastLevel: null, failures: 0, penaltyUntilDay: null, settings: { ...DEFAULT_SETTINGS, keys: { ...DEFAULT_SETTINGS.keys } } });
 const object = (v: unknown): Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
 const numbers = (v: unknown, allowed: number[]) => Array.isArray(v) ? [...new Set(v.filter((n): n is number => typeof n === "number" && allowed.includes(n)))] : [];
 const bounded = (v: unknown, min: number, max: number, fallback: number) => typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
-// dayNumber is the habit challenge's own day count -- an additional ceiling on
-// top of the sequential completion gate below, not a replacement for it. It
-// defaults to Infinity (no ceiling) so every existing caller/test that only
-// ever cared about save progression is unaffected; only the real gameplay
-// entry point (Adventure.tsx) passes the actual day number.
-export const canPlay = (save: Save, id: number, dayNumber = Infinity) => id >= 0 && id < LEVEL_COUNT && Number.isInteger(id) && (id >= MAIN_LEVELS ? save.completed.includes(MAIN_LEVELS - 1) : id === 0 || save.completed.includes(id - 1)) && dayNumber >= storyWorldUnlockDay(makeLevel(id).world);
+export const penaltyActive = (save: Save, dayNumber: number) => Number.isFinite(dayNumber) && save.penaltyUntilDay !== null && dayNumber < save.penaltyUntilDay;
+
+// Story progress is strictly sequential: all 15 levels in one world must be
+// cleared before the first level of the next world opens. dayNumber only
+// applies the failure lockout; callers that omit it get pure save progression.
+export const canPlay = (save: Save, id: number, dayNumber = Infinity) => id >= 0 && id < LEVEL_COUNT && Number.isInteger(id) && !penaltyActive(save, dayNumber) && (id === 0 || save.completed.includes(id - 1));
 export function earnedPowers(bosses: number[]): Power[] {
   return WORLDS.flatMap((w, i) => w.reward && bosses.includes(i) ? [w.reward] : []);
 }
@@ -43,14 +44,16 @@ export function parseSave(raw: string | null): Save {
   const next = emptySave();
   try {
     const v = object(JSON.parse(raw ?? "null"));
-    if (v.version !== 2) return next;
+    if (v.version !== 3) return next;
     for (let i = 0; i < MAIN_LEVELS; i++) {
       if (!Array.isArray(v.completed) || !v.completed.includes(i)) break;
       next.completed.push(i);
     }
-    if (next.completed.includes(23)) next.completed.push(...numbers(v.completed, [24, 25, 26]));
-    next.bosses = WORLDS.map((_, i) => i).filter(i => next.completed.includes(i * 3 + 2));
+    next.bosses = WORLDS.map((_, i) => i).filter(i => next.completed.includes(finalLevelForWorld(i)));
     next.powers = earnedPowers(next.bosses);
+    next.failures = Math.floor(bounded(v.failures, 0, 9999, 0));
+    const penaltyUntilDay = v.penaltyUntilDay;
+    next.penaltyUntilDay = typeof penaltyUntilDay === "number" && Number.isFinite(penaltyUntilDay) && penaltyUntilDay > 1 ? Math.floor(penaltyUntilDay) : null;
     for (let id = 0; id < LEVEL_COUNT; id++) {
       if (!canPlay(next, id)) continue;
       const level = makeLevel(id); const k = String(id);
@@ -63,7 +66,7 @@ export function parseSave(raw: string | null): Save {
       const a = object(object(v.attempts)[k]);
       if (!["intro", "play", "reflection", "reward", "ending"].includes(String(a.scene))) continue;
       if (["reflection", "reward", "ending"].includes(String(a.scene)) && !next.completed.includes(id)) continue;
-      if (a.scene === "ending" && id !== 23) continue;
+      if (a.scene === "ending" && id !== FINAL_LEVEL_ID) continue;
       if (a.scene === "reward" && (!level.boss || !WORLDS[level.world].reward || id >= MAIN_LEVELS)) continue;
       next.attempts[k] = {
         checkpoint: Math.floor(bounded(a.checkpoint, 0, level.checkpoints.length - 1, 0)),
@@ -98,9 +101,14 @@ export function completeLevel(save: Save, id: number, attempt: Attempt): Save {
   const level = makeLevel(id);
   const completed = [...new Set([...save.completed, id])].sort((a, b) => a - b);
   const bosses = [...new Set([...save.bosses, ...(level.boss && id < MAIN_LEVELS ? [level.world] : [])])];
-  const next = recordAttempt(save, id, { ...attempt, scene: id === 23 ? "ending" : "reflection", page: 0 });
+  const next = recordAttempt(save, id, { ...attempt, scene: id === FINAL_LEVEL_ID ? "ending" : "reflection", page: 0 });
   const best = save.bestTimes[id];
   return { ...next, completed, bosses, powers: earnedPowers(bosses), bestTimes: { ...save.bestTimes, [id]: best ? Math.min(best, attempt.elapsed) : Math.max(.01, attempt.elapsed) } };
+}
+export function recordFailure(save: Save, dayNumber: number): Save {
+  if (!Number.isFinite(dayNumber)) return save;
+  const until = Math.floor(dayNumber) + 7;
+  return { ...save, failures: save.failures + 1, penaltyUntilDay: Math.max(save.penaltyUntilDay ?? until, until), lastLevel: null };
 }
 export function recordAttempt(save: Save, id: number, attempt: Attempt): Save {
   if (!canPlay(save, id)) return save;

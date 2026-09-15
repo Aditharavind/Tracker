@@ -4837,6 +4837,289 @@ h3 {
   }
 }
 
+/* ---- admin panel -------------------------------------------------------- */
+
+.admin-shell {
+  min-height: 100dvh;
+  padding: 24px;
+  background: #0b0b0c;
+  color: var(--text);
+}
+
+.admin-topbar {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-topbar h1 {
+  margin: 0;
+  font-size: clamp(18px, 4vw, 28px);
+}
+
+.admin-kicker {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-family: var(--game-font);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-login {
+  width: min(420px, 100%);
+  margin: 12vh auto 0;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.admin-login h2 {
+  margin: 0 0 4px;
+}
+
+.admin-error {
+  margin: 0;
+  color: #ff8d7f;
+  font-weight: 700;
+}
+
+.admin-stat-grid {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-stat {
+  min-height: 86px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.admin-stat span {
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.admin-stat strong {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.admin-chart-grid {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-chart {
+  min-height: 230px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.admin-chart h2 {
+  margin: 0 0 12px;
+}
+
+.admin-chart-bars {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-chart-row {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.9fr) minmax(120px, 2fr) 42px;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-chart-row span {
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-chart-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--raised);
+}
+
+.admin-chart-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #f2c166);
+}
+
+.admin-chart-row strong {
+  text-align: right;
+}
+
+.admin-users {
+  max-width: 1180px;
+  margin: 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.admin-users-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-users-head h2,
+.admin-users-head p {
+  margin: 0;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-actions .field {
+  width: min(260px, 36vw);
+}
+
+.admin-page-size {
+  width: 86px !important;
+}
+
+.admin-table-wrap {
+  overflow: auto;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 1160px;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.admin-table th {
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.admin-table td small {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.admin-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-user i {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.admin-user strong,
+.admin-user span {
+  display: block;
+}
+
+.admin-user span {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.admin-good {
+  color: var(--good);
+  font-weight: 800;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .admin-shell {
+    padding: 16px;
+  }
+
+  .admin-topbar,
+  .admin-users-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-actions .field,
+  .admin-page-size {
+    width: 100%;
+  }
+
+  .admin-pagination {
+    justify-content: space-between;
+  }
+}
+
 /* ---------------------------------------------------------- panda peek */
 /* The notification opt-in: a cropped sliver of the panda sprite peeking up
    over the bottom-right corner, as if it snuck up to get your attention.

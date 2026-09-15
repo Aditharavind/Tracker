@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { MAIN_LEVELS, STORY_WORLD_UNLOCK_DAYS, WORLDS, makeLevel, storyWorldUnlockDay, unlockedStoryWorldCount } from "./content";
+import { FINAL_LEVEL_ID, LEVELS_PER_WORLD, MAIN_LEVELS, STORY_WORLD_UNLOCK_DAYS, WORLDS, finalLevelForWorld, firstLevelForWorld, makeLevel, storyWorldUnlockDay, unlockedStoryWorldCount } from "./content";
 import { bossVulnerable, createState, damage, HERO_H, HERO_W, idleInput, platformAt, platformSolid, snapshot, step, type State } from "./engine";
-import { canPlay, completeLevel, emptySave, parseSave, recordAttempt, saveKey, type Save } from "./save";
+import { canPlay, completeLevel, emptySave, parseSave, recordAttempt, recordFailure, saveKey, type Save } from "./save";
 import { Controls, PerformanceGovernor } from "./controls";
 
 function through(id: number): Save {
@@ -23,11 +23,11 @@ describe("campaign progression and saves", () => {
       if (level.boss && reward) expect(save.powers).toContain(reward);
       save = parseSave(JSON.stringify(save));
     }
-    expect(save.bosses).toHaveLength(8); expect(save.powers).toHaveLength(7);
-    expect(canPlay(save, 24)).toBe(true); expect(canPlay(save, 25)).toBe(true); expect(canPlay(save, 26)).toBe(true);
+    expect(save.bosses).toHaveLength(WORLDS.length); expect(save.powers).toHaveLength(WORLDS.filter(w => w.reward).length);
+    expect(canPlay(save, MAIN_LEVELS)).toBe(false);
   });
   it("restores the lantern, collected items and cleared obstacles after a serialized reload", () => {
-    const level = makeLevel(4); let save = through(4); const state = createState(level, save);
+    const id = LEVELS_PER_WORLD + 1; const level = makeLevel(id); let save = through(id); const state = createState(level, save);
     state.checkpoint = 1; state.coins.add(level.things.find(t => t.kind === "coin")!.id); state.lore.add(level.things.find(t => t.kind === "lore")!.id);
     state.defeated.add(level.enemies[0].id); state.opened.add(level.objects[0].id); state.elapsed = 43.5;
     save = parseSave(JSON.stringify(recordAttempt(save, level.id, snapshot(state))));
@@ -35,7 +35,7 @@ describe("campaign progression and saves", () => {
     expect(restored.x).toBe(level.checkpoints[1]); expect(restored.grounded).toBe(true); expect(restored.health).toBe(5);
     expect([...restored.coins]).toEqual([...state.coins]); expect([...restored.lore]).toEqual([...state.lore]); expect(restored.elapsed).toBe(43.5);
     expect(restored.enemies.find(e => e.id === level.enemies[0].id)?.hp).toBe(0);
-    expect(restored.opened.has(level.objects[0].id)).toBe(true); expect(save.lastLevel).toBe(4);
+    expect(restored.opened.has(level.objects[0].id)).toBe(true); expect(save.lastLevel).toBe(id);
     expect(restored.powers.has("dash")).toBe(true); expect(restored.powers.has("second")).toBe(false);
   });
   it("does not duplicate collectibles or completion rewards on replay", () => {
@@ -55,7 +55,7 @@ describe("campaign progression and saves", () => {
   });
   it("rejects malformed, locked and invalid save data without granting powers", () => {
     expect(parseSave("bad")).toEqual(emptySave());
-    const loaded = parseSave(JSON.stringify({ version: 2, completed: [0, 20], bosses: [7], powers: ["hope"], attempts: { 20: { scene: "play", checkpoint: 999 }, 0: { scene: "play", checkpoint: 999, coins: [1, 1, -9, 999], elapsed: "bad" } }, settings: { music: 5, buttonSize: -5 } }));
+    const loaded = parseSave(JSON.stringify({ version: 3, completed: [0, 20], bosses: [7], powers: ["hope"], attempts: { 20: { scene: "play", checkpoint: 999 }, 0: { scene: "play", checkpoint: 999, coins: [1, 1, -9, 999], elapsed: "bad" } }, settings: { music: 5, buttonSize: -5 } }));
     expect(loaded.completed).toEqual([0]); expect(loaded.powers).toEqual([]); expect(loaded.attempts[20]).toBeUndefined();
     expect(loaded.attempts[0].checkpoint).toBeLessThan(makeLevel(0).checkpoints.length);
     expect(loaded.attempts[0].coins).toEqual([]); expect(loaded.settings.music).toBe(1); expect(loaded.settings.buttonSize).toBe(44);
@@ -69,32 +69,32 @@ describe("campaign progression and saves", () => {
   });
 });
 
-describe("story worlds unlock with the 75-day challenge, not a separate minigame", () => {
-  it("World 1 opens on Day 1, then a new world every 7 days", () => {
-    expect(STORY_WORLD_UNLOCK_DAYS).toEqual([1, 8, 15, 22, 29, 36, 43, 50]);
-    for (let w = 0; w < WORLDS.length; w++) expect(storyWorldUnlockDay(w)).toBe(1 + w * 7);
+describe("story worlds unlock through 15-level clears, with failure penalties", () => {
+  it("keeps legacy day floors open while completion controls world access", () => {
+    expect(STORY_WORLD_UNLOCK_DAYS).toEqual(WORLDS.map(() => 1));
+    for (let w = 0; w < WORLDS.length; w++) expect(storyWorldUnlockDay(w)).toBe(1);
   });
   it("clamps to the first and last world for out-of-range indices", () => {
     expect(storyWorldUnlockDay(-1)).toBe(storyWorldUnlockDay(0));
     expect(storyWorldUnlockDay(99)).toBe(storyWorldUnlockDay(WORLDS.length - 1));
   });
   it("counts how many worlds a given day has opened", () => {
-    expect(unlockedStoryWorldCount(1)).toBe(1);
-    expect(unlockedStoryWorldCount(7)).toBe(1);
-    expect(unlockedStoryWorldCount(8)).toBe(2);
-    expect(unlockedStoryWorldCount(50)).toBe(8);
-    expect(unlockedStoryWorldCount(75)).toBe(8);
+    expect(unlockedStoryWorldCount(0)).toBe(0);
+    expect(unlockedStoryWorldCount(1)).toBe(WORLDS.length);
+    expect(unlockedStoryWorldCount(75)).toBe(WORLDS.length);
   });
-  it("canPlay refuses a level whose world the day hasn't reached yet, even mid-save", () => {
-    const save = through(3); // world 0 (Laziness) fully cleared, world 1 (Self-doubt) unlocked by save
-    expect(canPlay(save, 3)).toBe(true); // no dayNumber given -- unlimited, as every existing caller expects
-    expect(canPlay(save, 3, 1)).toBe(false); // Day 1: only World 1 is open
-    expect(canPlay(save, 3, 7)).toBe(false); // still Day <8
-    expect(canPlay(save, 3, 8)).toBe(true); // Day 8: World 2 opens
+  it("opens the next world only after all 15 levels in the previous world are clear", () => {
+    const almost = through(LEVELS_PER_WORLD - 1);
+    expect(canPlay(almost, LEVELS_PER_WORLD - 1, 1)).toBe(true);
+    expect(canPlay(almost, LEVELS_PER_WORLD, 999)).toBe(false);
+    const cleared = through(LEVELS_PER_WORLD);
+    expect(canPlay(cleared, LEVELS_PER_WORLD, 1)).toBe(true);
   });
-  it("the day ceiling never grants a level the save itself hasn't earned", () => {
-    const save = emptySave();
-    expect(canPlay(save, 3, 999)).toBe(false); // world 2 is day-unlocked, but world 1's boss isn't beaten
+  it("a failure blocks Story Mode for 7 habit days", () => {
+    const penalized = recordFailure(emptySave(), 12);
+    expect(penalized.penaltyUntilDay).toBe(19);
+    expect(canPlay(penalized, 0, 18)).toBe(false);
+    expect(canPlay(penalized, 0, 19)).toBe(true);
   });
 });
 
@@ -142,7 +142,7 @@ describe("movement, combat and powers", () => {
     s.shield = 0; s.immune = 0; expect(damage(s, "test")).toBe(true); expect(damage(s, "test")).toBe(false); expect(s.health).toBe(4);
   });
   it("strength consumes earned resolve and hope requires its boss unlock", () => {
-    const level = makeLevel(18); const s = createState(level, through(18)); s.resolve = 59;
+    const level = makeLevel(FINAL_LEVEL_ID); const s = createState(level, through(MAIN_LEVELS)); s.resolve = 59;
     step(s, level, { ...idleInput(), ability: true, selected: "strength" }); expect(s.power).toBe(0);
     s.resolve = 60; step(s, level, { ...idleInput(), ability: true, selected: "strength" }); expect(s.power).toBeGreaterThan(0); expect(s.resolve).toBe(0);
     s.abilityCooldown = 0; s.resolve = 100; step(s, level, { ...idleInput(), ability: true, selected: "hope" }); expect(s.hope).toBe(0);
@@ -157,8 +157,8 @@ describe("movement, combat and powers", () => {
 
 describe("authored routes and boss openings", () => {
   it("all main-route gaps are jumpable with the powers available at that world", () => {
-    for (let id = 0; id < 24; id++) {
-      const level = makeLevel(id); const save = through(Math.floor(id / 3) * 3);
+    for (let id = 0; id < MAIN_LEVELS; id++) {
+      const level = makeLevel(id); const save = through(firstLevelForWorld(level.world));
       const route = level.platforms.filter(p => p.y >= 360 && p.y <= 430).sort((a, b) => a.x - b.x);
       for (let k = 0; k < route.length - 1; k++) {
         const from = route[k]; const to = route[k + 1]; if (to.x <= from.x + from.w) continue;
@@ -175,8 +175,8 @@ describe("authored routes and boss openings", () => {
     }
   });
   it("bosses telegraph, recover, and can be damaged by starting Smash without their reward", () => {
-    for (let world = 0; world < 8; world++) {
-      const id = world * 3 + 2; const level = makeLevel(id); const s = createState(level, through(world * 3));
+    for (let world = 0; world < WORLDS.length; world++) {
+      const id = finalLevelForWorld(world); const level = makeLevel(id); const s = createState(level, through(firstLevelForWorld(world)));
       s.x = level.arena + 110; s.y = 430 - HERO_H; s.enemies.forEach(e => e.hp = 0);
       for (let i = 0; i < 700 && !bossVulnerable(s.boss!); i++) step(s, level, idleInput());
       expect(bossVulnerable(s.boss!), WORLDS[world].boss).toBe(true);
@@ -186,14 +186,14 @@ describe("authored routes and boss openings", () => {
     }
   });
   it("the giant's sleeping phase can be punished with the environmental bell", () => {
-    const level = makeLevel(2); const s = createState(level, emptySave());
+    const level = makeLevel(finalLevelForWorld(0)); const s = createState(level, through(firstLevelForWorld(0)));
     s.boss!.active = true; s.boss!.stage = "sleep"; s.boss!.timer = 4; s.boss!.hp = 5;
     const bell = level.objects.find(o => o.kind === "bell")!; s.x = bell.x - 45; s.y = bell.y - HERO_H;
     step(s, level, { ...idleInput(), attack: true }); expect(s.boss!.hp).toBe(3);
   });
-  it("all eight bosses can be defeated with earned powers, five hearts, and normal inputs", () => {
-    for (let world = 0; world < 8; world++) {
-      const level = makeLevel(world * 3 + 2); const save = through(world * 3);
+  it("all bosses can be defeated with earned powers, five hearts, and normal inputs", () => {
+    for (let world = 0; world < WORLDS.length; world++) {
+      const level = makeLevel(finalLevelForWorld(world)); const save = through(firstLevelForWorld(world));
       const s = createState(level, save, { ...snapshot(createState(level, save)), checkpoint: 2 });
       for (let frame = 0; frame < 30000 && s.status === "playing"; frame++) {
         const b = s.boss!; const dx = b.x - (s.x + 17); const vulnerable = bossVulnerable(b);
@@ -211,7 +211,7 @@ describe("authored routes and boss openings", () => {
     }
   });
   it("collapsing and moving platforms recover safely at a checkpoint", () => {
-    const level = makeLevel(16); const save = through(16); const s = createState(level, save); const platform = level.platforms.find(p => p.kind === "crumble")!;
+    const id = firstLevelForWorld(5) + 1; const level = makeLevel(id); const save = through(id); const s = createState(level, save); const platform = level.platforms.find(p => p.kind === "crumble")!;
     s.crumbling.set(platform.id, 0); s.worldTime = 2;
     expect(platformSolid(s, platform)).toBe(false);
     const restored = createState(level, save, { ...snapshot(s), checkpoint: 1 });

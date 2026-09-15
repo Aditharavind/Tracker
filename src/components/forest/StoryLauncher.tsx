@@ -13,9 +13,9 @@ class StoryBoundary extends Component<{ children: ReactNode; onClose: () => void
   }
 }
 
-// Story Mode's own entry point (skill/App wiring): a chapter of the same
-// 75-day run, opened from a portal in ForestScene rather than the Minigames
-// picker, gated by dayNumber (see content.ts's storyWorldUnlockDay).
+// Story Mode's own entry point (skill/App wiring): opened from a portal in
+// ForestScene rather than the Minigames picker. dayNumber is only used for
+// the 7-day failure penalty.
 export default function StoryLauncher({
   character,
   userId,
