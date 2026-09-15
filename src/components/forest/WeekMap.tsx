@@ -37,7 +37,19 @@ const PATH: PathNode[] = (() => {
   return nodes;
 })();
 const ROWS = Math.ceil(PATH.length / COLS);
+// Portal anchors match five of the large stone platforms painted into
+// weekmap-bg.png, progressing from the bottom of the trail to the top.
+const PORTAL_POS: Record<number, { x: number; y: number }> = {
+  1: { x: 0.288, y: 0.797 },
+  2: { x: 0.683, y: 0.589 },
+  3: { x: 0.386, y: 0.384 },
+  4: { x: 0.671, y: 0.207 },
+  5: { x: 0.579, y: 0.093 },
+};
 const NODE_POS: { x: number; y: number }[] = PATH.map((_, i) => {
+  const node = PATH[i];
+  if (node.kind === "wormhole" && PORTAL_POS[node.arc]) return PORTAL_POS[node.arc];
+
   const row = Math.floor(i / COLS);
   const col = i % COLS;
   const leftToRight = row % 2 === 0;
@@ -192,7 +204,6 @@ export default function WeekMap({
                 }}
                 aria-label={label}
               >
-                <span className="weekmap-wormhole-stone" aria-hidden="true" />
                 <span className="weekmap-wormhole-ring" aria-hidden="true" />
                 <span className="weekmap-wormhole-sign pixel-font">
                   {locked || !hasWorld ? (

@@ -58,21 +58,6 @@
   cursor: default;
 }
 
-.weekmap-wormhole-stone {
-  position: absolute;
-  z-index: 0;
-  left: 50%;
-  top: 50%;
-  width: 78px;
-  height: 34px;
-  transform: translate(-50%, -24%);
-  border-radius: 50%;
-  background:
-    radial-gradient(ellipse at 50% 32%, #7e8976 0 27%, #596154 28% 58%, #30382f 59% 100%);
-  border: 2px solid #202820;
-  box-shadow: 0 5px 0 #141a14, inset 0 3px 0 #a4ae9a66;
-}
-
 .weekmap-wormhole-ring {
   position: absolute;
   z-index: 1;
@@ -90,10 +75,6 @@
 .weekmap-wormhole.locked .weekmap-wormhole-ring {
   opacity: 0.45;
 }
-.weekmap-wormhole.locked .weekmap-wormhole-stone {
-  opacity: 0.55;
-}
-
 .weekmap-wormhole.open .weekmap-wormhole-ring {
   background: conic-gradient(from 0deg, var(--node-color), #14160f 35%, var(--node-color) 60%, #14160f 90%, var(--node-color));
   border-color: color-mix(in srgb, var(--node-color) 70%, #263129);
@@ -103,13 +84,6 @@
     inset 0 0 0 3px color-mix(in srgb, var(--node-color) 55%, #8c927b);
   animation: weekmap-portal-spin 5s linear infinite;
 }
-.weekmap-wormhole.open .weekmap-wormhole-stone {
-  box-shadow:
-    0 5px 0 #141a14,
-    inset 0 3px 0 #a4ae9a66,
-    0 0 13px color-mix(in srgb, var(--node-color) 45%, transparent);
-}
-
 @keyframes weekmap-portal-spin {
   to {
     transform: translate(-50%, -50%) rotate(360deg);
@@ -164,7 +138,7 @@
    taller-than-wide box), which is what made the rear view read as stretched:
    the character's own art is close to square, so forcing it into a tall
    narrow box squashed it horizontally relative to how it looks everywhere else. */
-.weekmap-panda { width: 78px; height: 78px; pointer-events: none; filter: drop-shadow(0 4px 4px #0b120bcc); }
+.weekmap-panda { width: 112px; height: 112px; pointer-events: none; filter: drop-shadow(0 4px 4px #0b120bcc); }
 .weekmap-panda-fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .weekmap-panda.running .weekmap-panda-fallback { animation: weekmap-run .28s steps(2, end) infinite; }
 @keyframes weekmap-run { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
@@ -182,8 +156,7 @@
 @media (max-width: 520px) {
   .weekmap-wormhole-sign { min-width: 84px; font-size: 8px; }
   .weekmap-wormhole-sign small { font-size: 5px; }
-  .weekmap-wormhole-stone { width: 64px; height: 28px; }
   .weekmap-wormhole-ring { top: -25px; width: 48px; height: 48px; }
   .weekmap-day { width: 11px; height: 11px; }
-  .weekmap-panda { width: 66px; height: 66px; }
+  .weekmap-panda { width: 92px; height: 92px; }
 }
