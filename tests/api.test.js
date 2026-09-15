@@ -10,6 +10,7 @@ import { createApp } from "../server/app.js";
 import { createMemoryStore } from "../server/store/memory.js";
 import { getStore, setStore } from "../server/store/index.js";
 import { hashSecret } from "../server/security.js";
+import { addDays } from "../server/engine.js";
 import { todayISO } from "./helpers.js";
 
 let base;
@@ -420,6 +421,31 @@ test("a valid timezone is stored on the user; a bogus one is dropped", async () 
   const prog = (await call("GET", `/users/${ok.id}/progress`)).body;
   assert.equal(prog.day_number >= 1 && prog.day_number <= 75, true);
   assert.match(prog.run_start, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("the board opens the viewer's next day from the browser date even if their stored zone lags", async () => {
+  const start = TODAY;
+  const tomorrow = addDays(start, 1);
+  const user = (
+    await call("POST", "/users", {
+      name: "Rollover",
+      pin: "4545",
+      start_date: start,
+      timezone: "Pacific/Honolulu",
+    })
+  ).body;
+
+  const store = getStore();
+  const tasks = await store.listTasks(user.id);
+  for (const t of tasks) {
+    await store.addCompletion({ user_id: user.id, task_id: t.id, day: start });
+  }
+
+  const board = (await call("GET", `/board?as=${user.id}&today=${tomorrow}`)).body;
+  assert.equal(board[0].day_number, 2);
+  assert.equal(board[0].calendar[0].status, "done");
+  assert.equal(board[0].calendar[1].status, "today");
+  assert.equal(board[0].perfect_today, false, "tomorrow starts as a fresh checklist");
 });
 
 test("health check reports the store and its schema", async () => {

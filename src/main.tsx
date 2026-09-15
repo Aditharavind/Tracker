@@ -62,8 +62,8 @@ if (document.readyState === "complete") {
 //
 // Do NOT reinstate it as rel="prefetch": prefetch and the module import use
 // different caches, so the whole megabyte downloads twice (measured: 897KB,
-// blocking back up to 167ms). The service worker precaches this chunk, so
-// every load after the first gets it for nothing anyway.
+// blocking back up to 167ms). The service worker runtime-caches this chunk on
+// first real use, so later visits still get the device-side cache win.
 //
 // loadModelViewer() memoises its promise, so this is the same import Panda
 // awaits, not a second fetch. The catch only stops a failed fetch becoming an

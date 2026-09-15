@@ -279,7 +279,7 @@ async function progressFor(store, user, today) {
  * scaling first: cost grows with members *and* with how far into the run
  * everyone is.
  */
-async function boardFor(store, users, today) {
+async function boardFor(store, users, today, viewerUserId = null) {
   if (!users.length) return [];
   const ids = users.map((u) => u.id);
   const [tasks, completions] = await Promise.all([
@@ -295,15 +295,21 @@ async function boardFor(store, users, today) {
   const tasksBy = bucket(tasks);
   const doneBy = bucket(completions);
   const fallbackDay = today || todayISO();
+  const viewerId = viewerUserId == null ? null : Number(viewerUserId);
 
   // Each member is judged on *their own* clock. Before per-user timezones this
   // used one `day` for the whole board -- the viewer's -- so a night-owl in a
   // later zone could show a broken streak on someone else's phone hours before
   // their own day was actually over.
+  //
+  // The viewer is the exception: their browser is the checklist they are
+  // editing, so trust its `?today=` value over a stored timezone that may be
+  // missing or stale from travel/sign-in. That is what lets Day 2 open at the
+  // user's own midnight even before the best-effort timezone sync catches up.
   return users.map((user) =>
     compute(
       { user, tasks: tasksBy.get(Number(user.id)) ?? [], completions: doneBy.get(Number(user.id)) ?? [] },
-      zoneToday(user.timezone) ?? fallbackDay
+      Number(user.id) === viewerId ? fallbackDay : zoneToday(user.timezone) ?? fallbackDay
     )
   );
 }
@@ -829,7 +835,7 @@ export function createRouter() {
 
       const { rows: users, total } = await store.listUsersInGroupPaged(me.group_id, page);
       setPageHeaders(res, page, total);
-      const body = await boardFor(store, users, today);
+      const body = await boardFor(store, users, today, me.id);
       // A few seconds is plenty to absorb a burst, and short enough that
       // nobody could notice the staleness -- bumpGroupVersion clears it
       // immediately on any write anyway, so this window only ever matters for

@@ -1052,7 +1052,11 @@ export default function App() {
       if (nowDay !== todayRef.current) {
         todayRef.current = nowDay;
         // Follow the rollover unless the user has deliberately opened a past day.
-        setDay((d) => (followToday.current ? nowDay : d));
+        if (followToday.current) {
+          setDay(nowDay);
+          setDayCompleteOpen(false);
+          setOpenPanel((panel) => (panel === "leaderboard" ? null : panel));
+        }
         if (meId != null) loadBoard(meId);
       } else if (followToday.current) {
         // Defensive: even without a detected date change, if we're meant to be
