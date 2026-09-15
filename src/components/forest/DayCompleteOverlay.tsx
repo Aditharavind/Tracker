@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import CharacterModel from "./CharacterModel";
+import { CoinIcon } from "./Coin";
 import { usePrefersReducedMotion } from "./ForestScene";
 import type { CharacterId } from "../../game/characters";
 
@@ -109,7 +110,7 @@ export default function DayCompleteOverlay({
           </div>
           <div>
             <dt className="pixel-font">COINS</dt>
-            <dd className="pixel-font">×{String(coins).padStart(2, "0")}</dd>
+            <dd className="pixel-font coin-readout"><CoinIcon size={17} /> ×{String(coins).padStart(2, "0")}</dd>
           </div>
           <div>
             <dt className="pixel-font">STREAK</dt>

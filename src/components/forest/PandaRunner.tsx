@@ -8,6 +8,7 @@ import {
 } from "../../game/characters";
 import { playJump } from "../../sound";
 import DashLeaderboard from "../DashLeaderboard";
+import { CoinIcon } from "./Coin";
 import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "../../game/runnerEngine";
 import { drawCoin } from "../../game/coinArt";
 import { createSeededRandom } from "../../game/seededRandom";
@@ -625,14 +626,14 @@ export default function PandaRunner({
           <span>
             DIST <span ref={distRef}>0</span>m
           </span>
-          <span>
-            🪙 <span ref={coinRef}>0</span>
+          <span className="runner-coin-readout">
+            <CoinIcon size={15} /> <span ref={coinRef}>0</span>
           </span>
           <span ref={starRef} className="runner-hud-star" hidden>
             ★ 0.0s
           </span>
           <span className="runner-hud-best">
-            BEST {best.dist}m · {best.coins}🪙
+            BEST {best.dist}m · {best.coins}<CoinIcon size={13} />
           </span>
           {/* One exit per screen: this bails out of a ready/running game;
               on game-over it's hidden and the card carries the only EXIT. */}

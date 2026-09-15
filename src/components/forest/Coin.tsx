@@ -1,33 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import coinSrc from "../../../frontend/assets/coin.png";
 
 // Coin state is a pure readout of task.done -- it never toggles the task.
 // See CLAUDE.md section 8: "coin count is never the source of truth."
-// The panda-face imprint matches the reference art's coin design.
-//
-// The single source for the coin's SVG art -- used here for in-world coins
-// AND by App.tsx's topbar coin tally, so the two can't drift apart. The
-// canvas games (PandaRunner, Story Mode) draw the same design a different
-// way; see game/coinArt.ts's drawCoin for that one shared source.
+// The same bitmap coin used by every game surface.
 export function CoinIcon({ size = 26 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 17 17" aria-hidden="true">
-      <circle cx="8.5" cy="8.5" r="8.1" fill="#3a2708" opacity="0.55" />
-      <circle cx="8.5" cy="8.5" r="7.6" fill="#f0c04a" stroke="#8a5a17" strokeWidth="1" />
-      <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="#c98f2e" strokeWidth="0.6" />
-      <ellipse cx="5.6" cy="6.2" rx="1.3" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="11.4" cy="6.2" rx="1.3" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="8.5" cy="8.4" rx="3.6" ry="3.2" fill="#fff3c9" />
-      <ellipse cx="6.7" cy="8.1" rx="1" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="10.3" cy="8.1" rx="1" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="8.5" cy="9.6" rx="0.6" ry="0.4" fill="#8a5a17" />
-      <circle cx="6" cy="5.4" r="1" fill="#fff8e2" opacity="0.7" />
-    </svg>
+    <img
+      className="coin-icon"
+      src={coinSrc}
+      width={size}
+      height={size}
+      style={{ width: size, height: size }}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
   );
 }
 
-// In-world coin size -- doubled from the original 26px default so coins
-// actually read at a glance on the platform path, not just as small dots.
-const WORLD_COIN_SIZE = 52;
+// In-world coin size -- a little over 3x the original 26px default so coins
+// read as real collectibles on the platform path.
+const WORLD_COIN_SIZE = 84;
 
 // How many sparkle points burst outward on collection, and how long that
 // burst stays on screen -- kept a little longer than .coin.hidden's own
@@ -35,6 +29,14 @@ const WORLD_COIN_SIZE = 52;
 // flourish rather than disappearing together with the coin.
 const SPARKLE_COUNT = 6;
 const SPARKLE_MS = 650;
+const FLY_MS = 720;
+
+type CoinFlight = {
+  startX: number;
+  startY: number;
+  dx: number;
+  dy: number;
+};
 
 export default function Coin({
   left,
@@ -54,33 +56,67 @@ export default function Coin({
   // firing again on an unrelated re-render where `visible` was already
   // false, same pattern as ZombiePlant's bite reaction.
   const [collecting, setCollecting] = useState(false);
+  const [flight, setFlight] = useState<CoinFlight | null>(null);
+  const coinRef = useRef<HTMLDivElement | null>(null);
   const wasVisible = useRef(visible);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!visible && wasVisible.current) {
+      const coinRect = coinRef.current?.getBoundingClientRect();
+      const targetRect = document.querySelector("[data-coin-target]")?.getBoundingClientRect();
+      let flightTimer: number | undefined;
+      if (coinRect && targetRect) {
+        const startX = coinRect.left + coinRect.width / 2;
+        const startY = coinRect.top + coinRect.height / 2;
+        const targetX = targetRect.left + targetRect.width / 2;
+        const targetY = targetRect.top + targetRect.height / 2;
+        setFlight({ startX, startY, dx: targetX - startX, dy: targetY - startY });
+        flightTimer = window.setTimeout(() => setFlight(null), FLY_MS);
+      }
       setCollecting(true);
       const t = window.setTimeout(() => setCollecting(false), SPARKLE_MS);
       wasVisible.current = visible;
-      return () => window.clearTimeout(t);
+      return () => {
+        window.clearTimeout(t);
+        if (flightTimer !== undefined) window.clearTimeout(flightTimer);
+      };
     }
     wasVisible.current = visible;
   }, [visible]);
 
   return (
-    <div
-      className={`coin${visible ? "" : " hidden"}${multiplier ? " coin-bonus" : ""}`}
-      style={{ left: `${left}%`, bottom: `${bottom}%` }}
-      aria-hidden="true"
-    >
-      {multiplier ? <span className="coin-mult pixel-font">+{multiplier}</span> : null}
-      <CoinIcon size={WORLD_COIN_SIZE} />
-      {collecting && (
-        <span className="coin-sparkle-burst">
-          {Array.from({ length: SPARKLE_COUNT }, (_, i) => (
-            <span key={i} className="coin-sparkle" style={{ ["--i" as string]: i, ["--n" as string]: SPARKLE_COUNT }} />
-          ))}
+    <>
+      <div
+        ref={coinRef}
+        className={`coin${visible ? "" : collecting ? " collecting" : " hidden"}${multiplier ? " coin-bonus" : ""}`}
+        style={{ left: `${left}%`, bottom: `${bottom}%` }}
+        aria-hidden="true"
+      >
+        {multiplier ? <span className="coin-mult pixel-font">+{multiplier}</span> : null}
+        <CoinIcon size={WORLD_COIN_SIZE} />
+        {collecting && (
+          <span className="coin-sparkle-burst">
+            {Array.from({ length: SPARKLE_COUNT }, (_, i) => (
+              <span key={i} className="coin-sparkle" style={{ ["--i" as string]: i, ["--n" as string]: SPARKLE_COUNT }} />
+            ))}
+          </span>
+        )}
+      </div>
+      {flight && (
+        <span
+          className="coin-fly"
+          style={{
+            left: `${flight.startX}px`,
+            top: `${flight.startY}px`,
+            ["--coin-fly-x" as string]: `${flight.dx}px`,
+            ["--coin-fly-y" as string]: `${flight.dy}px`,
+          }}
+          aria-hidden="true"
+        >
+          <CoinIcon size={WORLD_COIN_SIZE} />
+          {multiplier ? <span className="coin-fly-mult pixel-font">+{multiplier}</span> : null}
         </span>
       )}
-    </div>
+    </>
   );
 }

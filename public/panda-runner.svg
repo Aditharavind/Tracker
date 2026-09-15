@@ -154,11 +154,9 @@
   </g>
 
   <!-- coins above each platform (purely decorative here) -->
-  <g fill="#f0c04a" stroke="#8a5410" stroke-width="1">
-    <circle cx="50" cy="140" r="6" />
-    <circle cx="140" cy="112" r="6" />
-    <circle cx="230" cy="84" r="6" />
-  </g>
+  <image href="/assets/coin.png" x="23" y="113" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
+  <image href="/assets/coin.png" x="113" y="85" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
+  <image href="/assets/coin.png" x="203" y="57" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
 
   <!-- panda rig: base-positioned on platform 1, animated up the staircase -->
   <g transform="translate(50, 150)">
