@@ -4546,13 +4546,10 @@ h3 {
   margin-bottom: 14px;
 }
 
-/* Profile drawer: keep the header (and its close button) pinned while the
-   sections scroll. Negative margins + padding let it span the drawer's own
-   16px padding so nothing shows above it. */
+/* Profile drawer header. It used to be sticky, which left a translucent strip
+   parked under the main nav while scrolling feature content. Keep the edge to
+   match the other drawers, but let it scroll normally with the panel. */
 .panel-drawer-head-sticky {
-  position: sticky;
-  top: -16px;
-  z-index: 5;
   margin: -16px -16px 12px;
   padding: 14px 16px 10px;
   background: color-mix(in srgb, var(--bg) 96%, transparent);
