@@ -25,6 +25,7 @@ export class BootScene extends Phaser.Scene {
     const character = this.registry.get("character") as CharacterId;
     this.load.image(TEXTURES.forestEntranceBg, TEXTURE_PATHS[TEXTURES.forestEntranceBg]);
     this.load.image(TEXTURES.startSign, TEXTURE_PATHS[TEXTURES.startSign]);
+    this.load.image(TEXTURES.coin, TEXTURE_PATHS[TEXTURES.coin]);
     this.load.image(characterTextureKey(character), characterTexturePath(character));
   }
 

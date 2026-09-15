@@ -60,7 +60,7 @@ const GROUND_TEXTURE = "mario-ground";
 export class ForestEntranceScene extends Phaser.Scene {
   private panda!: PandaEntity;
   private platformBodies!: Phaser.Physics.Arcade.StaticGroup;
-  private coinSprites = new Map<number, Phaser.GameObjects.Arc>();
+  private coinSprites = new Map<number, Phaser.GameObjects.Image>();
   private platforms: GamePlatform[] = [];
   private currentDone = 0;
   private totalTasks = 0;
@@ -231,7 +231,7 @@ export class ForestEntranceScene extends Phaser.Scene {
     for (const platform of this.platforms) {
       const pos = toScreen(platform);
       const collected = platform.taskIndex < this.currentDone;
-      const coin = this.add.circle(pos.x, pos.y - 26, 8, 0xf0c04a).setStrokeStyle(2, 0x8a5a17).setDepth(2);
+      const coin = this.add.image(pos.x, pos.y - 26, TEXTURES.coin).setDisplaySize(22, 22).setDepth(2);
       coin.setVisible(!collected);
       // A gentle bob + squash to read as a collectible waiting to be grabbed,
       // not a flat decal -- the "alive, not static" read the reference art's

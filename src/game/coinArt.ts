@@ -1,8 +1,27 @@
-// The one canonical gold panda-imprint coin, drawn on a canvas 2D context.
-// Both the endless-runner minigame (PandaRunner) and Story Mode (render.ts)
-// call this instead of each drawing their own -- see Coin.tsx for the same
-// design as an SVG, used everywhere the coin is DOM/React-rendered instead.
+import coinImageSrc from "../../frontend/assets/coin.png";
+
+export { coinImageSrc };
+
+let coinImage: HTMLImageElement | null = null;
+
+function getCoinImage() {
+  if (typeof Image === "undefined") return null;
+  if (!coinImage) {
+    coinImage = new Image();
+    coinImage.src = coinImageSrc;
+  }
+  return coinImage;
+}
+
+// The one canonical bitmap coin, drawn on a canvas 2D context.
 export function drawCoin(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  const img = getCoinImage();
+  if (img?.complete && img.naturalWidth > 0) {
+    const size = r * 2.65;
+    ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
+    return;
+  }
+
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = "#f0c04a";

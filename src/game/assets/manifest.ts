@@ -10,11 +10,13 @@ import { CHARACTER_SPRITE, type CharacterId } from "../characters";
 export const TEXTURES = {
   forestEntranceBg: "forest-entrance-bg",
   startSign: "start-sign",
+  coin: "coin",
 } as const;
 
 export const TEXTURE_PATHS: Record<(typeof TEXTURES)[keyof typeof TEXTURES], string> = {
   [TEXTURES.forestEntranceBg]: "/assets/forest-bg-1.webp",
   [TEXTURES.startSign]: "/assets/start-sign.webp",
+  [TEXTURES.coin]: "/assets/coin.png",
 };
 
 /** The flat character sprite -- one static image per character, same as CHARACTER_SPRITE everywhere else in the app. */

@@ -1,4 +1,5 @@
 import { CHARACTER_SPRITE, type CharacterId } from "./characters";
+import { drawCoin } from "./coinArt";
 import { CRUMBLE_DELAY, HERO_H, HERO_W, STORY_H, STORY_W, storyCoins, trapPhase, type StoryLevel, type StoryState } from "./storyEngine";
 
 export function loadStoryArt(character: CharacterId) {
@@ -64,8 +65,7 @@ export function drawStory(ctx: CanvasRenderingContext2D, s: StoryState, level: S
   }
   storyCoins(level).forEach((coin, i) => {
     if (s.coins.includes(i)) return;
-    ctx.fillStyle = "#edc66b"; ctx.beginPath(); ctx.arc(coin.x, coin.y, 8, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#8b6429"; ctx.fillRect(coin.x - 1, coin.y - 4, 2, 8);
+    drawCoin(ctx, coin.x, coin.y, 8);
   });
   if (!s.shard) {
     const { x, y } = level.shard;
