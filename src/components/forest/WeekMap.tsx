@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CharacterId } from "../../game/characters";
 import type { DayCell } from "../../types";
 import { CHAPTER_ENEMIES, WORLDS, type EnemyKind } from "../../game/adventure/content";
 import {
@@ -10,7 +11,6 @@ import {
   unlockedArcCount,
   unlockedDayCount,
 } from "../../game/weekSystem";
-import { useModelViewer } from "../../modelViewer";
 import { usePrefersReducedMotion } from "./ForestScene";
 import "../../story.css";
 import "../../weekmap.css";
@@ -52,37 +52,27 @@ const NODE_POS: { x: number; y: number }[] = PATH.map((_, i) => {
 });
 const CANVAS_HEIGHT = ROWS * 150;
 const ENEMY_LABEL: Record<EnemyKind, string> = { rootling: "ZOMBIE PLANT", shade: "SHADE", moth: "MOTH", armored: "ARMORED" };
+const BACK_CHARACTER: Record<CharacterId, string> = {
+  panda: "/assets/story/panda-back.png",
+  koala: "/assets/story/koala-back.png",
+  redpanda: "/assets/story/redpanda-back.png",
+};
 
-function BackPanda({ running }: { running: boolean }) {
-  const ready = useModelViewer();
-  const ref = useRef<HTMLElement & { loaded?: boolean }>(null);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    setLoaded(false);
-    const model = ref.current;
-    if (!model) return;
-    if (model.loaded) {
-      setLoaded(true);
-      return;
-    }
-    const onLoad = () => setLoaded(true);
-    model.addEventListener("load", onLoad);
-    return () => model.removeEventListener("load", onLoad);
-  }, [ready]);
+function BackCharacter({ character, running }: { character: CharacterId; running: boolean }) {
   return (
     <div className={`weekmap-panda${running ? " running" : ""}`} aria-hidden="true">
-      <img className="weekmap-panda-fallback" src="/assets/characters/panda-back.png" alt="" hidden={loaded} />
-      {ready && <model-viewer ref={ref} src="/assets/characters/panda-back.glb" alt="" animation-name={running ? "Run" : "Idle"} autoplay camera-orbit="0deg 90deg 105%" camera-controls={false} disable-zoom interaction-prompt="none" class="weekmap-panda-model" />}
+      <img className="weekmap-panda-fallback" src={BACK_CHARACTER[character]} alt="" />
     </div>
   );
 }
 
 export default function WeekMap({
+  character,
   calendar,
   onClose,
   onOpenWorld,
 }: {
-  character: string;
+  character: CharacterId;
   calendar: DayCell[];
   onClose: () => void;
   onOpenWorld: (worldIndex: number) => void;
@@ -202,6 +192,7 @@ export default function WeekMap({
                 }}
                 aria-label={label}
               >
+                <span className="weekmap-wormhole-stone" aria-hidden="true" />
                 <span className="weekmap-wormhole-ring" aria-hidden="true" />
                 <span className="weekmap-wormhole-sign pixel-font">
                   {locked || !hasWorld ? (
@@ -223,7 +214,7 @@ export default function WeekMap({
           })}
 
           <div className="weekmap-panda-anchor" style={{ left: `${pandaPos.x * 100}%`, top: `${pandaPos.y * 100}%` }} aria-hidden="true">
-            <BackPanda running={displayedIndex !== pandaIndex || releasingArc !== null} />
+            <BackCharacter character={character} running={displayedIndex !== pandaIndex || releasingArc !== null} />
           </div>
         </div>
       </div>
