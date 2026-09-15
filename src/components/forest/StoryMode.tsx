@@ -3,6 +3,7 @@ import { CHARACTER_SPRITE, type CharacterId } from "../../game/characters";
 import { createStory, parseStoryProgress, restartStory, stepStory, STORY_H, STORY_LEVELS, STORY_W, storyCoins, type StoryProgress } from "../../game/storyEngine";
 import { drawStory, loadStoryArt } from "../../game/storyRenderer";
 import { isMuted, onMuteChange, playJump, toggleMuted } from "../../sound";
+import { CoinIcon } from "./Coin";
 
 type Phase = "map" | "intro" | "playing" | "paused" | "dead" | "outro";
 export default function StoryMode({ character, userId, onClose }: { character: CharacterId; userId: number | null; onClose: () => void }) {
@@ -161,7 +162,7 @@ export default function StoryMode({ character, userId, onClose }: { character: C
       </div>
     </div> : <div className="story-play">
       <header className="story-hud"><div><span className="story-eyebrow">{level.subtitle}</span><strong>{level.title}</strong></div>
-        <span aria-label={`${hud.coins} coins`}>● {hud.coins}</span><span className={hud.shard ? "story-has-star" : ""}>✦ {hud.shard ? "1/1" : "0/1"}</span>
+        <span className="coin-readout" aria-label={`${hud.coins} coins`}><CoinIcon size={14} /> {hud.coins}</span><span className={hud.shard ? "story-has-star" : ""}>✦ {hud.shard ? "1/1" : "0/1"}</span>
         <button className="story-text-button" aria-label={muted ? "Unmute sound" : "Mute sound"} onClick={toggleMuted}>{muted ? "Sound off" : "Sound on"}</button>
         <button className="story-text-button" onClick={() => setPhase(phase === "paused" ? "playing" : "paused")} disabled={phase === "dead"}>{phase === "paused" ? "Resume" : "Ⅱ Pause"}</button>
       </header>

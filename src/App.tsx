@@ -27,6 +27,7 @@ import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
 import StoryLauncher from "./components/forest/StoryLauncher";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
+import { CoinIcon } from "./components/forest/Coin";
 import { getStage, type StageMeta } from "./game/stageSystem";
 import { unlockedArcCount } from "./game/weekSystem";
 import { isAlarmDue, toMinutes } from "./game/alarm";
@@ -206,24 +207,6 @@ function IconTrophy() {
         strokeLinecap="round"
       />
       <path d="M8.5 10.2V13M6 15h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconCoin() {
-  // Same panda-face coin art as forest/Coin.tsx, for the topbar tally.
-  return (
-    <svg width="18" height="18" viewBox="0 0 17 17" aria-hidden="true">
-      <circle cx="8.5" cy="8.5" r="8.1" fill="#3a2708" opacity="0.55" />
-      <circle cx="8.5" cy="8.5" r="7.6" fill="#f0c04a" stroke="#8a5a17" strokeWidth="1" />
-      <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="#c98f2e" strokeWidth="0.6" />
-      <ellipse cx="5.6" cy="6.2" rx="1.3" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="11.4" cy="6.2" rx="1.3" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="8.5" cy="8.4" rx="3.6" ry="3.2" fill="#fff3c9" />
-      <ellipse cx="6.7" cy="8.1" rx="1" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="10.3" cy="8.1" rx="1" ry="1.3" fill="#8a5a17" />
-      <ellipse cx="8.5" cy="9.6" rx="0.6" ry="0.4" fill="#8a5a17" />
-      <circle cx="6" cy="5.4" r="1" fill="#fff8e2" opacity="0.7" />
     </svg>
   );
 }
@@ -1687,8 +1670,8 @@ export default function App() {
                 <FailureBanner resets={me.resets} />
               </div>
             </div>
-            <div className="topbar-coins" aria-label={`${coinsEarned} coins earned`}>
-              <IconCoin />
+            <div className="topbar-coins" data-coin-target aria-label={`${coinsEarned} coins earned`}>
+              <CoinIcon size={18} />
               <span className="topbar-coins-count pixel-font">×{String(coinsEarned).padStart(2, "0")}</span>
             </div>
             <button

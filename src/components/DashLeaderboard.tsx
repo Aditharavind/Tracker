@@ -1,3 +1,5 @@
+import { CoinIcon } from "./forest/Coin";
+
 export type DashRow = { name: string; color: string; coins: number; distance: number };
 
 /**
@@ -26,7 +28,7 @@ export default function DashLeaderboard({
           const h = 26 + Math.round((r.coins / max) * 96);
           return (
             <div key={i} className={`dashlb-bar dashlb-rank-${i + 1}${r.name === meName ? " me" : ""}`}>
-              <span className="dashlb-score">{r.coins}🪙</span>
+              <span className="dashlb-score">{r.coins}<CoinIcon size={14} /></span>
               <span className="dashlb-col" style={{ height: `${h}px` }}>
                 <span className="dashlb-place">{i + 1}</span>
               </span>
@@ -46,7 +48,7 @@ export default function DashLeaderboard({
               <b>{k + 4}</b>
               <i className="dot" style={{ background: r.color }} />
               <span className="nm">{r.name}</span>
-              <span className="sc">{r.coins}🪙</span>
+              <span className="sc">{r.coins}<CoinIcon size={13} /></span>
             </li>
           ))}
         </ol>
