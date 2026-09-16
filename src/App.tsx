@@ -1629,6 +1629,7 @@ export default function App() {
           initialWorld={storyWorld}
           onClose={() => {
             setStoryOpen(false);
+            if (storyWorld !== undefined) setWeekMapOpen(true);
             setStoryWorld(undefined);
           }}
         />

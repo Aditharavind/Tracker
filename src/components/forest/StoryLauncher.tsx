@@ -26,9 +26,7 @@ export default function StoryLauncher({
   character: CharacterId;
   userId: number | null;
   dayNumber: number;
-  // Set when opened by tapping an unlocked stone on the week map -- lands
-  // straight on that world's detail section instead of wherever the last
-  // session left off.
+  // The outer portal chooses a world; its 15-stone level trail opens first.
   initialWorld?: number;
   onClose: () => void;
 }) {

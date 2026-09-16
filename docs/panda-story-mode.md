@@ -8,6 +8,14 @@ emotional resilience together. The campaign now has six worlds, each with 15
 sequential levels. Clearing level 15 completes that world and unlocks the next
 world.
 
+Each outer trail portal opens its world's **15-stone level trail**, rather than
+starting gameplay immediately. Every level has a numbered portal anchored to a
+painted stone; the final one is the boss. The selected character appears from
+behind beside the current portal. Completed portals stay replayable, locked
+portals honor the same sequential and penalty gates, and saved attempts resume
+their lantern or story scene. Finishing a reflection returns to the stones with
+the next portal unlocked. Back returns to the outer trail when entered from it.
+
 Story progress is no longer opened by a per-world day floor. The save gate is
 strictly sequential, and the habit `dayNumber` is only used for the penalty:
 one failed story attempt locks Story Mode until seven habit days later. See
@@ -34,6 +42,9 @@ unlocks Extended Dash, Air Dash, Reflect, and Wall Jump respectively.
 
 - `src/components/forest/Adventure.tsx`: world map, scene flow, HUD, lifecycle,
   checkpoint persistence, and the fixed-step loop.
+- `src/components/forest/AdventureTrail.tsx`: scrolling stone map, world selector,
+  portal states, current-level positioning, and powers/memories drawer.
+- `src/game/adventure/trail.ts`: the 15 artwork anchors and per-level view data.
 - `src/game/adventure/content.ts`: worlds, dialogue, powers, and 90 campaign
   levels. Levels combine authored platform and hazard sections.
 - `src/game/adventure/engine.ts`: 120 Hz physics, buffered/coyote jumps, collisions,
@@ -101,6 +112,16 @@ The generated PNG was saved as
 `01a07fc6-d00d-7803-b608-67d952907690/exec-2da61385-9079-4bae-b477-781ef1349019.png`
 under Codex's generated-images directory; the deployed copy is in this repository.
 
+`public/assets/story/level-trail-v1.webp` is the 15-stone portrait map, generated
+with the built-in `image_gen` tool using `public/assets/weekmap-bg.png` as a
+style/material reference. The 1024x1536 source was encoded as WebP at quality 90
+(approximately 638 KB), without resizing or cropping. Portal bottoms use the
+actual stone-surface coordinates measured from the final image. On phones the
+outer forest is clipped, while the image and portal coordinates share the same
+aspect ratio; the rocks are never stretched to fit a different viewport.
+The final generation prompt and source location are in
+[`story-level-trail-art.md`](story-level-trail-art.md).
+
 The map, gameplay, and cutscenes use the selected Panda, Koala, or Red Panda
 from Forest Dash. Movement uses the shared run atlases, tilting, squash, and eye-blink
 coordinates. The Old Panda is a darkened version of that same artwork. Worlds share the forest illustration and section
@@ -136,9 +157,9 @@ frame-rate targets are not certified.
   input does not cancel another, and joystick motion avoids React rerenders.
 - Levels wait for decoded artwork before simulation begins. Failed artwork
   downloads have a retry action. Loaded images are reused between scenes.
-- All selected characters render in gameplay and cutscenes. The world picker
-  shows an animated guardian, and opening a world prefers its latest saved
-  attempt over older reflection screens.
+- All selected characters render in gameplay and cutscenes. The stone trail's
+  journal shows an animated guardian. Opening a world centers its latest saved
+  attempt before older reflection screens, without starting the level.
 - Regular shade, flying, and armored enemies reuse the shipped Craftpix spirit,
   dragon, and warrior atlases at enemy scale with walking, hurt, and death
   frames. Enemy selection rotates through the full chapter roster.
