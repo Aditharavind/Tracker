@@ -204,7 +204,7 @@
   background: linear-gradient(color-mix(in srgb, var(--bg) 81%, transparent), var(--bg)), var(--world-background) center top / cover;
 }
 .world-theme .panel-drawer-head-sticky { background: var(--bg); }
-.world-theme :is(.game-bottomnav, .rail-btn, .story-portal, .failure-banner-float .failure-banner) {
+.world-theme :is(.game-bottomnav, .rail-btn, .failure-banner-float .failure-banner) {
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   border-color: var(--line);
 }

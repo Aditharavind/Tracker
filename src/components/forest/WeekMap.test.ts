@@ -9,52 +9,41 @@ function renderMap(doneDays: number) {
     day: "", index, status: index < doneDays ? "done" : "future", done: index < doneDays ? 1 : 0, total: 1,
   }));
   return renderToStaticMarkup(createElement(WeekMap, {
-    character: "panda", calendar, onClose: () => {}, onOpenWorld: () => {}, onOpenGoals: () => {},
+    character: "panda", calendar, onClose: () => {},
   }));
 }
 
 describe("WeekMap", () => {
-  it.each([0, 14])("shows no portal before the first 15 days are complete (%i days)", doneDays => {
-    const html = renderMap(doneDays);
-    expect(html).not.toContain('class="weekmap-wormhole');
-    expect(html).toContain(">Enter story</button>");
-    expect(html).toContain("Today&#x27;s goals");
+  it("shows only the current world's 15 numbered day-stones, not the whole 75-day journey or any story link", () => {
+    const html = renderMap(0);
+    expect(html.match(/class="adventure-level-stone/g) ?? []).toHaveLength(15);
+    expect(html.match(/class="adventure-level-number"[^>]*>(\d+)</g) ?? []).toHaveLength(15);
+    expect(html).not.toContain("weekmap-wormhole");
+    expect(html).not.toContain("Enter story");
+    expect(html).not.toContain("Today&#x27;s goals");
+    expect(html).not.toContain("Bonus story");
+    expect(html).not.toContain("Begin");
   });
 
-  it.each([
-    [15, ["Self-Doubt Caves"]],
-    [30, ["Self-Doubt Caves", "Distraction Grove"]],
-    [75, ["Self-Doubt Caves", "Distraction Grove", "Fear Mountains", "Inconsistency Valley", "Frustration Lands"]],
-  ] as const)("shows only earned exit portals after %i completed days", (doneDays, destinations) => {
-    const html = renderMap(doneDays);
-    const portals = html.match(/<button[^>]*class="weekmap-wormhole open"[^>]*>/g) ?? [];
-    expect(portals).toHaveLength(destinations.length);
-    destinations.forEach((destination, index) => {
-      expect(portals[index]).toContain(`aria-label="Enter ${destination} story"`);
-      expect(portals[index]).not.toContain("disabled");
-    });
-    expect(html).not.toContain('class="weekmap-wormhole locked');
-    expect(html).not.toContain('aria-label="Enter The Sleeping Forest story"');
-  });
-
-  it("shows the active world, its 15-day progress, and the daily goals action", () => {
+  it("shows the active world and its 15-day progress", () => {
     const html = renderMap(29);
     expect(html).toContain('data-world="1"');
     expect(html).toContain('<h1 id="weekmap-title">Self-Doubt Caves</h1>');
     expect(html).toContain("14 / 15 days complete");
     expect(html).toContain("Day 15 in this world");
-    expect(html).toContain("Today&#x27;s goals");
-    expect(html).toContain('aria-label="Day 30, world 2: next daily goals"');
-    expect(html).toContain('aria-label="Day 31, world 3: locked"');
   });
 
-  it("marks the last day complete and offers the bonus only after 75 completed days", () => {
-    expect(renderMap(74)).not.toContain("Bonus story");
+  it("every day-stone is a button that returns to the forest scene", () => {
+    const html = renderMap(29);
+    const stones = html.match(/<button type="button" class="adventure-level-stone[^>]*>/g) ?? [];
+    expect(stones).toHaveLength(15);
+    expect(html).toContain('aria-label="Day 30: today. Return to your forest."');
+  });
+
+  it("marks the last day of a fresh world as day 1 in world 5 once the journey completes", () => {
     const complete = renderMap(75);
+    expect(complete).toContain('data-world="4"');
     expect(complete).toContain("15 / 15 days complete");
-    expect(complete).toContain('aria-label="Day 75, world 5: complete"');
-    expect(complete).toContain("Bonus story");
-    expect(complete).toContain('aria-label="Enter Frustration Lands story"');
-    expect(complete).not.toContain('aria-current="step"');
+    expect(complete).toContain("Journey complete");
   });
 });

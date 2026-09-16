@@ -29,7 +29,7 @@ import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { CoinIcon } from "./components/forest/Coin";
 import { getJourneyStage, type StageMeta } from "./game/stageSystem";
-import { ARC_COUNT, journeyProgress, unlockedArcCount } from "./game/weekSystem";
+import { ARC_COUNT, journeyProgress } from "./game/weekSystem";
 import { WORLDS } from "./game/adventure/content";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { isStandalone, useInstallPrompt } from "./installPrompt";
@@ -420,6 +420,33 @@ function ConfirmDialog({
   );
 }
 
+function MinigamePicker({
+  onPickRunner,
+  onPickAdventure,
+  onCancel,
+}: {
+  onPickRunner: () => void;
+  onPickAdventure: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="pin-backdrop" onClick={onCancel}>
+      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Choose a minigame</h3>
+        <button className="btn wide primary" onClick={onPickRunner}>
+          Forest Dash
+        </button>
+        <button className="btn wide primary" style={{ marginTop: 8 }} onClick={onPickAdventure}>
+          Story Adventure
+        </button>
+        <button className="btn ghost wide" style={{ marginTop: 8 }} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const formatMMSS = (ms: number): string => {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const m = Math.floor(totalSeconds / 60);
@@ -664,8 +691,13 @@ export default function App() {
   // Story introduces the current environment before returning to daily goals.
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyWorld, setStoryWorld] = useState<number | undefined>(undefined);
-  // The world map is reachable from Story and can revisit earned chapters.
+  // The world map is a stones-only readout of the current world's 15 days --
+  // no story or minigame launches from it, see WeekMap.tsx.
   const [weekMapOpen, setWeekMapOpen] = useState(false);
+  // ▶ MINIGAME opens a choice between the two minigames instead of launching
+  // Forest Dash directly, now that the Story Adventure (with its day-15
+  // boss) no longer has any other entry point in the main UI.
+  const [minigamePickerOpen, setMinigamePickerOpen] = useState(false);
   // Opt-in preview of the Phaser rebuild of the Forest Entrance environment
   // (?engine=phaser) -- read once; the rest of the app is unaffected either
   // way. See src/game/PhaserGame.ts for the migration this is the first
@@ -1612,6 +1644,19 @@ export default function App() {
         <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
       )}
       {showPeek && <PandaPeekPrompt onDone={() => setShowPeek(false)} />}
+      {minigamePickerOpen && (
+        <MinigamePicker
+          onPickRunner={() => {
+            setMinigamePickerOpen(false);
+            setRunnerOpen(true);
+          }}
+          onPickAdventure={() => {
+            setMinigamePickerOpen(false);
+            openStory();
+          }}
+          onCancel={() => setMinigamePickerOpen(false)}
+        />
+      )}
       {runnerOpen && myCharacter && (
         <Suspense fallback={null}>
           <Minigames
@@ -1629,12 +1674,6 @@ export default function App() {
             character={myCharacter}
             calendar={me.calendar}
             onClose={() => setWeekMapOpen(false)}
-            onOpenGoals={openGoals}
-            onOpenWorld={(w) => {
-              setWeekMapOpen(false);
-              setStoryWorld(w);
-              setStoryOpen(true);
-            }}
           />
         </Suspense>
       )}
@@ -1712,12 +1751,12 @@ export default function App() {
             >
               {muted ? <IconSoundOff /> : <IconSoundOn />}
             </button>
-            {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && !weekMapOpen && (
+            {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && !weekMapOpen && !minigamePickerOpen && (
               <button
                 type="button"
                 className="dash-launch pixel-font"
-                onClick={() => setRunnerOpen(true)}
-                title="Play the minigame"
+                onClick={() => setMinigamePickerOpen(true)}
+                title="Play a minigame"
               >
                 ▶ MINIGAME
               </button>
@@ -1744,8 +1783,6 @@ export default function App() {
             resets={me.resets}
             character={myCharacter}
             onDayCleared={day === todayISO() ? handleDayCleared : undefined}
-            onOpenStory={openStory}
-            unlockedArcs={unlockedArcCount(me.calendar)}
             returnToStart={
               detail.tasks.length > 0 &&
               detail.tasks.every((t) => t.done) &&
@@ -1754,13 +1791,14 @@ export default function App() {
               !runnerOpen &&
               !storyOpen &&
               !weekMapOpen &&
+              !minigamePickerOpen &&
               !confirmRestartOpen &&
               !dayCompleteOpen
             }
           />
           )}
 
-          <button className="world-journey-chip" onClick={openStory} aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Open story.`}>
+          <button className="world-journey-chip" onClick={() => setWeekMapOpen(true)} aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Open world map.`}>
             <span>WORLD {journey.worldIndex + 1} / {ARC_COUNT}</span>
             <strong>{WORLDS[journey.worldIndex].name}</strong>
             <span>{journey.complete ? "75-day journey complete" : `${journey.worldCompletedDays} / 15 days complete`}</span>
@@ -1921,6 +1959,15 @@ export default function App() {
                 <div className="profile-stat">
                   <div className="n num">{me.resets}</div>
                   <div className="l">Setbacks</div>
+                </div>
+                <div className="profile-stat">
+                  <div className="n num">{me.calendar.filter((c) => c.status === "missed").length}</div>
+                  <div className="l">Missed days</div>
+                </div>
+                <div className="profile-stat">
+                  {/* One setback == a 7-day penalty (server/engine.js PENALTY_DAYS). */}
+                  <div className="n num">{me.resets * 7}</div>
+                  <div className="l">Penalty days</div>
                 </div>
               </div>
 

@@ -12,7 +12,6 @@ import VictorySign from "./VictorySign";
 import ZombiePlant from "./ZombiePlant";
 import Clouds from "./Clouds";
 import Scenery from "./Scenery";
-import StoryPortal from "./StoryPortal";
 import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 import { playCompanionGiggle, playJump } from "../../sound";
 
@@ -80,8 +79,6 @@ export default function ForestScene({
   resets,
   character = DEFAULT_CHARACTER,
   onDayCleared,
-  onOpenStory,
-  unlockedArcs = 1,
   returnToStart,
 }: {
   detail: DayDetail;
@@ -97,10 +94,6 @@ export default function ForestScene({
    * is ticked.
    */
   onDayCleared?: () => void;
-  /** Opens the current world's story and its daily-goal journey. */
-  onOpenStory?: () => void;
-  /** How many arc-stones real consistency has unlocked (see game/weekSystem) -- shown on the corner portal's badge. */
-  unlockedArcs?: number;
   /**
    * True once today's tasks are all done AND every overlay/panel App renders
    * on top of the scene (victory board, leaderboard, habits, coach, story
@@ -598,8 +591,6 @@ export default function ForestScene({
           </div>
         )}
       </div>
-
-      {onOpenStory && <StoryPortal unlockedWorlds={unlockedArcs} onOpen={onOpenStory} />}
     </div>
   );
 }

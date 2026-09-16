@@ -2506,56 +2506,6 @@ h3 {
    (.dash-launch), and never over the platform path or the Day card
    (top-left). 78px clears the same 64px bottom-nav band .forest-path
    reserves, with a small margin on top of it. */
-.story-portal {
-  position: absolute;
-  bottom: 78px;
-  right: 12px;
-  z-index: 14;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 8px 6px;
-  background: rgba(11, 23, 18, 0.72);
-  border: 1px solid rgba(210, 177, 103, 0.4);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.story-portal:hover,
-.story-portal:focus-visible {
-  border-color: rgba(210, 177, 103, 0.75);
-}
-
-.story-portal-sprite {
-  display: block;
-  width: 34px;
-  height: auto;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
-}
-
-.story-portal-plaque {
-  font-size: 7px;
-  color: var(--forest-cream, #f3e6c8);
-  letter-spacing: 0.06em;
-}
-
-.story-portal-count {
-  font-size: 7px;
-  color: var(--forest-gold, #f0c04a);
-}
-
-@media (max-width: 640px) {
-  .story-portal {
-    bottom: 70px;
-    right: 8px;
-    padding: 3px 6px 4px;
-  }
-  .story-portal-sprite {
-    width: 26px;
-  }
-}
 
 .forest-path {
   position: absolute;
