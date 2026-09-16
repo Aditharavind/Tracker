@@ -61,7 +61,7 @@ selected). Saves cover lantern index, current attempt time and collectibles,
 defeated enemies, cleared obstacles, cutscene page, cumulative unique coins and
 memories, level/boss completion, powers, upgrades, best times, and settings.
 
-Checkpoints and collection changes save immediately; elapsed time saves every
+Checkpoints and collection changes save within 250ms; elapsed time saves every
 two seconds. Pause, visibility changes, page exit, scene changes, and boss defeat
 also save. Resume restores a stable lantern, heals Panda, resets transient
 hazards, and waits for the player to continue. It does not restore an unsafe
@@ -101,8 +101,8 @@ The generated PNG was saved as
 `01a07fc6-d00d-7803-b608-67d952907690/exec-2da61385-9079-4bae-b477-781ef1349019.png`
 under Codex's generated-images directory; the deployed copy is in this repository.
 
-The map, gameplay, and cutscenes use the same existing Panda sprite as Forest
-Dash. Movement uses sprite bobbing, tilting, squash, and the shared eye-blink
+The map, gameplay, and cutscenes use the selected Panda, Koala, or Red Panda
+from Forest Dash. Movement uses the shared run atlases, tilting, squash, and eye-blink
 coordinates. The Old Panda is a darkened version of that same artwork. Worlds share the forest illustration and section
 templates, with different palettes, weather, hazards, and boss patterns. Music
 and effects are synthesized from original note sequences, with no sampled
@@ -125,6 +125,32 @@ Real Android/iPhone hardware, Safari, physical gamepads, installed-PWA rotation,
 long-session battery use, and subjective difficulty/audio balance still need
 hands-on playtesting. Frame-rate adaptation is tested; sustained device-specific
 frame-rate targets are not certified.
+
+## PC and phone improvements
+
+- Canvas resolution follows the actual gameplay viewport, capped at 2x device
+  pixels (1x in battery mode), with automatic quality adjustment. Physics stays
+  at 120 Hz with bounded catch-up after a slow frame.
+- Touch controls appear on coarse-pointer devices and support simultaneous
+  movement and actions. Each pointer/key owns its held inputs. Cancelling one
+  input does not cancel another, and joystick motion avoids React rerenders.
+- Levels wait for decoded artwork before simulation begins. Failed artwork
+  downloads have a retry action. Loaded images are reused between scenes.
+- All selected characters render in gameplay and cutscenes. The world picker
+  shows an animated guardian, and opening a world prefers its latest saved
+  attempt over older reflection screens.
+- Regular shade, flying, and armored enemies reuse the shipped Craftpix spirit,
+  dragon, and warrior atlases at enemy scale with walking, hurt, and death
+  frames. Enemy selection rotates through the full chapter roster.
+- Charge lanes and falling-stone landing zones are visible during boss windup.
+  The camera frames the hero and boss together, with closer views on narrow
+  screens and larger characters in wide landscape play.
+- Later levels enter gameplay directly instead of repeating the world's intro.
+  World openings and bosses retain their story scenes.
+- Browser checks cover 1440x900 desktop, 390x844 and 320x568 phones, 844x390
+  landscape, all six boss encounters, multi-touch movement/jumping, pause,
+  settings, and failed-art retry. A short headless landscape sample measured
+  16.7ms median and 95th-percentile frame intervals; this is not a phone benchmark.
 
 ## Distinct boss sprites and combat effects
 

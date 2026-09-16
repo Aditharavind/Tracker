@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { FINAL_LEVEL_ID, LEVELS_PER_WORLD, MAIN_LEVELS, STORY_WORLD_UNLOCK_DAYS, WORLDS, finalLevelForWorld, firstLevelForWorld, makeLevel, storyWorldUnlockDay, unlockedStoryWorldCount } from "./content";
+import { CHAPTER_ENEMIES, FINAL_LEVEL_ID, LEVELS_PER_WORLD, MAIN_LEVELS, STORY_WORLD_UNLOCK_DAYS, WORLDS, finalLevelForWorld, firstLevelForWorld, makeLevel, storyWorldUnlockDay, unlockedStoryWorldCount } from "./content";
 import { bossVulnerable, createState, damage, HERO_H, HERO_W, idleInput, platformAt, platformSolid, snapshot, step, type State } from "./engine";
-import { canPlay, completeLevel, emptySave, parseSave, recordAttempt, recordFailure, saveKey, type Save } from "./save";
+import { canPlay, completeLevel, emptySave, parseSave, recordAttempt, recordFailure, resumeLevelForWorld, saveKey, type Save } from "./save";
 import { Controls, PerformanceGovernor } from "./controls";
+import { viewportSize } from "./viewport";
 
 function through(id: number): Save {
   let save = emptySave();
@@ -12,6 +13,13 @@ function through(id: number): Save {
 const frames = (s: State, id: number, n: number, input = idleInput()) => { for (let i = 0; i < n; i++) step(s, makeLevel(id), input); };
 
 describe("campaign progression and saves", () => {
+  it("resumes the latest attempt in the chosen world before older reflection screens", () => {
+    const save = through(14);
+    const latest = recordAttempt(save, 14, snapshot(createState(makeLevel(14), save)));
+    expect(latest.attempts[0].scene).toBe("reflection");
+    expect(resumeLevelForWorld(latest, 0)).toBe(14);
+    expect(resumeLevelForWorld(latest, 1)).toBe(15);
+  });
   it("unlocks each world and power only after its boss, never before", () => {
     let save = emptySave();
     for (let id = 0; id < MAIN_LEVELS; id++) {
@@ -99,6 +107,28 @@ describe("story worlds unlock through 15-level clears, with failure penalties", 
 });
 
 describe("gamepad input", () => {
+  it("keeps an action held until every finger or key using it releases", () => {
+    const controls = new Controls();
+    controls.press("jump", "keyboard", "Space");
+    controls.press("jump", "touch", "finger-2");
+    expect(controls.input("focus")).toMatchObject({ jump: true, jumpHeld: true });
+    controls.release("jump", "finger-2");
+    expect(controls.input("focus")).toMatchObject({ jump: false, jumpHeld: true });
+    controls.press("jump", "keyboard", "ArrowUp");
+    controls.release("jump", "Space");
+    expect(controls.input("focus").jumpHeld).toBe(true);
+    controls.release("jump", "ArrowUp");
+    expect(controls.input("focus").jumpHeld).toBe(false);
+    controls.press("attack", "touch", "finger-1"); controls.clear();
+    expect(controls.input("focus").attack).toBe(false);
+  });
+  it("reads the first connected controller even when the first slot is empty", () => {
+    vi.stubGlobal("navigator", { getGamepads: () => [null, { connected: true, axes: [.6], buttons: [] }] });
+    try {
+      const controls = new Controls(); controls.pollGamepad();
+      expect(controls.input("focus").move).toBe(.6);
+    } finally { vi.unstubAllGlobals(); }
+  });
   it("pauses once per Start press across mode changes, and clears disconnected movement", () => {
     const pad = { axes: [.8], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
     let connected = true;
@@ -113,6 +143,21 @@ describe("gamepad input", () => {
       connected = false; controls.pollGamepad();
       expect(controls.input("focus")).toMatchObject({ move: 0, jumpHeld: false });
     } finally { vi.unstubAllGlobals(); }
+  });
+});
+
+describe("responsive rendering budget", () => {
+  it("keeps phone, landscape and desktop backing buffers within their displayed pixel budget", () => {
+    const settings = emptySave().settings;
+    for (const [width, height, dpr] of [[390, 620, 3], [844, 250, 3], [1440, 800, 1], [320, 330, 2]]) {
+      const size = viewportSize(width, height, dpr, settings, 1);
+      expect(size.width).toBeLessThanOrEqual(width * Math.min(dpr, 2) + 1);
+      expect(size.height).toBeLessThanOrEqual(height * Math.min(dpr, 2) + 1);
+      expect(size.width / size.height).toBeCloseTo(size.viewWidth / 540, 1);
+      const battery = viewportSize(width, height, dpr, { ...settings, performance: true }, 1);
+      expect(battery.width).toBeLessThanOrEqual(width + 1);
+      expect(battery.height).toBeLessThanOrEqual(height + 1);
+    }
   });
 });
 
@@ -156,6 +201,12 @@ describe("movement, combat and powers", () => {
 });
 
 describe("authored routes and boss openings", () => {
+  it("encounters every advertised enemy type during its world's fifteen levels", () => {
+    for (let world = 0; world < WORLDS.length; world++) {
+      const encountered = new Set(Array.from({ length: LEVELS_PER_WORLD }, (_, stage) => makeLevel(firstLevelForWorld(world) + stage)).flatMap(level => level.enemies.map(enemy => enemy.kind)));
+      expect([...encountered].sort(), WORLDS[world].name).toEqual([...CHAPTER_ENEMIES[world]].sort());
+    }
+  });
   it("all main-route gaps are jumpable with the powers available at that world", () => {
     for (let id = 0; id < MAIN_LEVELS; id++) {
       const level = makeLevel(id); const save = through(firstLevelForWorld(level.world));

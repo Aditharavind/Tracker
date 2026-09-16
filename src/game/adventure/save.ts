@@ -1,4 +1,4 @@
-import { FINAL_LEVEL_ID, LEVEL_COUNT, MAIN_LEVELS, finalLevelForWorld, makeLevel, WORLDS, type Power } from "./content";
+import { FINAL_LEVEL_ID, LEVEL_COUNT, MAIN_LEVELS, finalLevelForWorld, levelIdsForWorld, makeLevel, WORLDS, type Power } from "./content";
 
 export type Action = "left" | "right" | "jump" | "attack" | "dash" | "ability" | "cycle" | "crouch" | "walk";
 export type Settings = {
@@ -33,6 +33,11 @@ export const penaltyActive = (save: Save, dayNumber: number) => Number.isFinite(
 // cleared before the first level of the next world opens. dayNumber only
 // applies the failure lockout; callers that omit it get pure save progression.
 export const canPlay = (save: Save, id: number, dayNumber = Infinity) => id >= 0 && id < LEVEL_COUNT && Number.isInteger(id) && !penaltyActive(save, dayNumber) && (id === 0 || save.completed.includes(id - 1));
+export function resumeLevelForWorld(save: Save, world: number) {
+  const ids = levelIdsForWorld(world);
+  if (save.lastLevel !== null && ids.includes(save.lastLevel) && save.attempts[save.lastLevel]) return save.lastLevel;
+  return ids.find(id => save.attempts[id]) ?? ids.find(id => !save.completed.includes(id)) ?? ids[0];
+}
 export function earnedPowers(bosses: number[]): Power[] {
   return WORLDS.flatMap((w, i) => w.reward && bosses.includes(i) ? [w.reward] : []);
 }

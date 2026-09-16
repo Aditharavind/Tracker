@@ -1,11 +1,16 @@
 import manifest from './sprite-manifest.json';
-import type { Boss } from './engine';
+import type { Boss, Enemy } from './engine';
+import type { EnemyKind } from './content';
 
 export type Clip = { row: number; frames: number };
 export type SpriteSheet = { src: string; w: number; h: number; clips: Record<string, Clip | undefined> };
 export type BossSprite = SpriteSheet & { name: string; anchorX: number; anchorY: number; scale: number; height: number };
 export const BOSS_SPRITES: readonly BossSprite[] = manifest.bosses;
 export const EFFECT_SPRITES: SpriteSheet = manifest.effects;
+// Smaller creatures share the shipped atlases and their combat animations.
+export const ENEMY_SPRITES: Partial<Record<EnemyKind, BossSprite>> = {
+  shade: BOSS_SPRITES[2], moth: BOSS_SPRITES[3], armored: BOSS_SPRITES[6],
+};
 export type EffectName = 'impact' | 'dust' | 'magic' | 'poison' | 'burst';
 
 export function clipFrame(clip: Clip, time: number, duration: number, loop = false) {
@@ -33,6 +38,19 @@ export function drawBossSprite(ctx: CanvasRenderingContext2D, image: HTMLImageEl
   const nativeFacing = spec.name === 'turtle' || spec.name === 'centipede' ? -1 : 1;
   ctx.save(); ctx.scale(boss.direction * nativeFacing * spec.scale, spec.scale);
   ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(image, frame * spec.w, clip.row * spec.h, spec.w, spec.h, -spec.anchorX, -spec.anchorY, spec.w, spec.h);
+  ctx.restore(); return true;
+}
+
+export function drawEnemySprite(ctx: CanvasRenderingContext2D, image: HTMLImageElement, spec: BossSprite, enemy: Enemy, time: number, reduced: boolean) {
+  if (!image.complete || !image.naturalWidth) return false;
+  const defeated = enemy.hp <= 0;
+  const clip = spec.clips[defeated ? 'death' : enemy.hit > 0 ? 'hurt' : 'walk'] ?? spec.clips.idle!;
+  const frame = reduced ? 0 : clipFrame(clip, enemy.hit > 0 ? .3 - enemy.hit : time, enemy.hit > 0 ? .3 : .8, enemy.hit === 0);
+  const scale = spec.scale * 52 / spec.height;
+  ctx.save(); ctx.translate(enemy.x, enemy.y); ctx.scale(enemy.direction * scale, scale);
+  ctx.imageSmoothingEnabled = false;
+  if (defeated) ctx.globalAlpha *= enemy.hit / .3;
   ctx.drawImage(image, frame * spec.w, clip.row * spec.h, spec.w, spec.h, -spec.anchorX, -spec.anchorY, spec.w, spec.h);
   ctx.restore(); return true;
 }

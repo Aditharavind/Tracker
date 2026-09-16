@@ -14,13 +14,18 @@ export class Controls {
   private pauseDown = false;
   private pauseRequested = false;
   private gamepadHeld = new Set<Action>();
-  press(action: Action, method: InputMethod = "keyboard") {
+  private sources = new Map<string, Action>();
+  press(action: Action, method: InputMethod = "keyboard", source: string = method) {
     this.method = method;
     if (!this.held.has(action)) this.edges.add(action);
+    this.sources.set(`${source}:${action}`, action);
     this.held.add(action);
   }
-  release(action: Action) { this.held.delete(action); }
-  clear() { this.held.clear(); this.edges.clear(); this.gamepadHeld.clear(); this.axis = 0; this.touchAxis = 0; this.touchDown = false; this.buttons = []; }
+  release(action: Action, source = "keyboard") {
+    this.sources.delete(`${source}:${action}`);
+    if (![...this.sources.values()].includes(action)) this.held.delete(action);
+  }
+  clear() { this.sources.clear(); this.held.clear(); this.edges.clear(); this.gamepadHeld.clear(); this.axis = 0; this.touchAxis = 0; this.touchDown = false; this.buttons = []; this.pauseRequested = false; }
   key(key: string, settings: Settings): Action | undefined {
     const normalized = key.toLowerCase();
     const mapped = (Object.keys(settings.keys) as Action[]).find(action => settings.keys[action] === normalized);
@@ -28,7 +33,7 @@ export class Controls {
     return ({ arrowleft: "left", arrowright: "right", arrowup: "jump", arrowdown: "crouch" } as Record<string, Action>)[normalized];
   }
   pollGamepad() {
-    const pad = navigator.getGamepads?.()?.[0];
+    const pad = Array.from(navigator.getGamepads?.() ?? []).find(p => p?.connected !== false && p);
     if (!pad) { this.axis = 0; this.gamepadHeld.clear(); this.buttons = []; this.pauseDown = false; this.pauseRequested = false; return; }
     const pause = pad.buttons[9]?.pressed ?? false;
     if (pause && !this.pauseDown) this.pauseRequested = true;
