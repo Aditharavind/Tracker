@@ -6,14 +6,17 @@ import { useEffect, useRef, useState } from "react";
 export const NEAR_POUNCE_MS = 260;
 
 /**
- * World 2 (Self-Doubt Caves)'s guardian at the start of the level (skill
- * §11) -- the crystal slime standing in for ZombiePlant on this world's
- * copy of the scene, one only, never scattered in the main path. Same art
- * as the "slime" hazard in Forest Dash (PandaRunner.tsx) and
- * scripts/pack-crystal-slime.py, a single painted pose -- unlike the plant
- * there is no separate jaw layer to animate, so "alive" comes from CSS: an
- * idle squash-stretch breathe, plus a brief startled squash the moment the
- * panda arrives (see `near`) rather than a bite.
+ * A world's own guardian at the start of the level (skill §11), standing in
+ * for ZombiePlant on that world's copy of the scene -- one only, never
+ * scattered in the main path. Same art as that world's Forest Dash hazard
+ * (see the *_HUES-sized sibling in runnerEngine.ts and each world's pack
+ * script), always a single painted pose -- unlike the plant there is no
+ * separate jaw layer to animate, so "alive" comes from CSS: an idle
+ * squash-stretch breathe (.creature-sprite), plus a brief startled squash
+ * the moment the panda arrives (see `near`) rather than a bite. Which
+ * creature, and its taunt, come from that world's entry in worldScenery.ts;
+ * per-world sizing (a "boss"-scale creature reads bigger than a slime) is a
+ * world-theme.css override on .creature-sprite, not a prop here.
  *
  * `near`: true while the panda is resting at the day's start point (right
  * next to this guardian, before the first task of the day is done --
@@ -21,16 +24,20 @@ export const NEAR_POUNCE_MS = 260;
  * ZombiePlant: the idle breathe loop never stops, proximity only adds one
  * reaction the moment `near` flips from false to true.
  */
-export default function GuardianSlime({
+export default function GuardianCreature({
   left,
   bottom,
   bare,
   near,
+  sprite,
+  taunt,
 }: {
   left: number;
   bottom: number;
   bare?: boolean;
   near?: boolean;
+  sprite: string;
+  taunt: string;
 }) {
   const [pounceNow, setPounceNow] = useState(false);
   const wasNear = useRef(false);
@@ -52,16 +59,16 @@ export default function GuardianSlime({
 
   return (
     <div
-      className={`guardian-slime${pounceNow ? " guardian-slime-pounce-now" : ""}`}
+      className={`guardian-creature${pounceNow ? " guardian-creature-pounce-now" : ""}`}
       style={{ left: `${left}%`, bottom: `${bottom}%` }}
       aria-hidden="true"
     >
       {!bare && (
-        <div className="plant-bubble slime-bubble">
-          <span className="plant-bubble-text pixel-font">DON'T START — I'LL DOUBT U</span>
+        <div className="plant-bubble creature-bubble">
+          <span className="plant-bubble-text pixel-font">{taunt}</span>
         </div>
       )}
-      <img className="slime-sprite" src="/assets/world-2/crystal-slime.webp" alt="" />
+      <img className="creature-sprite" src={sprite} alt="" />
     </div>
   );
 }

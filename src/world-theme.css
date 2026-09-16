@@ -50,6 +50,13 @@
   --world-background: url('/assets/world-2/caves-bg.webp');
   --caves-crust: url('/assets/world-2/caves-crust-left.webp'), url('/assets/world-2/caves-crust-right.webp'), url('/assets/world-2/caves-crust-mid.webp');
   --grass-image: var(--caves-crust);
+  --rock-image: url('/assets/world-2/caves-rock.webp');
+  /* Story screen's small ledge footer -- see journey-play.css's
+     .world-story-ledge. Crystal spikes are a smaller share of this tile
+     than World 4's ice spikes, so it needs less headroom above the deck. */
+  --story-ledge-crust: 25px;
+  --story-ledge-overlap: 6px;
+  --story-ledge-deck: 42px;
   --world-trail: url('/assets/world-2/caves-trail.svg');
   --world-sky: #21243e;
   --world-soil: #34334e;
@@ -85,7 +92,12 @@
   --accent: #98d9f3;
   --good: #a7d7df;
   --on-accent: #122434;
-  --world-background: url('/assets/worlds/mountains.svg');
+  --world-background: url('/assets/world-4/mountains-bg.webp');
+  --mountains-crust: url('/assets/world-4/mountains-crust-left.webp'), url('/assets/world-4/mountains-crust-right.webp'), url('/assets/world-4/mountains-crust-mid.webp');
+  --rock-image: url('/assets/world-4/mountains-rock.webp');
+  --story-ledge-crust: 34px;
+  --story-ledge-overlap: 8px;
+  --story-ledge-deck: 40px;
   --world-trail: url('/assets/worlds/mountains-trail.svg');
   --world-sky: #131f33;
   --world-soil: #34485b;
@@ -170,13 +182,13 @@
 
 /* Replace turf with mineral ledges where the geography has no vegetation.
    Worlds that ship real ledge art (world 2) are excluded and style their own. */
-.world-theme[data-world]:not([data-world='0']):not([data-world='1']) :is(.platform-stone, .forest-fg) {
+.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']) :is(.platform-stone, .forest-fg) {
   background-color: var(--world-soil);
   background-image: repeating-linear-gradient(170deg, transparent 0 17px, #0002 18px 20px);
   background-size: auto;
 }
-.world-theme[data-world]:not([data-world='0']):not([data-world='1']) :is(.platform-moss, .victory-lane),
-.world-theme[data-world]:not([data-world='0']):not([data-world='1']) .forest-fg::before {
+.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']) :is(.platform-moss, .victory-lane),
+.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']) .forest-fg::before {
   background: linear-gradient(var(--world-detail) 0 3px, var(--world-surface) 3px 9px, var(--world-soil) 10px);
   border-radius: 5px 5px 1px 1px;
   clip-path: polygon(0 12%, 9% 0, 92% 0, 100% 17%, 100% 83%, 74% 100%, 44% 85%, 15% 100%, 0 83%);
@@ -202,7 +214,7 @@
 .world-theme[data-world='1'] .victory-lane { height: 25px; }
 .world-theme[data-world='1'] .platform-stone {
   background-color: transparent;
-  background-image: url('/assets/world-2/caves-rock.webp');
+  background-image: var(--rock-image);
   background-position: left top;
   background-repeat: repeat-x;
   background-size: auto 100%;
@@ -212,7 +224,35 @@
    band instead of stretching one tile over the whole depth. */
 .world-theme[data-world='1'] .forest-fg {
   background-color: transparent;
-  background-image: url('/assets/world-2/caves-rock.webp');
+  background-image: var(--rock-image);
+  background-position: left top;
+  background-repeat: repeat;
+  background-size: auto 30px;
+}
+
+/* World 4's ledges are art too: an ice-crystal crust over a stone body. Its
+   crystal spikes take up nearly half the crust tile's own height (measured
+   by scripts/pack-mountains-world.py: the deck sits 19px into a 40px tile),
+   so the tile grows more than World 2's does to keep the standing surface
+   and each ledge's total height exactly where they were. */
+.world-theme[data-world='3'] .forest-scene { --grass-image: var(--mountains-crust); }
+.world-theme[data-world='3'] .platform-moss,
+.world-theme[data-world='3'] .forest-fg::before {
+  height: calc(34px * var(--step-scale, 1));
+  margin-top: calc(-16px * var(--step-scale, 1));
+}
+.world-theme[data-world='3'] .victory-lane { height: 34px; }
+.world-theme[data-world='3'] .platform-stone {
+  background-color: transparent;
+  background-image: var(--rock-image);
+  background-position: left top;
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  border-radius: 0;
+}
+.world-theme[data-world='3'] .forest-fg {
+  background-color: transparent;
+  background-image: var(--rock-image);
   background-position: left top;
   background-repeat: repeat;
   background-size: auto 30px;

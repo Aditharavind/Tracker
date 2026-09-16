@@ -315,3 +315,38 @@ describe("world 1 hazard mix: crystal slime replaces the zombie plant", () => {
     expect(sawMaxBounce).toBe(true);
   });
 });
+
+describe("world 3 hazard mix: ice beast replaces the zombie plant", () => {
+  it("world 3 never spawns a plant, and does spawn a beast", () => {
+    const seenKinds = new Set<Hazard["kind"]>();
+    run(createRunner("mix-world3", 3), 20000, (s) => {
+      for (const h of s.hazards) seenKinds.add(h.kind);
+      return play(s);
+    });
+    expect(seenKinds.has("plant")).toBe(false);
+    expect(seenKinds.has("beast")).toBe(true);
+  });
+
+  it("a beast paces back and forth without ever leaving its ledge-safe window", () => {
+    // Same hand-placed-hazard approach as the slime's equivalent test --
+    // deterministic, not dependent on one seed's natural spawn luck.
+    const s = createRunner("beast-patrol-fixture", 3);
+    const startX = s.hazards[0]?.x ?? 60;
+    const patrolMin = startX - 4;
+    const patrolMax = startX + 4;
+    s.hazards = [{ id: 901, x: startX, y: s.y, kind: "beast", hue: 0, patrolMin, patrolMax, dir: 1 }];
+    let sawMinBounce = false;
+    let sawMaxBounce = false;
+    for (let i = 0; i < 600 && !s.over; i++) {
+      step(s, 16, false);
+      const h = s.hazards.find((hz) => hz.id === 901);
+      if (!h) break;
+      expect(h.x).toBeGreaterThanOrEqual((h.patrolMin ?? -Infinity) - 1e-6);
+      expect(h.x).toBeLessThanOrEqual((h.patrolMax ?? Infinity) + 1e-6);
+      if (h.x <= (h.patrolMin ?? -Infinity) + 1e-6) sawMinBounce = true;
+      if (h.x >= (h.patrolMax ?? Infinity) - 1e-6) sawMaxBounce = true;
+    }
+    expect(sawMinBounce).toBe(true);
+    expect(sawMaxBounce).toBe(true);
+  });
+});

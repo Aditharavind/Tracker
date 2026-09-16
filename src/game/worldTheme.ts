@@ -3,7 +3,7 @@ export const WORLD_BACKGROUNDS = [
   "/assets/forest-bg-1.webp",
   "/assets/world-2/caves-bg.webp",
   "/assets/worlds/grove.svg",
-  "/assets/worlds/mountains.svg",
+  "/assets/world-4/mountains-bg.webp",
   "/assets/worlds/valley.svg",
   "/assets/worlds/volcano.svg",
 ] as const;

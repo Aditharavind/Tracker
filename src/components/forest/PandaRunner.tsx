@@ -9,7 +9,7 @@ import {
 import { playJump } from "../../sound";
 import DashLeaderboard from "../DashLeaderboard";
 import { CoinIcon } from "./Coin";
-import { createRunner, metres, PANDA_W, PANDA_X, step, type RunnerState } from "../../game/runnerEngine";
+import { createRunner, metres, PANDA_W, PANDA_X, step, type Hazard, type RunnerState } from "../../game/runnerEngine";
 import { drawCoin } from "../../game/coinArt";
 import { createSeededRandom } from "../../game/seededRandom";
 import { CHARACTER_RUN_ATLAS, characterRunFrame } from "../../game/characterRunAtlas";
@@ -176,6 +176,36 @@ function drawTiledStrip(ctx: CanvasRenderingContext2D, img: HTMLImageElement | u
 }
 
 /**
+ * A world villain pacing its ledge: World 1's crystal slime, World 3's ice
+ * beast. `h.dir` flips the sprite to face its direction of travel, with a
+ * gentle squash/stretch wobble so patrolling reads as alive, not a
+ * plant/mine sliding sideways.
+ */
+function drawPatrollingCreature(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement | undefined,
+  hx: number,
+  baseY: number,
+  h: Hazard,
+  height: number,
+  time: number,
+  fallback: string
+) {
+  const sw = img?.naturalWidth ? height * (img.naturalWidth / img.naturalHeight) : height * 1.5;
+  const wobble = Math.sin(time / 220 + h.id * 137) * 0.06;
+  ctx.save();
+  ctx.translate(hx, baseY);
+  ctx.scale((h.dir ?? 1) * (1 - wobble), 1 + wobble);
+  if (img && img.complete && img.naturalWidth) {
+    ctx.drawImage(img, -sw / 2, -height, sw, height);
+  } else {
+    ctx.fillStyle = fallback;
+    ctx.fillRect(-sw / 2, -height, sw, height);
+  }
+  ctx.restore();
+}
+
+/**
  * Forest Dash -- optional endless platformer, unlocked once the day is cleared.
  *
  * Rendered on a single <canvas> with the game's own flat sprites and forest
@@ -230,6 +260,11 @@ export default function PandaRunner({
     cavesCrustRight?: HTMLImageElement;
     cavesRock?: HTMLImageElement;
     slime?: HTMLImageElement;
+    mountainsCrustLeft?: HTMLImageElement;
+    mountainsCrustMid?: HTMLImageElement;
+    mountainsCrustRight?: HTMLImageElement;
+    mountainsRock?: HTMLImageElement;
+    beast?: HTMLImageElement;
   }>({});
   const bgShift = useRef(0);
   const clouds = useRef(makeClouds(String(key), 6));
@@ -294,6 +329,11 @@ export default function PandaRunner({
     imgs.current.cavesCrustRight = load("/assets/world-2/caves-crust-right.webp");
     imgs.current.cavesRock = load("/assets/world-2/caves-rock.webp");
     imgs.current.slime = load("/assets/world-2/crystal-slime.webp");
+    imgs.current.mountainsCrustLeft = load("/assets/world-4/mountains-crust-left.webp");
+    imgs.current.mountainsCrustMid = load("/assets/world-4/mountains-crust-mid.webp");
+    imgs.current.mountainsCrustRight = load("/assets/world-4/mountains-crust-right.webp");
+    imgs.current.mountainsRock = load("/assets/world-4/mountains-rock.webp");
+    imgs.current.beast = load("/assets/world-4/ice-beast.webp");
   }, [character, worldIndex]);
 
   const commitBest = useCallback(
@@ -339,8 +379,10 @@ export default function PandaRunner({
       for (; x < W; x += bw) ctx.drawImage(bg, x, 0, bw, H);
       ctx.globalAlpha = 1;
     }
-    // Clouds only appear in open landscapes, never inside the caves.
-    if (worldIndex !== 1 && worldIndex !== 5) drawClouds(ctx, W, H, cloudDrift.current, clouds.current);
+    // Clouds only appear in open landscapes, never over a world's own
+    // painted sky (the caves' ceiling, the mountains' aurora, the volcano's
+    // smoke).
+    if (worldIndex !== 1 && worldIndex !== 3 && worldIndex !== 5) drawClouds(ctx, W, H, cloudDrift.current, clouds.current);
 
     // --- ledges ---
     for (const p of st.platforms) {
@@ -355,6 +397,11 @@ export default function PandaRunner({
         // platforms and the story screen -- not the painted flat fallback.
         drawTiledStrip(ctx, imgs.current.cavesRock, x, top, w, h, terrain.soil);
         drawLedgeStrip(ctx, imgs.current.cavesCrustLeft, imgs.current.cavesCrustMid, imgs.current.cavesCrustRight, x, top, w, gh, terrain.surface);
+      } else if (worldIndex === 3) {
+        // World 4 ships real ledge art too (pack-mountains-world.py): an
+        // ice crust over a tiled stone body.
+        drawTiledStrip(ctx, imgs.current.mountainsRock, x, top, w, h, terrain.soil);
+        drawLedgeStrip(ctx, imgs.current.mountainsCrustLeft, imgs.current.mountainsCrustMid, imgs.current.mountainsCrustRight, x, top, w, gh, terrain.surface);
       } else {
         ctx.fillStyle = terrain.soil;
         ctx.fillRect(x, top, w, h);
@@ -428,24 +475,12 @@ export default function PandaRunner({
           ctx.fillStyle = "#3a3d42";
           ctx.fillRect(hx - mw / 2, baseY - mh, mw, mh);
         }
+      } else if (h.kind === "slime") {
+        drawPatrollingCreature(ctx, imgs.current.slime, hx, baseY, h, charH * 0.85, st.t, "#6a5ee0");
       } else {
-        // World 1's villain: a crystal slime pacing its ledge (h.dir flips it
-        // to face the way it's moving) with a gentle squash/stretch wobble so
-        // patrolling reads as alive, not a plant/mine sliding sideways.
-        const im = imgs.current.slime;
-        const sh = charH * 0.85;
-        const sw = im?.naturalWidth ? sh * (im.naturalWidth / im.naturalHeight) : sh * 1.5;
-        const wobble = Math.sin(st.t / 220 + h.id * 137) * 0.06;
-        ctx.save();
-        ctx.translate(hx, baseY);
-        ctx.scale((h.dir ?? 1) * (1 - wobble), 1 + wobble);
-        if (im && im.complete && im.naturalWidth) {
-          ctx.drawImage(im, -sw / 2, -sh, sw, sh);
-        } else {
-          ctx.fillStyle = "#6a5ee0";
-          ctx.fillRect(-sw / 2, -sh, sw, sh);
-        }
-        ctx.restore();
+        // World 3's villain reads bigger -- a "boss"-scale creature, same as
+        // its larger .creature-sprite override for the home-page guardian.
+        drawPatrollingCreature(ctx, imgs.current.beast, hx, baseY, h, charH * 1.3, st.t, "#dce8f5");
       }
     }
 

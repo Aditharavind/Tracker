@@ -10,9 +10,10 @@ import GoalFlag from "./GoalFlag";
 import StartSign from "./StartSign";
 import VictorySign from "./VictorySign";
 import ZombiePlant from "./ZombiePlant";
-import GuardianSlime from "./GuardianSlime";
+import GuardianCreature from "./GuardianCreature";
 import Clouds from "./Clouds";
 import Scenery from "./Scenery";
+import { worldScenery } from "../../game/worldScenery";
 import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 import { playCompanionGiggle, playJump } from "../../sound";
 
@@ -116,6 +117,9 @@ export default function ForestScene({
 
   const reducedMotion = usePrefersReducedMotion();
   const stage = activeStage ?? getStage(dayNumber);
+  // Some worlds have their own villain standing in for the zombie plant at
+  // the START sign (see the start-area render below).
+  const guardian = worldScenery(stage.id - 1).guardian;
 
   const sceneRef = useRef<HTMLDivElement>(null);
   // Spacing is authored against a 1040px-wide reference viewport. Dividing by
@@ -518,11 +522,11 @@ export default function ForestScene({
 
         <div className="start-area" aria-hidden="true">
           <StartSign left={0} bottom={0} />
-          {/* World 2 (Self-Doubt Caves) swaps the zombie plant for its own
-             villain, the crystal slime -- same reference sheet PandaRunner's
-             Forest Dash follows for World 2's "slime" hazard kind. */}
-          {activeStage?.theme === "caves"
-            ? <GuardianSlime left={0} bottom={0} near={atStartRest} />
+          {/* Worlds with their own villain (worldScenery.ts's `guardian` --
+             same reference sheet PandaRunner's Forest Dash follows for that
+             world's hazard kind) swap it in for the zombie plant here. */}
+          {guardian
+            ? <GuardianCreature left={0} bottom={0} near={atStartRest} sprite={guardian.sprite} taunt={guardian.taunt} />
             : <ZombiePlant left={0} bottom={0} near={atStartRest} />}
         </div>
 
