@@ -17,7 +17,7 @@ describe("WeekMap", () => {
   it("shows only the current world's 15 numbered day-stones, not the whole 75-day journey or any story link", () => {
     const html = renderMap(0);
     expect(html.match(/class="adventure-level-stone/g) ?? []).toHaveLength(15);
-    expect(html.match(/class="adventure-level-number"[^>]*>(\d+)</g) ?? []).toHaveLength(15);
+    expect(html.match(/DAY<b>\d+<\/b>/g) ?? []).toHaveLength(15);
     expect(html).not.toContain("weekmap-wormhole");
     expect(html).not.toContain("Enter story");
     expect(html).not.toContain("Today&#x27;s goals");
@@ -33,17 +33,27 @@ describe("WeekMap", () => {
     expect(html).toContain("Day 15 in this world");
   });
 
-  it("every day-stone is a button that returns to the forest scene", () => {
-    const html = renderMap(29);
-    const stones = html.match(/<button type="button" class="adventure-level-stone[^>]*>/g) ?? [];
-    expect(stones).toHaveLength(15);
-    expect(html).toContain('aria-label="Day 30: today. Return to your forest."');
+  it("only day 1 is unlocked on a fresh world -- every later stone is locked until the one before it is done", () => {
+    const html = renderMap(0);
+    const enabled = html.match(/<button type="button" class="adventure-level-stone[^"]*"[^>]*>/g) ?? [];
+    const disabled = enabled.filter((b) => b.includes("disabled="));
+    expect(disabled).toHaveLength(14);
+    expect(html).toContain('aria-label="Day 1: today. Return to your forest."');
+    expect(html).toContain('aria-label="Day 2: locked. Complete day 1 first."');
   });
 
-  it("marks the last day of a fresh world as day 1 in world 5 once the journey completes", () => {
+  it("unlocks the next stone only once the one before it is actually done", () => {
+    const html = renderMap(3);
+    expect(html).toContain('aria-label="Day 3: complete. Return to your forest."');
+    expect(html).toContain('aria-label="Day 4: today. Return to your forest."');
+    expect(html).toContain('aria-label="Day 5: locked. Complete day 4 first."');
+  });
+
+  it("marks the last day of a fresh world as day 1 in world 5 once the journey completes, with nothing locked", () => {
     const complete = renderMap(75);
     expect(complete).toContain('data-world="4"');
     expect(complete).toContain("15 / 15 days complete");
     expect(complete).toContain("Journey complete");
+    expect(complete).not.toContain("disabled=");
   });
 });
