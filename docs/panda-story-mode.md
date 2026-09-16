@@ -1,24 +1,46 @@
 # Panda: Find the path again
 
-Open the **STORY** signpost in the main forest game (top-right of the
-gameplay area) -- it is a chapter of the same 75-day run, not a separate
-minigame, so it lives outside the Minigames picker (Forest Dash only there
-now). The young panda returns to an abandoned trail, learning movement and
-emotional resilience together. The campaign now has six worlds, each with 15
-sequential levels. Clearing level 15 completes that world and unlocks the next
-world.
+Open the **STORY** signpost or world progress card to read the current world's
+introduction, then continue to today's daily goals. The 75-day journey has
+five environments: Sleeping Forest (days 1–15), Self-Doubt Caves (16–30),
+Distraction Grove (31–45), Fear Mountains (46–60), and Inconsistency Valley
+(61–75). Completing the required goals for all 15 days opens the next world
+immediately. Saved calendar completion drives the theme across the daily
+scene, panels, map, story, and minigame. Missed or incomplete days stop world
+progress; passing time and clearing adventure levels cannot skip this gate.
 
-Each outer trail portal opens its world's **15-stone level trail**, rather than
-starting gameplay immediately. Every level has a numbered portal anchored to a
-painted stone; the final one is the boss. The selected character appears from
-behind beside the current portal. Completed portals stay replayable, locked
-portals honor the same sequential and penalty gates, and saved attempts resume
-their lantern or story scene. Finishing a reflection returns to the stones with
-the next portal unlocked. Back returns to the outer trail when entered from it.
+The **World map** shows all 75 daily goal stones and unlocked world stories.
+After day 75, Frustration Lands is available as a bonus story. The daily
+challenge remains 75 days long.
 
-Story progress is no longer opened by a per-world day floor. The save gate is
-strictly sequential, and the habit `dayNumber` is only used for the penalty:
-one failed story attempt locks Story Mode until seven habit days later. See
+The story entry shows how a real goal earns a coin and moves the companion,
+with smaller milestones at 5 and 10 completed days. Players can greet their
+companion and choose daily goals or optional play. The first adventure offers
+a dismissible move → jump → smash → coin lesson that responds to actual
+actions. The **?** button reopens it; mobile controls display action names and
+introduce extra buttons when their powers are earned.
+
+The optional **Play this world's adventure** button opens a separate
+**15-mission trail**. Each playable mission uses a plain numbered stone; the
+fifteenth mission is the boss. The selected character stands beside the current
+mission. Completed missions remain replayable, later missions open in order,
+and saved attempts resume their lantern or story scene. Finishing a reflection
+returns to the stones with the next mission unlocked. Back returns to the
+world's introduction.
+
+After all 15 missions in a world are complete, one exit portal opens at the end
+of its trail. Entering that portal animates the move into the next world's
+environment. The final world has no outgoing portal. An incomplete mission
+keeps the exit closed even if the boss has already been marked complete.
+
+Optional adventure progress is independent of daily-goal world unlocking:
+clearing its missions opens the next adventure immediately, without waiting for
+habit days. The daily journey remains five worlds, each requiring 15 days of
+completed goals, for 75 days total; adventure missions do not advance it.
+A failed adventure can be
+retried immediately from the last lantern with full health. Collected items,
+cleared obstacles, and earned progress are kept; failing or retrying never
+completes a level or grants a power. See
 `LEVELS_PER_WORLD` / `STORY_WORLD_COUNT` in `src/game/adventure/content.ts`,
 and `recordFailure` / `canPlay` in `src/game/adventure/save.ts`.
 
@@ -40,11 +62,17 @@ unlocks Extended Dash, Air Dash, Reflect, and Wall Jump respectively.
 
 ## Implementation
 
+- `src/game/weekSystem.ts`: saved-calendar journey progress and world gates.
+- `src/game/stageSystem.ts`: matching world names and 15-day ranges.
+- `src/components/forest/StoryLauncher.tsx`: world introduction and daily-goal entry.
+- `src/world-theme.css`, `src/game/worldTheme.ts`, `public/assets/worlds/`:
+  shared environment palettes, terrain, and world-specific landscape/trail art.
 - `src/components/forest/Adventure.tsx`: world map, scene flow, HUD, lifecycle,
   checkpoint persistence, and the fixed-step loop.
-- `src/components/forest/AdventureTrail.tsx`: scrolling stone map, world selector,
-  portal states, current-level positioning, and powers/memories drawer.
-- `src/game/adventure/trail.ts`: the 15 artwork anchors and per-level view data.
+- `src/components/forest/AdventureTrail.tsx`: scrolling mission stones, world
+  selector, one exit portal, current-level positioning, and powers/memories drawer.
+- `src/game/adventure/trail.ts`: the 15 artwork anchors, per-mission view data,
+  and the completed-world exit guard.
 - `src/game/adventure/content.ts`: worlds, dialogue, powers, and 90 campaign
   levels. Levels combine authored platform and hazard sections.
 - `src/game/adventure/engine.ts`: 120 Hz physics, buffered/coyote jumps, collisions,
@@ -78,6 +106,11 @@ also save. Resume restores a stable lantern, heals Panda, resets transient
 hazards, and waits for the player to continue. It does not restore an unsafe
 midair position. Replays merge unique collectible IDs and retain the best time.
 Invalid or locked progress is rejected; storage failures show an alert.
+
+Failure saves the current checkpoint and collectibles before offering a retry.
+The failure count remains a local statistic, with no waiting period or effect
+on daily challenge tasks or lives. Older v3 saves with `penaltyUntilDay` are
+accepted and that legacy lockout is cleared while their saved progress remains.
 
 Saves are local to the browser, without cloud synchronization. The previous
 three-chapter campaign's save remains separate; its completion does not unlock
@@ -115,9 +148,9 @@ under Codex's generated-images directory; the deployed copy is in this repositor
 `public/assets/story/level-trail-v1.webp` is the 15-stone portrait map, generated
 with the built-in `image_gen` tool using `public/assets/weekmap-bg.png` as a
 style/material reference. The 1024x1536 source was encoded as WebP at quality 90
-(approximately 638 KB), without resizing or cropping. Portal bottoms use the
+(approximately 638 KB), without resizing or cropping. Mission markers use the
 actual stone-surface coordinates measured from the final image. On phones the
-outer forest is clipped, while the image and portal coordinates share the same
+outer forest is clipped, while the image and mission coordinates share the same
 aspect ratio; the rocks are never stretched to fit a different viewport.
 The final generation prompt and source location are in
 [`story-level-trail-art.md`](story-level-trail-art.md).

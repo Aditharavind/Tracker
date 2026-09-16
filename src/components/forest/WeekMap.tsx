@@ -1,26 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CharacterId } from "../../game/characters";
 import type { DayCell } from "../../types";
-import { CHAPTER_ENEMIES, WORLDS, type EnemyKind } from "../../game/adventure/content";
+import { WORLDS } from "../../game/adventure/content";
 import {
   ARC_COUNT,
   ARC_DAYS,
   arcDayRange,
-  isArcConsistent,
-  STORY_ARC_LIMIT,
-  unlockedArcCount,
-  unlockedDayCount,
+  journeyProgress,
 } from "../../game/weekSystem";
 import { usePrefersReducedMotion } from "./ForestScene";
+import WorldTransition from "./WorldTransition";
 import "../../story.css";
 import "../../weekmap.css";
 
-// Candy-Crush-style trail: 15 day-stones per arc, then a wormhole -- walking
-// through it is what actually opens the next Story world. Built once as a
-// flat list (day nodes + one wormhole node per arc, in order) and laid out
-// on a snaking COLS-wide grid, alternating direction each row, so the path
-// reads as one winding trail rather than the old two-column zigzag (which
-// only had to fit 11 week-nodes; 75 day-nodes needs an actual snake).
+// Fifteen daily goal stones per world. A portal to the next world's story
+// appears once all fifteen days of required goals are complete.
 type PathNode =
   | { kind: "day"; day: number; arc: number }
   | { kind: "wormhole"; arc: number };
@@ -63,16 +57,15 @@ const NODE_POS: { x: number; y: number }[] = PATH.map((_, i) => {
   };
 });
 const CANVAS_HEIGHT = ROWS * 150;
-const ENEMY_LABEL: Record<EnemyKind, string> = { rootling: "ZOMBIE PLANT", shade: "SHADE", moth: "MOTH", armored: "ARMORED" };
 const BACK_CHARACTER: Record<CharacterId, string> = {
   panda: "/assets/story/panda-back.png",
   koala: "/assets/story/koala-back.png",
   redpanda: "/assets/story/redpanda-back.png",
 };
 
-function BackCharacter({ character, running }: { character: CharacterId; running: boolean }) {
+function BackCharacter({ character }: { character: CharacterId }) {
   return (
-    <div className={`weekmap-panda${running ? " running" : ""}`} aria-hidden="true">
+    <div className="weekmap-panda" aria-hidden="true">
       <img className="weekmap-panda-fallback" src={BACK_CHARACTER[character]} alt="" />
     </div>
   );
@@ -83,82 +76,89 @@ export default function WeekMap({
   calendar,
   onClose,
   onOpenWorld,
+  onOpenGoals,
 }: {
   character: CharacterId;
   calendar: DayCell[];
   onClose: () => void;
   onOpenWorld: (worldIndex: number) => void;
+  onOpenGoals?: () => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
-  const unlockedArcs = useMemo(() => unlockedArcCount(calendar), [calendar]);
-  const currentDay = useMemo(() => unlockedDayCount(calendar), [calendar]);
-  // The panda's own node on PATH: today's day-stone, or -- once every day in
-  // the final arc is done -- the wormhole it just walked up to.
+  const [transitionWorld, setTransitionWorld] = useState<number | null>(null);
+  const progress = useMemo(() => journeyProgress(calendar), [calendar]);
+  const world = WORLDS[progress.worldIndex];
+  const nextWorld = progress.nextWorldIndex === null ? null : WORLDS[progress.nextWorldIndex];
+  const currentDay = Math.min(progress.completedDays + 1, 75);
   const pandaIndex = useMemo(() => {
+    if (progress.complete) return PATH.length - 1;
     const dayIdx = PATH.findIndex((n) => n.kind === "day" && n.day === currentDay);
     return dayIdx === -1 ? PATH.length - 1 : dayIdx;
-  }, [currentDay]);
+  }, [currentDay, progress.complete]);
 
+  const rootRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<HTMLDivElement>(null);
-  const knownUnlockedArcs = useRef<number | null>(null);
-  const [visibleUnlockedArcs, setVisibleUnlockedArcs] = useState(unlockedArcs);
-  const [displayedIndex, setDisplayedIndex] = useState(pandaIndex);
-  const [releasingArc, setReleasingArc] = useState<number | null>(null);
 
   useEffect(() => {
-    const saved = Number(window.sessionStorage.getItem("weekmap:last-unlocked-arc"));
-    const known = Number.isFinite(saved) && saved >= 1 ? Math.min(saved, ARC_COUNT) : unlockedArcs;
-    knownUnlockedArcs.current = known;
-    setVisibleUnlockedArcs(Math.min(unlockedArcs, known));
-    setDisplayedIndex(pandaIndex);
-  }, []);
-
-  useEffect(() => {
-    const known = knownUnlockedArcs.current;
-    if (known === null || unlockedArcs <= known) {
-      setVisibleUnlockedArcs(unlockedArcs);
-      setDisplayedIndex(pandaIndex);
-      return;
-    }
-    knownUnlockedArcs.current = unlockedArcs;
-    window.sessionStorage.setItem("weekmap:last-unlocked-arc", String(unlockedArcs));
-    if (reducedMotion) {
-      setVisibleUnlockedArcs(unlockedArcs);
-      setDisplayedIndex(pandaIndex);
-      return;
-    }
-    // A wormhole just opened -- hold the reveal at the previous state for a
-    // beat (portal still dormant, panda parked in front of it), then
-    // release: the portal animates open and the panda walks through.
-    const openedArc = unlockedArcs - 1;
-    setVisibleUnlockedArcs(openedArc);
-    const wormholeIdx = PATH.findIndex((n) => n.kind === "wormhole" && n.arc === openedArc);
-    setDisplayedIndex(wormholeIdx === -1 ? pandaIndex : wormholeIdx);
-    setReleasingArc(openedArc);
-    const start = window.setTimeout(() => setDisplayedIndex(pandaIndex), 40);
-    const reveal = window.setTimeout(() => setVisibleUnlockedArcs(unlockedArcs), 680);
-    const finish = window.setTimeout(() => setReleasingArc(null), 1120);
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    rootRef.current?.querySelector<HTMLButtonElement>(".weekmap-close")?.focus();
     return () => {
-      window.clearTimeout(start);
-      window.clearTimeout(reveal);
-      window.clearTimeout(finish);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
     };
-  }, [reducedMotion, unlockedArcs, pandaIndex]);
+  }, []);
 
   useEffect(() => {
     const el = pathRef.current;
     if (!el) return;
-    const target = NODE_POS[displayedIndex].y * CANVAS_HEIGHT - el.clientHeight / 2;
+    const target = NODE_POS[pandaIndex].y * CANVAS_HEIGHT - el.clientHeight / 2;
     el.scrollTo({ top: Math.max(0, Math.min(el.scrollHeight - el.clientHeight, target)), behavior: reducedMotion ? "auto" : "smooth" });
-  }, [displayedIndex, reducedMotion]);
+  }, [pandaIndex, reducedMotion]);
 
-  const pandaPos = NODE_POS[displayedIndex];
+  const pandaPos = NODE_POS[pandaIndex];
 
   return (
-    <div className="weekmap" role="dialog" aria-modal="true" aria-label="Story trail map">
-      <button type="button" className="weekmap-close" onClick={onClose} aria-label="Return to forest">
-        Back
-      </button>
+    <div ref={rootRef} className="weekmap world-theme" data-world={progress.worldIndex} role="dialog" aria-modal="true" aria-labelledby="weekmap-title" onKeyDown={(event) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key !== "Tab") return;
+      const buttons = rootRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+      if (!buttons?.length) return;
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }}>
+      <header className="weekmap-header">
+        <button type="button" className="weekmap-close" onClick={onClose} aria-label="Return to your world">
+          Back
+        </button>
+        <div className="weekmap-intro">
+          <p className="weekmap-eyebrow">STORY JOURNEY · WORLD {progress.worldIndex + 1} OF {ARC_COUNT}</p>
+          <h1 id="weekmap-title">{world.name}</h1>
+          <p className="weekmap-motto">{world.motto}</p>
+          <p className="weekmap-description">{world.intro[0]}</p>
+          <div className="weekmap-progress-heading" aria-live="polite">
+            <strong>{progress.worldCompletedDays} / {ARC_DAYS} days complete</strong>
+            <span>{progress.complete ? "Journey complete" : `Day ${progress.dayInWorld} in this world`}</span>
+          </div>
+          <progress className="weekmap-progress" value={progress.worldCompletedDays} max={ARC_DAYS} aria-label="Completed daily goals in this world" />
+          <div className="weekmap-actions">
+            <button type="button" className="weekmap-primary" onClick={() => onOpenWorld(progress.worldIndex)}>Enter story</button>
+            {onOpenGoals && !progress.complete && <button type="button" className="weekmap-secondary" onClick={onOpenGoals}>Today's goals</button>}
+            {progress.complete && WORLDS[ARC_COUNT] && (
+              <button type="button" className="weekmap-secondary" onClick={() => onOpenWorld(ARC_COUNT)}>Bonus story</button>
+            )}
+          </div>
+          <p className="weekmap-instruction">
+            {progress.complete
+              ? "All 75 days complete. Revisit your worlds or explore the bonus story."
+              : nextWorld
+                ? `Complete your required daily goals for 15 days to enter ${nextWorld.name}. Every page changes with your world.`
+                : "Complete your required daily goals for these final 15 days to finish your journey and unlock the bonus story."}
+          </p>
+        </div>
+      </header>
       <div className="weekmap-path" ref={pathRef}>
         <div className="weekmap-canvas" style={{ height: CANVAS_HEIGHT }}>
           <div className="weekmap-bg" aria-hidden="true" />
@@ -168,67 +168,58 @@ export default function WeekMap({
             const style = { left: `${pos.x * 100}%`, top: `${pos.y * 100}%` };
 
             if (node.kind === "day") {
-              const locked = node.arc > visibleUnlockedArcs;
-              const done = node.day < currentDay;
-              const current = node.day === currentDay;
+              const locked = node.arc > progress.worldIndex + 1;
+              const done = node.day <= progress.completedDays;
+              const current = !progress.complete && node.day === currentDay;
+              const cellStatus = calendar[node.day - 1]?.status;
+              const status = done ? "complete" : locked ? "locked" : cellStatus === "partial" ? "goals incomplete" : cellStatus === "missed" ? "missed goals" : current ? "next daily goals" : "upcoming";
+              const label = `Day ${node.day}, world ${node.arc}: ${status}`;
               return (
                 <span
                   key={`day-${node.day}`}
                   className={`weekmap-day${locked ? " locked" : ""}${done ? " done" : ""}${current ? " current" : ""}`}
                   style={style}
-                  aria-hidden="true"
-                />
+                  role="img"
+                  aria-label={label}
+                  aria-current={current ? "step" : undefined}
+                  title={label}
+                >
+                  <span aria-hidden="true">{node.day}</span>
+                </span>
               );
             }
 
-            const hasWorld = node.arc <= STORY_ARC_LIMIT;
-            const world = hasWorld ? WORLDS[node.arc - 1] : null;
-            const locked = node.arc > visibleUnlockedArcs;
-            const open = hasWorld && !locked && (node.arc === 1 || isArcConsistent(calendar, node.arc));
-            const label = locked
-              ? `Arc ${node.arc} locked`
-              : !hasWorld
-                ? `Arc ${node.arc}: more coming`
-                : open
-                  ? `Wormhole to ${world!.name}`
-                  : `Arc ${node.arc}: complete all ${ARC_DAYS} days to open the wormhole`;
+            const destination = WORLDS[node.arc];
+            if (progress.completedDays < node.arc * ARC_DAYS || !destination) return null;
             return (
               <button
                 key={`wormhole-${node.arc}`}
                 type="button"
-                className={`weekmap-wormhole${locked ? " locked" : ""}${open ? " open" : ""}${releasingArc === node.arc ? " releasing" : ""}`}
-                style={{ ...style, ["--node-color" as string]: world?.color ?? "#f0c04a" }}
-                disabled={!open}
-                onClick={() => {
-                  if (hasWorld && open) onOpenWorld(node.arc - 1);
-                }}
-                aria-label={label}
+                className="weekmap-wormhole open"
+                style={{ ...style, ["--node-color" as string]: destination.color }}
+                onClick={() => setTransitionWorld(node.arc)}
+                aria-label={`Enter ${destination.name} story`}
               >
                 <span className="weekmap-wormhole-ring" aria-hidden="true" />
                 <span className="weekmap-wormhole-sign pixel-font">
-                  {locked || !hasWorld ? (
-                    <>
-                      ARC {node.arc}
-                      <small>{hasWorld ? "LOCKED" : "MORE COMING"}</small>
-                    </>
-                  ) : open ? (
-                    world!.name.toUpperCase()
-                  ) : (
-                    <>
-                      ARC {node.arc}
-                      <small>{CHAPTER_ENEMIES[node.arc - 1].map((enemy) => ENEMY_LABEL[enemy]).join(" + ")}</small>
-                    </>
-                  )}
+                  {destination.name.toUpperCase()}
                 </span>
               </button>
             );
           })}
 
           <div className="weekmap-panda-anchor" style={{ left: `${pandaPos.x * 100}%`, top: `${pandaPos.y * 100}%` }} aria-hidden="true">
-            <BackCharacter character={character} running={displayedIndex !== pandaIndex || releasingArc !== null} />
+            <BackCharacter character={character} />
           </div>
         </div>
       </div>
+      {transitionWorld !== null && <WorldTransition
+        fromWorld={transitionWorld - 1}
+        toWorld={transitionWorld}
+        character={character}
+        reducedMotion={reducedMotion}
+        onComplete={() => { setTransitionWorld(null); onOpenWorld(transitionWorld); }}
+      />}
     </div>
   );
 }

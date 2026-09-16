@@ -8,12 +8,17 @@ export default function AdventureCinema({ mood, world, endingPage, reducedMotion
   useEffect(() => {
     const ctx = ref.current?.getContext("2d"); if (!ctx) return;
     const reduced = reducedMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const art = loadArt(undefined, character); let raf = 0; let start = 0;
+    const art = loadArt(world, character); let raf = 0; let start = 0;
     const draw = (t: number) => {
       if (!start) start = t; const seconds = reduced ? 0 : (t - start) / 1000;
       ctx.clearRect(0, 0, 960, 360); ctx.fillStyle = WORLDS[world].sky; ctx.fillRect(0, 0, 960, 360);
-      if (art.forest.complete && art.forest.naturalWidth) ctx.drawImage(art.forest, 0, -145, 960, 640);
-      ctx.fillStyle = endingPage === 0 ? "#10241c90" : mood === "peace" ? "#dabc7425" : "#10241c60"; ctx.fillRect(0, 0, 960, 360);
+      if (art.forest.complete && art.forest.naturalWidth) {
+        const scale = Math.max(960 / art.forest.naturalWidth, 360 / art.forest.naturalHeight);
+        const width = art.forest.naturalWidth * scale;
+        const height = art.forest.naturalHeight * scale;
+        ctx.drawImage(art.forest, (960 - width) / 2, (360 - height) / 2, width, height);
+      }
+      ctx.fillStyle = endingPage === 0 ? `${WORLDS[world].sky}90` : mood === "peace" ? `${WORLDS[world].tint}25` : `${WORLDS[world].sky}60`; ctx.fillRect(0, 0, 960, 360);
       const glow = ctx.createRadialGradient(530, 190, 20, 530, 190, 260); glow.addColorStop(0, "#ffdc8733"); glow.addColorStop(1, "#f5d79900"); ctx.fillStyle = glow; ctx.fillRect(0, 0, 960, 360);
       if (endingPage === 0) {
         ctx.save(); ctx.globalAlpha = reduced ? .2 : Math.max(0, 1 - seconds / 4);

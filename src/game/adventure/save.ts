@@ -1,4 +1,4 @@
-import { FINAL_LEVEL_ID, LEVEL_COUNT, MAIN_LEVELS, finalLevelForWorld, levelIdsForWorld, makeLevel, WORLDS, type Power } from "./content";
+import { FINAL_LEVEL_ID, LEVEL_COUNT, LEVELS_PER_WORLD, MAIN_LEVELS, finalLevelForWorld, levelIdsForWorld, makeLevel, WORLDS, type Power } from "./content";
 
 export type Action = "left" | "right" | "jump" | "attack" | "dash" | "ability" | "cycle" | "crouch" | "walk";
 export type Settings = {
@@ -20,19 +20,19 @@ export type Save = {
   version: 3; completed: number[]; bosses: number[]; powers: Power[]; upgrades: string[];
   collectibles: Record<string, number[]>; lore: Record<string, number[]>;
   attempts: Record<string, Attempt>; bestTimes: Record<string, number>; lastLevel: number | null;
-  failures: number; penaltyUntilDay: number | null; settings: Settings;
+  failures: number;
+  // Legacy v3 field retained for save compatibility; retries no longer lock out play.
+  penaltyUntilDay: number | null; settings: Settings;
 };
 export const saveKey = (userId: number | null) => `75hard.panda.adventure.v3:${userId ?? "guest"}`;
 export const emptySave = (): Save => ({ version: 3, completed: [], bosses: [], powers: [], upgrades: [], collectibles: {}, lore: {}, attempts: {}, bestTimes: {}, lastLevel: null, failures: 0, penaltyUntilDay: null, settings: { ...DEFAULT_SETTINGS, keys: { ...DEFAULT_SETTINGS.keys } } });
 const object = (v: unknown): Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
 const numbers = (v: unknown, allowed: number[]) => Array.isArray(v) ? [...new Set(v.filter((n): n is number => typeof n === "number" && allowed.includes(n)))] : [];
 const bounded = (v: unknown, min: number, max: number, fallback: number) => typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
-export const penaltyActive = (save: Save, dayNumber: number) => Number.isFinite(dayNumber) && save.penaltyUntilDay !== null && dayNumber < save.penaltyUntilDay;
-
-// Story progress is strictly sequential: all 15 levels in one world must be
-// cleared before the first level of the next world opens. dayNumber only
-// applies the failure lockout; callers that omit it get pure save progression.
-export const canPlay = (save: Save, id: number, dayNumber = Infinity) => id >= 0 && id < LEVEL_COUNT && Number.isInteger(id) && !penaltyActive(save, dayNumber) && (id === 0 || save.completed.includes(id - 1));
+// Adventure missions unlock in sequence; callers may optionally limit worlds.
+// Save parsing omits that optional cap to preserve earlier earned records.
+// The day argument remains for positional compatibility with existing callers.
+export const canPlay = (save: Save, id: number, _dayNumber = Infinity, unlockedWorlds = WORLDS.length) => id >= 0 && id < LEVEL_COUNT && Number.isInteger(id) && Math.floor(id / LEVELS_PER_WORLD) < unlockedWorlds && (id === 0 || save.completed.includes(id - 1));
 export function resumeLevelForWorld(save: Save, world: number) {
   const ids = levelIdsForWorld(world);
   if (save.lastLevel !== null && ids.includes(save.lastLevel) && save.attempts[save.lastLevel]) return save.lastLevel;
@@ -57,8 +57,8 @@ export function parseSave(raw: string | null): Save {
     next.bosses = WORLDS.map((_, i) => i).filter(i => next.completed.includes(finalLevelForWorld(i)));
     next.powers = earnedPowers(next.bosses);
     next.failures = Math.floor(bounded(v.failures, 0, 9999, 0));
-    const penaltyUntilDay = v.penaltyUntilDay;
-    next.penaltyUntilDay = typeof penaltyUntilDay === "number" && Number.isFinite(penaltyUntilDay) && penaltyUntilDay > 1 ? Math.floor(penaltyUntilDay) : null;
+    // Old saves resume immediately, keeping their progress and checkpoints.
+    next.penaltyUntilDay = null;
     for (let id = 0; id < LEVEL_COUNT; id++) {
       if (!canPlay(next, id)) continue;
       const level = makeLevel(id); const k = String(id);
@@ -110,10 +110,8 @@ export function completeLevel(save: Save, id: number, attempt: Attempt): Save {
   const best = save.bestTimes[id];
   return { ...next, completed, bosses, powers: earnedPowers(bosses), bestTimes: { ...save.bestTimes, [id]: best ? Math.min(best, attempt.elapsed) : Math.max(.01, attempt.elapsed) } };
 }
-export function recordFailure(save: Save, dayNumber: number): Save {
-  if (!Number.isFinite(dayNumber)) return save;
-  const until = Math.floor(dayNumber) + 7;
-  return { ...save, failures: save.failures + 1, penaltyUntilDay: Math.max(save.penaltyUntilDay ?? until, until), lastLevel: null };
+export function recordFailure(save: Save, _dayNumber: number): Save {
+  return { ...save, failures: save.failures + 1, penaltyUntilDay: null };
 }
 export function recordAttempt(save: Save, id: number, attempt: Attempt): Save {
   if (!canPlay(save, id)) return save;

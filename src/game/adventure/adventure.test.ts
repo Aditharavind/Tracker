@@ -77,7 +77,7 @@ describe("campaign progression and saves", () => {
   });
 });
 
-describe("story worlds unlock through 15-level clears, with failure penalties", () => {
+describe("story worlds unlock through 15-level clears, with immediate retries", () => {
   it("keeps legacy day floors open while completion controls world access", () => {
     expect(STORY_WORLD_UNLOCK_DAYS).toEqual(WORLDS.map(() => 1));
     for (let w = 0; w < WORLDS.length; w++) expect(storyWorldUnlockDay(w)).toBe(1);
@@ -98,11 +98,68 @@ describe("story worlds unlock through 15-level clears, with failure penalties", 
     const cleared = through(LEVELS_PER_WORLD);
     expect(canPlay(cleared, LEVELS_PER_WORLD, 1)).toBe(true);
   });
-  it("a failure blocks Story Mode for 7 habit days", () => {
-    const penalized = recordFailure(emptySave(), 12);
-    expect(penalized.penaltyUntilDay).toBe(19);
-    expect(canPlay(penalized, 0, 18)).toBe(false);
-    expect(canPlay(penalized, 0, 19)).toBe(true);
+  it("retries immediately from the saved lantern without granting completion or powers", () => {
+    const id = LEVELS_PER_WORLD + 1;
+    const level = makeLevel(id);
+    const previous = through(id);
+    const state = createState(level, previous);
+    state.checkpoint = 1;
+    state.coins.add(level.things.find(thing => thing.kind === "coin")!.id);
+    state.lore.add(level.things.find(thing => thing.kind === "lore")!.id);
+    state.defeated.add(level.enemies[0].id);
+    state.opened.add(level.objects[0].id);
+    state.health = 1; state.immune = 0;
+    expect(damage(state, "A missed landing.")).toBe(true);
+    expect(state.status).toBe("dead");
+
+    const attempted = recordAttempt(previous, id, snapshot(state));
+    const failed = recordFailure(attempted, 12);
+    expect(failed.failures).toBe(1);
+    expect(attempted.failures).toBe(0);
+    expect(failed.penaltyUntilDay).toBeNull();
+    expect(failed.lastLevel).toBe(id);
+    expect(failed.completed).toEqual(previous.completed);
+    expect(failed.bosses).toEqual(previous.bosses);
+    expect(failed.powers).toEqual(previous.powers);
+    expect(failed.collectibles[id]).toEqual([...state.coins]);
+    expect(failed.lore[id]).toEqual([...state.lore]);
+    expect(canPlay(failed, id, 12, 2)).toBe(true);
+    expect(canPlay(failed, id, 12, 1)).toBe(false);
+    expect(canPlay(failed, id + 1, 12, 2)).toBe(false);
+
+    const restored = createState(level, failed, failed.attempts[id]);
+    expect(restored.x).toBe(level.checkpoints[1]);
+    expect(restored.health).toBe(5);
+    expect(restored.status).toBe("playing");
+    expect(restored.coins).toEqual(state.coins);
+    expect(restored.defeated).toEqual(state.defeated);
+    expect(restored.opened).toEqual(state.opened);
+  });
+  it("removes a legacy lockout on reload while preserving its checkpoint and world gates", () => {
+    const id = LEVELS_PER_WORLD;
+    const level = makeLevel(id);
+    const previous = through(id);
+    const state = createState(level, previous);
+    state.checkpoint = 1;
+    state.coins.add(level.things.find(thing => thing.kind === "coin")!.id);
+    const legacy = { ...recordAttempt(previous, id, snapshot(state)), failures: 4, penaltyUntilDay: 999 };
+
+    const restored = parseSave(JSON.stringify(legacy));
+    expect(restored.penaltyUntilDay).toBeNull();
+    expect(restored.failures).toBe(4);
+    expect(restored.lastLevel).toBe(id);
+    expect(restored.attempts[id].checkpoint).toBe(1);
+    expect(restored.attempts[id].coins).toEqual([...state.coins]);
+    expect(restored.completed).toEqual(previous.completed);
+    expect(restored.powers).toEqual(previous.powers);
+    expect(canPlay(restored, id, 16, 2)).toBe(true);
+    expect(canPlay(restored, id, 16, 1)).toBe(false);
+
+    const failedAgain = recordFailure(legacy, 16);
+    expect(failedAgain.penaltyUntilDay).toBeNull();
+    expect(failedAgain.failures).toBe(5);
+    expect(failedAgain.lastLevel).toBe(id);
+    expect(failedAgain.attempts[id]).toEqual(legacy.attempts[id]);
   });
 });
 

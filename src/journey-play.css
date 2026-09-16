@@ -1,0 +1,145 @@
+/* The story, daily goals and optional adventure share the earned world palette. */
+.world-story .world-story-art.journey-scene {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 20px;
+  height: clamp(130px, 20dvh, 175px);
+  padding: 12px 24px;
+}
+
+.world-story .journey-companion {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: center;
+  gap: 3px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.world-story .journey-companion img {
+  display: block;
+  width: clamp(70px, 12dvh, 100px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 7px 5px #0005);
+  transform-origin: center bottom;
+}
+
+.world-story .journey-companion span {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.world-story .journey-companion:hover span { border-color: var(--accent); }
+.world-story .journey-companion-wave { animation: journey-hello 480ms ease-out; }
+
+.world-story .journey-greeting {
+  position: relative;
+  max-width: 250px;
+  margin: 0 0 22px;
+  padding: 11px 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 14px 3px;
+  background: var(--panel);
+  color: var(--world-light);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.world-story .journey-story-next { margin-top: 8px; }
+.world-story .journey-page-count { margin-left: 8px; color: var(--dim); font-size: 10px; }
+
+.world-story .journey-how {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.world-story .journey-how li {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--raised);
+}
+
+.world-story .journey-step-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 27px;
+  margin-bottom: 6px;
+  color: var(--accent);
+}
+
+.world-story .journey-how strong,
+.world-story .journey-how div > span { display: block; font-size: 12px; line-height: 1.6; }
+.world-story .journey-how strong { color: var(--text); }
+.world-story .journey-how div > span { margin-top: 3px; color: var(--dim); }
+
+.world-story .journey-milestones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 7px;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.world-story .journey-milestones > span { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.world-story .journey-milestones .is-complete { color: var(--accent); }
+.world-story .journey-milestones [aria-current] { color: var(--text); font-weight: 600; }
+
+.world-story .journey-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.world-story .journey-choices button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.world-story .journey-choices small { display: block; margin-top: 8px; color: var(--dim); font-size: 11px; line-height: 1.6; }
+.world-story .journey-choices .journey-play-button { background: var(--raised); border-color: var(--accent); color: var(--text); box-shadow: 0 3px 0 var(--line); }
+.world-story .journey-choices .journey-play-button:hover { background: color-mix(in srgb, var(--accent) 15%, var(--raised)); }
+
+@keyframes journey-hello {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-9px) rotate(-7deg); }
+  65% { transform: translateY(-4px) rotate(6deg); }
+}
+
+@media (max-width: 520px) {
+  .world-story .world-story-art.journey-scene { height: 140px; padding-inline: 14px; gap: 10px; }
+  .world-story .journey-greeting { padding: 9px 11px; margin-bottom: 17px; font-size: 12px; }
+  .world-story .journey-companion { padding-inline: 2px; }
+  .world-story .journey-how { grid-template-columns: 1fr; gap: 6px; margin-top: 16px; }
+  .world-story .journey-how li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+  .world-story .journey-step-icon { flex: 0 0 40px; justify-content: center; margin: 0; }
+  .world-story .journey-how div > span { margin: 0; font-size: 11px; }
+  .world-story .journey-choices { grid-template-columns: 1fr; gap: 16px; }
+  .world-story .journey-choices small { margin-top: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-story .journey-companion-wave { animation: none; }
+}

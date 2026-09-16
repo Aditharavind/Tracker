@@ -1,0 +1,55 @@
+.world-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--world-sky, #183a32);
+  font-family: var(--body-font);
+  animation: world-transition-in 120ms ease-out both;
+}
+.world-transition-landscape { position: absolute; inset: 0; background-position: center; background-size: cover; }
+.world-transition-arrival { animation: world-transition-arrive 1250ms ease-in-out both; }
+.world-transition-shade { position: absolute; inset: 0; background: linear-gradient(#07120c33, transparent 40%, #07120cbf); }
+.world-transition-scene { position: absolute; top: 44%; left: 50%; width: 250px; height: 250px; transform: translate(-50%, -50%); }
+.world-transition-portal {
+  position: absolute;
+  inset: 20px 40px;
+  border: 3px solid var(--world-light);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--world-light) 65%, var(--world-sky)) 0%, var(--world-sky) 58%, var(--accent) 78%, transparent);
+  box-shadow: 0 0 28px var(--accent), inset 0 0 26px var(--world-light);
+  animation: world-transition-portal 1250ms ease-in-out both;
+}
+.world-transition-portal i { position: absolute; inset: -13px; border: 1px solid var(--world-light); border-radius: 50%; opacity: .55; transform: rotate(-15deg); }
+.world-transition-portal i + i { inset: -24px -18px; opacity: .3; transform: rotate(18deg); }
+.world-transition-companion { position: absolute; bottom: 5px; left: 20px; width: 130px; height: 130px; transform-origin: 50% 85%; animation: world-transition-walk 1250ms ease-in-out both; }
+.world-transition-companion img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 6px 4px #0005); animation: world-transition-step 160ms ease-in-out 5 alternate; }
+.world-transition-copy { position: absolute; left: 20px; right: 20px; top: 68%; text-align: center; text-shadow: 0 2px 8px #000; }
+.world-transition-copy p { margin: 0 0 12px; color: var(--world-light); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.world-transition-copy h2 { margin: 0 auto 12px; max-width: 680px; color: var(--text); font-family: var(--game-font); font-size: clamp(17px, 3vw, 28px); line-height: 1.5; }
+.world-transition-copy span { color: var(--text); font-size: 14px; }
+.world-transition-enter { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); display: inline-flex; align-items: center; gap: 14px; min-height: 44px; padding: 10px 16px; border: 1px solid var(--world-light); border-radius: 8px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.world-transition-enter:hover { background: var(--raised); }
+.world-transition-enter:focus-visible { outline: 2px solid var(--world-light); outline-offset: 4px; }
+
+@keyframes world-transition-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes world-transition-arrive { 0%, 48% { opacity: 0; } 84%, 100% { opacity: 1; } }
+@keyframes world-transition-portal { 0% { transform: scale(.9); opacity: .7; } 48% { transform: scale(1); opacity: 1; } 80% { transform: scale(2.1); opacity: .8; } 100% { transform: scale(3.5); opacity: 0; } }
+@keyframes world-transition-walk { 0% { transform: translate(-95px, 0) scale(1); opacity: 1; } 32% { transform: translate(-8px, -8px) scale(.9); opacity: 1; } 58% { transform: translate(42px, -48px) scale(.25); opacity: .8; } 72%, 100% { transform: translate(48px, -58px) scale(.05); opacity: 0; } }
+@keyframes world-transition-step { from { rotate: -4deg; translate: 0 0; } to { rotate: 4deg; translate: 0 -7px; } }
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .world-transition-scene { top: 43%; left: 30%; transform: translate(-50%, -50%) scale(.7); }
+  .world-transition-copy { top: 30%; left: 47%; right: 20px; }
+  .world-transition-copy h2 { font-size: 18px; }
+}
+
+.world-transition[data-reduced-motion="true"] { animation-duration: 150ms; }
+.world-transition[data-reduced-motion="true"] .world-transition-arrival { animation: none; opacity: 1; }
+.world-transition[data-reduced-motion="true"] .world-transition-scene { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .world-transition { animation-duration: 150ms; }
+  .world-transition .world-transition-arrival { animation: none; opacity: 1; }
+  .world-transition .world-transition-scene { display: none; }
+}

@@ -19,9 +19,8 @@ export function CoinIcon({ size = 26 }: { size?: number }) {
   );
 }
 
-// In-world coin size -- a little over 3x the original 26px default so coins
-// read as real collectibles on the platform path.
-const WORLD_COIN_SIZE = 84;
+// Keep collectibles compact so the character and platform path stay visible.
+const WORLD_COIN_SIZE = 30;
 
 // How many sparkle points burst outward on collection, and how long that
 // burst stays on screen -- kept a little longer than .coin.hidden's own

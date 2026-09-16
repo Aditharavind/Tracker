@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import "@fontsource/press-start-2p";
 import "./styles.css";
+import "./world-theme.css";
 import { loadModelViewer } from "./modelViewer";
 
 const App = React.lazy(() => import("./App"));

@@ -4,6 +4,7 @@ import type { Progress } from "../types";
 import LevelRing from "./LevelRing";
 import Calendar75 from "./Calendar75";
 import Badges from "./Badges";
+import { currentWorldIndex } from "../game/weekSystem";
 
 export default function SharedView({ token }: { token: string }) {
   const [p, setP] = useState<Progress | "error" | null>(null);
@@ -19,7 +20,7 @@ export default function SharedView({ token }: { token: string }) {
   if (p === "error") return <div className="shell muted">This link is invalid or has expired.</div>;
 
   return (
-    <div className="shell" style={{ ["--u" as string]: p.color }}>
+    <div className="shell world-theme" data-world={currentWorldIndex(p.calendar)} style={{ ["--u" as string]: p.color }}>
       <header className="topbar">
         <div className="wordmark">
           <b>75</b>

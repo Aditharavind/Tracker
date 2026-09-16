@@ -147,6 +147,10 @@
 .adventure-touch-actions { display: flex; gap: 10px; align-items: center; }
 .adventure-touch-actions button { display: grid; place-items: center; width: var(--touch-size); height: var(--touch-size); flex-shrink: 0; border-radius: 50%; border: 2px solid var(--adventure-border); color: var(--adventure-gold); background: #253020; box-shadow: 0 3px 0 #0008, inset 0 1px 0 #fff2; font-size: 10px; touch-action: none; user-select: none; -webkit-user-select: none; }
 .adventure-touch-actions svg { pointer-events: none; }
+.adventure-touch-actions button { align-content: center; gap: 2px; }
+.adventure-touch-label { font: 600 9px/1.1 var(--body-font); pointer-events: none; }
+.adventure-guide-toggle { flex-shrink: 0; min-width: 32px; min-height: 32px; border: 1px solid var(--adventure-border); border-radius: 50%; }
+.adventure-retry-tip { color: var(--adventure-gold); font-size: 12px; }
 .adventure-touch-actions .adventure-touch-attack { color: #ffe0d9; border-color: #ac5a4b; background: linear-gradient(#853e35, #622c26); }
 .adventure-touch-actions .adventure-touch-ability { color: #c6f5ed; border-color: #528e88; background: linear-gradient(#2d645d, #244c47); }
 .adventure-touch-actions button:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 #0008; }

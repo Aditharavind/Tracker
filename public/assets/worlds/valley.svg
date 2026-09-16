@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900"><title>Golden sandstone valley</title><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#48322f"/><stop offset="1" stop-color="#d49755"/></linearGradient><radialGradient id="glow"><stop stop-color="#d49755" stop-opacity=".56"/><stop offset="1" stop-color="#d49755" stop-opacity="0"/></radialGradient></defs>
+<rect width="1440" height="900" fill="url(#sky)"/>
+<ellipse cx="792" cy="264" rx="410" ry="325" fill="url(#glow)"/>
+<circle cx="876" cy="194" r="64" fill="#ffe0a0" opacity=".72"/>
+<path d="M0 503 83 472 121 394 289 394 320 452 361 469 400 528 558 575 715 562 834 600 1001 537 1065 418 1204 418 1251 502 1360 467 1440 477V900H0Z" fill="#9d795b"/>
+<path d="M0 693 70 630 109 312 178 266 299 268 338 337 366 591 452 688 479 900H0Z" fill="#674a3e"/>
+<path d="M109 312 178 266 299 268 338 337 184 331Z" fill="#bb8e5c"/>
+<path d="M1440 900H987L1023 709 1120 635 1156 362 1210 310H1321L1362 370 1440 389Z" fill="#76523e"/>
+<path d="M1156 362 1210 310H1321L1362 370 1228 383Z" fill="#c0935f"/>
+<path d="M122 417 329 430M123 488 344 501M1161 451 1425 458M1145 547 1440 523" stroke="#ba8957" stroke-width="13" opacity=".32"/>
+<path d="M0 900V775Q227 688 529 727T957 754 1440 702V900Z" fill="#8e683f"/>
+<path d="M0 843Q266 751 481 792T983 812 1440 756V900H0Z" fill="#b1874e"/>
+<path d="M608 900Q464 840 672 782T930 673" fill="none" stroke="#dec086" stroke-width="51" opacity=".45"/>
+<g stroke="#403d31" fill="none" stroke-width="16" stroke-linecap="round"><path d="M196 815V670M196 737H164V706M196 720H221V685"/><path d="M1292 791V678M1292 732H1269V711"/></g>
+<g stroke="#d1ac60" stroke-width="4"><path d="M410 809 398 787M410 809 416 779M1110 853 1105 824M1110 853 1125 832M948 772 934 752M948 772 952 745"/></g>
+<path d="M0 868 166 834 352 900H0ZM1117 900 1264 842 1440 858V900Z" fill="#563f30"/>
+</svg>

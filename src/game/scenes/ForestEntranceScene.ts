@@ -231,7 +231,7 @@ export class ForestEntranceScene extends Phaser.Scene {
     for (const platform of this.platforms) {
       const pos = toScreen(platform);
       const collected = platform.taskIndex < this.currentDone;
-      const coin = this.add.image(pos.x, pos.y - 34, TEXTURES.coin).setDisplaySize(66, 66).setDepth(2);
+      const coin = this.add.image(pos.x, pos.y - 34, TEXTURES.coin).setDisplaySize(30, 30).setDepth(2);
       coin.setVisible(!collected);
       // A gentle bob + squash to read as a collectible waiting to be grabbed,
       // not a flat decal -- the "alive, not static" read the reference art's
@@ -239,7 +239,7 @@ export class ForestEntranceScene extends Phaser.Scene {
       this.tweens.add({
         targets: coin,
         y: pos.y - 44,
-        scaleX: 0.82,
+        scaleX: coin.scaleX * 0.82,
         duration: 620,
         yoyo: true,
         repeat: -1,

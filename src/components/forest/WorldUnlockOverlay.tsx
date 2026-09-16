@@ -1,22 +1,21 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import CharacterModel from "./CharacterModel";
 import { usePrefersReducedMotion } from "./ForestScene";
 import type { StageMeta } from "../../game/stageSystem";
 import type { CharacterId } from "../../game/characters";
+import { WORLDS } from "../../game/adventure/content";
+import { ARC_COUNT } from "../../game/weekSystem";
 
 const STAGE_BLURB: Record<number, string> = {
-  2: "The moss thickens and the stones grow taller.",
-  3: "Blue moonlight, glowing motes, older trees.",
-  4: "Giant silhouettes and ancient roots ahead.",
-  5: "Golden leaves, warm light, higher platforms.",
-  6: "The summit clearing. Almost there.",
+  2: "Your first 15 days are complete. Crystal caves open beyond the forest.",
+  3: "Thirty days of showing up. Find your focus among glowing mushrooms and ancient ruins.",
+  4: "Forty-five days complete. Snowy peaks and a new chapter await.",
+  5: "Sixty days complete. Follow the golden valley through your final 15 days.",
 };
 
 /**
- * Fires once when the run crosses into a new chapter (skill §STAGE 4) -- i.e.
- * the day number lands on a stage's first day and the streak got there
- * unbroken. Announces the new "world"; it never changes state (the stage is
- * always derived from day number).
+ * Announces a world earned by completing the previous 15 days of required
+ * goals. Progress comes from the saved calendar; this dialog opens its story.
  */
 export default function WorldUnlockOverlay({
   stage,
@@ -28,13 +27,21 @@ export default function WorldUnlockOverlay({
   onClose: () => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
+  const enterButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    enterButton.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" || e.key === "Enter") onClose();
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+      if (e.key === "Tab") { e.preventDefault(); enterButton.current?.focus(); }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+    };
   }, [onClose]);
 
   const motes = useMemo(
@@ -53,7 +60,8 @@ export default function WorldUnlockOverlay({
 
   return (
     <div
-      className="worldunlock"
+      className="worldunlock world-theme"
+      data-world={stage.id - 1}
       role="dialog"
       aria-modal="true"
       aria-label={`New world unlocked: ${stage.name}`}
@@ -75,10 +83,10 @@ export default function WorldUnlockOverlay({
       <div className="worldunlock-card">
         <p className="worldunlock-kicker pixel-font">NEW WORLD UNLOCKED</p>
         <p className="worldunlock-count pixel-font">
-          WORLD {stage.id} <span>/ 6</span>
+          WORLD {stage.id} <span>/ {ARC_COUNT}</span>
         </p>
         <h1 className="worldunlock-name pixel-font">{stage.name.toUpperCase()}</h1>
-        <p className="worldunlock-blurb">{STAGE_BLURB[stage.id] ?? "A new stretch of forest opens up."}</p>
+        <p className="worldunlock-blurb">{STAGE_BLURB[stage.id] ?? WORLDS[stage.id - 1].motto}</p>
         <p className="worldunlock-days pixel-font">
           DAYS {stage.minDay}–{stage.maxDay}
         </p>
@@ -87,8 +95,8 @@ export default function WorldUnlockOverlay({
           <CharacterModel character={character} anim="Hop" className="worldunlock-model" />
         </div>
 
-        <button type="button" className="worldunlock-enter pixel-font" onClick={onClose} autoFocus>
-          ENTER →
+        <button ref={enterButton} type="button" className="worldunlock-enter pixel-font" onClick={onClose} autoFocus>
+          READ THE STORY →
         </button>
       </div>
     </div>

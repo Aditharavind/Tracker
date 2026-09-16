@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARC_COUNT, arcDayRange, currentWorldIndex, isArcConsistent, STORY_ARC_LIMIT, unlockedArcCount } from "./weekSystem";
+import { ARC_COUNT, arcDayRange, currentWorldIndex, isArcConsistent, journeyProgress, STORY_ARC_LIMIT, unlockedArcCount, unlockedDayCount } from "./weekSystem";
 import type { DayCell } from "../types";
 
 const cell = (status: DayCell["status"]): DayCell => ({ day: "", index: 0, status, done: status === "done" ? 1 : 0, total: 1 });
@@ -59,5 +59,51 @@ describe("currentWorldIndex", () => {
   });
   it("clamps to the last reachable world once arcs run past STORY_ARC_LIMIT", () => {
     expect(currentWorldIndex(calendarWith(75))).toBe(STORY_ARC_LIMIT - 1);
+  });
+});
+
+describe("journeyProgress", () => {
+  it.each([
+    [0, 0, 0, 1, false, 1],
+    [14, 0, 14, 15, false, 1],
+    [15, 1, 0, 1, false, 2],
+    [29, 1, 14, 15, false, 2],
+    [30, 2, 0, 1, false, 3],
+    [44, 2, 14, 15, false, 3],
+    [45, 3, 0, 1, false, 4],
+    [59, 3, 14, 15, false, 4],
+    [60, 4, 0, 1, false, null],
+    [74, 4, 14, 15, false, null],
+    [75, 4, 15, 15, true, null],
+  ])("%i completed days gives the right world and local day", (completedDays, worldIndex, worldCompletedDays, dayInWorld, complete, nextWorldIndex) => {
+    expect(journeyProgress(calendarWith(completedDays as number))).toEqual({
+      completedDays, worldIndex, worldCompletedDays, dayInWorld, complete, nextWorldIndex,
+    });
+  });
+
+  it.each(["partial", "missed", "today", "future"] as const)("a %s day prevents skipping into a later world", (status) => {
+    const calendar = calendarWith(75);
+    calendar[14] = cell(status);
+    expect(journeyProgress(calendar)).toMatchObject({ completedDays: 14, worldIndex: 0, worldCompletedDays: 14, complete: false });
+    expect(unlockedArcCount(calendar)).toBe(1);
+    expect(unlockedDayCount(calendar)).toBe(15);
+  });
+
+  it("derives the same progress from a reloaded calendar without separate unlock storage", () => {
+    const saved = JSON.stringify(calendarWith(30));
+    expect(journeyProgress(JSON.parse(saved))).toEqual(journeyProgress(calendarWith(30)));
+    expect(currentWorldIndex(JSON.parse(saved))).toBe(2);
+  });
+
+  it("keeps an empty or truncated calendar in its earned world", () => {
+    expect(journeyProgress([])).toMatchObject({ worldIndex: 0, dayInWorld: 1, completedDays: 0 });
+    expect(journeyProgress(calendarWith(15).slice(0, 15))).toMatchObject({ worldIndex: 1, dayInWorld: 1, completedDays: 15 });
+  });
+
+  it("caps the journey at 75 even if extra completed days are supplied", () => {
+    expect(journeyProgress(Array.from({ length: 90 }, () => cell("done")))).toMatchObject({
+      worldIndex: 4, completedDays: 75, worldCompletedDays: 15, complete: true, nextWorldIndex: null,
+    });
+    expect(unlockedDayCount(calendarWith(75))).toBe(75);
   });
 });

@@ -31,7 +31,7 @@ export default function AdventureTouch({ controls, settings, disabled, dash, abi
     onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controls.press(action, "touch", `touch-${e.pointerId}`); }}
     onPointerUp={e => controls.release(action, `touch-${e.pointerId}`)} onPointerCancel={e => controls.release(action, `touch-${e.pointerId}`)} onLostPointerCapture={e => controls.release(action, `touch-${e.pointerId}`)}
     onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); controls.press(action); } }}
-    onKeyUp={e => { if (e.key === " " || e.key === "Enter") controls.release(action); }} onBlur={() => controls.release(action)}><Icon size={23} aria-hidden="true" /></button>;
+    onKeyUp={e => { if (e.key === " " || e.key === "Enter") controls.release(action); }} onBlur={() => controls.release(action)}><Icon size={23} aria-hidden="true" /><span className="adventure-touch-label" aria-hidden="true">{text}</span></button>;
   };
   return <div className="adventure-touch" style={{ "--touch-size": `${settings.buttonSize}px`, "--touch-offset": `${settings.buttonOffset}px` } as React.CSSProperties}>
     <div ref={joystick} className="adventure-joystick" role="group" aria-label="Movement joystick. Drag left or right to move; down to crouch."
@@ -40,6 +40,6 @@ export default function AdventureTouch({ controls, settings, disabled, dash, abi
       onPointerUp={e => { if (activePointer.current === e.pointerId) release(); }} onPointerCancel={e => { if (activePointer.current === e.pointerId) release(); }} onLostPointerCapture={e => { if (activePointer.current === e.pointerId) release(); }}>
       <i ref={knob} />
     </div>
-    <div className="adventure-touch-actions">{button("attack", "Smash")}{button("dash", "Dash", dash)}{button("ability", "Ability", ability)}{button("jump", "Jump")}</div>
+    <div className="adventure-touch-actions">{button("attack", "Smash")}{dash && button("dash", "Dash")}{ability && button("ability", "Ability")}{button("jump", "Jump")}</div>
   </div>;
 }

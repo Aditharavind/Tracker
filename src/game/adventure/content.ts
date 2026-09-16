@@ -148,9 +148,8 @@ export function makeLevel(id: number): Level {
   return { id: boundedId, world, stage, title, length: edge, platforms, things, hazards, enemies, objects, checkpoints, boss, arena, par: boss ? 150 : 55 + world * 7 + Math.floor(stage / 3) * 5 };
 }
 
-// World access is earned by clearing all 15 levels in the previous world.
-// This legacy export stays as a harmless day-1 floor for week-map callers;
-// the active time gate is the 7-day failure penalty stored in save.ts.
+// Legacy day-floor exports: active world access is derived from saved daily
+// goals, with adventure levels progressing sequentially inside earned worlds.
 export const STORY_WORLD_UNLOCK_DAYS: number[] = WORLDS.map(() => 1);
 export function storyWorldUnlockDay(world: number): number {
   const clamped = Math.max(0, Math.min(WORLDS.length - 1, world));

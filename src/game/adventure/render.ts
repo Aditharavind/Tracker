@@ -6,6 +6,7 @@ import { CHARACTER_EYES, CHARACTER_FUR, CHARACTER_SPRITE, type CharacterId } fro
 import { CHARACTER_RUN_ATLAS, characterRunFrame } from "../characterRunAtlas";
 import { drawCoin } from "../coinArt";
 import { createNearBiteTracker, drawPlant, PLANT_SPRITE_ASPECT, type NearBiteTracker } from "../plantJaw";
+import { worldBackground, worldTerrain } from "../worldTheme";
 
 export type Art = {
   character: CharacterId;
@@ -40,7 +41,8 @@ export function loadArt(world?: number, character: CharacterId = "panda"): Art {
   const enemies = Object.fromEntries((world === undefined ? [] : CHAPTER_ENEMIES[world]).flatMap(kind => {
     const spec = ENEMY_SPRITES[kind]; return spec ? [[kind, loadImage(spec.src)]] : [];
   }));
-  return { character, forest: loadImage("/assets/story/forest-journey.webp"), panda: loadImage(CHARACTER_SPRITE[character]), run: loadImage(CHARACTER_RUN_ATLAS.characters[character].src), bush: loadImage("/assets/bush.webp"), grass: loadImage("/assets/grass-mid.webp"), plantHead: loadImage("/assets/zombie-plant-head.webp"), plantJaw: loadImage("/assets/zombie-plant-jaw.webp"), boss: loadImage(world !== undefined && BOSS_SPRITES[world] ? BOSS_SPRITES[world].src : CHARACTER_SPRITE[character]), effects: loadImage(EFFECT_SPRITES.src), ...enemies, plantNearTrackers: new Map() };
+  const background = world === undefined || world === 0 ? "/assets/story/forest-journey.webp" : worldBackground(world);
+  return { character, forest: loadImage(background), panda: loadImage(CHARACTER_SPRITE[character]), run: loadImage(CHARACTER_RUN_ATLAS.characters[character].src), bush: loadImage("/assets/bush.webp"), grass: loadImage("/assets/grass-mid.webp"), plantHead: loadImage("/assets/zombie-plant-head.webp"), plantJaw: loadImage("/assets/zombie-plant-jaw.webp"), boss: loadImage(world !== undefined && BOSS_SPRITES[world] ? BOSS_SPRITES[world].src : CHARACTER_SPRITE[character]), effects: loadImage(EFFECT_SPRITES.src), ...enemies, plantNearTrackers: new Map() };
 }
 export const artImages = (art: Art) => Object.values(art).filter((v): v is HTMLImageElement => v instanceof HTMLImageElement);
 export const prepareArt = (art: Art) => Promise.all(artImages(art).map(image => image.decode()));
@@ -142,6 +144,7 @@ function bossArt(ctx: CanvasRenderingContext2D, s: State, level: Level, reduced:
 }
 export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, art: Art, camera: Camera, settings: Settings, viewWidth = WIDTH, quality = 2, dt = 1 / 60) {
   const world = WORLDS[level.world]; const reduced = settings.reducedMotion;
+  const terrain = worldTerrain(level.world);
   const explorationZoom = Math.max(1, Math.min(1.45, viewWidth / 1100));
   const fighting = s.boss?.active && s.boss.hp > 0;
   const duelWidth = s.boss ? Math.max(720, Math.abs(s.x + HERO_W / 2 - s.boss.x) + 300) : 1120;
@@ -159,12 +162,13 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
     for (let x = -(camera.x * .19) % w; x < viewWidth; x += w) ctx.drawImage(art.forest, x, 0, w, HEIGHT);
   }
   ctx.fillStyle = world.tint; ctx.globalAlpha = .14; ctx.fillRect(0, 0, viewWidth, HEIGHT); ctx.globalAlpha = 1;
-  const wash = ctx.createLinearGradient(0, 0, 0, HEIGHT); wash.addColorStop(0, `${world.sky}80`); wash.addColorStop(.6, "#071d1b15"); wash.addColorStop(1, "#081b1acc"); ctx.fillStyle = wash; ctx.fillRect(0, 0, viewWidth, HEIGHT);
+  const wash = ctx.createLinearGradient(0, 0, 0, HEIGHT); wash.addColorStop(0, `${world.sky}80`); wash.addColorStop(.6, `${world.sky}15`); wash.addColorStop(1, `${world.sky}cc`); ctx.fillStyle = wash; ctx.fillRect(0, 0, viewWidth, HEIGHT);
   if (quality > 0) {
     for (let i = 0; i < quality * 10; i++) {
       const x = (i * 113 + viewWidth - camera.x * .07 % viewWidth) % viewWidth;
-      const y = 50 + i * 47 % 360 + (reduced ? 0 : Math.sin(s.worldTime + i) * 10);
-      oval(ctx, x, y, 1.5, 1.5, i % 3 ? "#f4dca09a" : "#cbeac9a0");
+      const drift = reduced ? 0 : s.worldTime;
+      const y = level.world === 5 ? HEIGHT - (i * 47 + drift * 22) % HEIGHT : level.world === 3 ? (i * 47 + drift * 18) % HEIGHT : 50 + i * 47 % 360 + Math.sin(drift + i) * 10;
+      oval(ctx, x, y, 1.5, level.world === 4 ? 3 : 1.5, `${terrain.detail}a0`);
     }
     if (level.world === 1) { ctx.fillStyle = "#b0b4d515"; for (let i = 0; i < 3; i++) ctx.fillRect(0, 140 + i * 100 + Math.sin(s.worldTime * .3 + i) * 15, viewWidth, 42); }
     if (level.world === 3) { ctx.strokeStyle = "#cadfee30"; ctx.beginPath(); for (let i = 0; i < 40; i++) { const x = (i * 91 + s.worldTime * 80) % viewWidth; const y = (i * 51 + s.worldTime * 230) % HEIGHT; ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 15); } ctx.stroke(); }
@@ -176,16 +180,23 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
     if (!onscreen(p.x, p.w)) continue; const pos = platformAt(p, s.worldTime);
     const solid = platformSolid(s, p); const cracking = s.crumbling.has(p.id);
     ctx.globalAlpha = solid ? 1 : .12;
-    ctx.fillStyle = "#293d36"; ctx.fillRect(pos.x, pos.y, pos.w, 42);
+    ctx.fillStyle = terrain.soil; ctx.fillRect(pos.x, pos.y, pos.w, 42);
     ctx.fillStyle = cracking ? "#c5a679" : world.color; ctx.fillRect(pos.x, pos.y, pos.w, 5);
-    ctx.fillStyle = "#608464"; ctx.fillRect(pos.x, pos.y + 5, pos.w, 5);
+    ctx.fillStyle = terrain.surface; ctx.fillRect(pos.x, pos.y + 5, pos.w, 5);
     for (let x = pos.x + 8; x < pos.x + pos.w - 5; x += 28) {
       const n = Math.abs(Math.sin(x * 37 + p.id));
-      ctx.fillStyle = n > .5 ? "#6c776144" : "#131f2580"; ctx.fillRect(x, pos.y + 16 + n * 12, 17, 5);
-      ctx.fillStyle = "#acc790"; ctx.fillRect(x, pos.y - 3 - n * 4, 2, 5 + n * 4);
-      if (quality > 0 && n > .78) { oval(ctx, x, pos.y - 9, 3, 2, level.world === 7 ? "#f7dcad" : "#d3b3d0"); }
+      ctx.fillStyle = n > .5 ? `${terrain.detail}44` : "#131f2580"; ctx.fillRect(x, pos.y + 16 + n * 12, 17, 5);
+      if (terrain.vegetation) {
+        ctx.fillStyle = terrain.detail; ctx.fillRect(x, pos.y - 3 - n * 4, 2, 5 + n * 4);
+        if (quality > 0 && n > .78) oval(ctx, x, pos.y - 9, 3, 2, terrain.detail);
+      } else if (quality > 0 && n > .78) {
+        ctx.fillStyle = terrain.detail;
+        if (level.world === 1) { ctx.beginPath(); ctx.moveTo(x - 4, pos.y); ctx.lineTo(x, pos.y - 12); ctx.lineTo(x + 4, pos.y); ctx.fill(); }
+        else if (level.world === 3) ctx.fillRect(x - 5, pos.y - 2, 14, 3);
+        else ctx.fillRect(x, pos.y + 6, 2, 19);
+      }
     }
-    if (ready(art.grass)) {
+    if (level.world === 0 && ready(art.grass)) {
       ctx.imageSmoothingEnabled = false;
       for (let x = pos.x; x < pos.x + pos.w; x += art.grass.naturalWidth) {
         const width = Math.min(art.grass.naturalWidth, pos.x + pos.w - x);
@@ -195,7 +206,7 @@ export function render(ctx: CanvasRenderingContext2D, s: State, level: Level, ar
     if (p.kind === "crumble") { ctx.strokeStyle = "#17271c"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(pos.x + pos.w * .45, pos.y + 4); ctx.lineTo(pos.x + pos.w * .5, pos.y + 23); ctx.lineTo(pos.x + pos.w * .42, pos.y + 40); ctx.stroke(); }
     if (p.kind === "moving") { ctx.fillStyle = "#d1dff1"; ctx.font = "12px monospace"; ctx.fillText("↔", pos.x + 10, pos.y + 28); }
     ctx.globalAlpha = 1;
-    if (quality > 0 && ready(art.bush) && p.kind === "stone") { ctx.globalAlpha = .75; ctx.drawImage(art.bush, pos.x + pos.w - 68, pos.y - 33, 60, 37); ctx.globalAlpha = 1; }
+    if (level.world === 0 && quality > 0 && ready(art.bush) && p.kind === "stone") { ctx.globalAlpha = .75; ctx.drawImage(art.bush, pos.x + pos.w - 68, pos.y - 33, 60, 37); ctx.globalAlpha = 1; }
   }
   for (const obj of level.objects) {
     if (s.opened.has(obj.id) || !onscreen(obj.x)) continue;
