@@ -1670,7 +1670,11 @@ export default function App() {
                 <FailureBanner resets={me.resets} />
               </div>
             </div>
+<<<<<<< HEAD
             <div className="topbar-coins" data-coin-target aria-label={`${coinsEarned} coins earned`}>
+=======
+            <div className="topbar-coins" aria-label={`${coinsEarned} coins earned`}>
+>>>>>>> edfd72d2f29c58d5b1135f7353349b2b2596a19a
               <CoinIcon size={18} />
               <span className="topbar-coins-count pixel-font">×{String(coinsEarned).padStart(2, "0")}</span>
             </div>
