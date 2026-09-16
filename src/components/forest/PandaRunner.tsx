@@ -116,23 +116,26 @@ function drawClouds(ctx: CanvasRenderingContext2D, W: number, H: number, driftMs
 }
 
 /**
- * The turf on top of a ledge, drawn from the same three grass tiles the DOM
- * platforms use (see --grass-image in styles.css): the two finished caps are
- * pinned to the ends and only the middle repeats, so the strip is cropped to
- * the length of the ledge instead of being stretched across it.
+ * The decorated cap on top of a ledge, drawn from the same three-tile sprite
+ * the DOM platforms use (see --grass-image / world 1's --caves-crust in
+ * world-theme.css): the two finished caps are pinned to the ends and only the
+ * middle repeats, so the strip is cropped to the length of the ledge instead
+ * of being stretched across it. `fallback` is the flat colour drawn while the
+ * art is still decoding, matching the strip it's standing in for.
  */
-function drawGrassStrip(
+function drawLedgeStrip(
   ctx: CanvasRenderingContext2D,
-  tiles: { grassLeft?: HTMLImageElement; grassMid?: HTMLImageElement; grassRight?: HTMLImageElement },
+  left: HTMLImageElement | undefined,
+  mid: HTMLImageElement | undefined,
+  right: HTMLImageElement | undefined,
   x: number,
   y: number,
   w: number,
-  h: number
+  h: number,
+  fallback: string
 ) {
-  const { grassLeft: left, grassMid: mid, grassRight: right } = tiles;
   if (!left?.naturalWidth || !mid?.naturalWidth || !right?.naturalWidth) {
-    // Art not decoded yet -- the flat strip the ledges used to draw.
-    ctx.fillStyle = "#6cbb54";
+    ctx.fillStyle = fallback;
     ctx.fillRect(x, y, w, h * 0.65);
     return;
   }
@@ -148,6 +151,27 @@ function drawGrassStrip(
   for (let mx = x + Math.min(lw, w); mx < x + w; mx += mw) ctx.drawImage(mid, mx, y, mw, h);
   ctx.drawImage(left, x, y, lw, h);
   ctx.drawImage(right, x + w - rw, y, rw, h);
+  ctx.restore();
+}
+
+/**
+ * The rock body under world 1's crystal crust: one tile repeated across the
+ * ledge, the canvas equivalent of caves-rock.webp's `repeat-x` in CSS.
+ */
+function drawTiledStrip(ctx: CanvasRenderingContext2D, img: HTMLImageElement | undefined, x: number, y: number, w: number, h: number, fallback: string) {
+  if (!img?.naturalWidth) {
+    ctx.fillStyle = fallback;
+    ctx.fillRect(x, y, w, h);
+    return;
+  }
+  const scale = h / img.naturalHeight;
+  const tw = Math.max(1, Math.round(img.naturalWidth * scale));
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  for (let tx = x; tx < x + w; tx += tw) ctx.drawImage(img, tx, y, tw, h);
   ctx.restore();
 }
 
@@ -199,6 +223,10 @@ export default function PandaRunner({
     grassLeft?: HTMLImageElement;
     grassMid?: HTMLImageElement;
     grassRight?: HTMLImageElement;
+    cavesCrustLeft?: HTMLImageElement;
+    cavesCrustMid?: HTMLImageElement;
+    cavesCrustRight?: HTMLImageElement;
+    cavesRock?: HTMLImageElement;
   }>({});
   const bgShift = useRef(0);
   const clouds = useRef(makeClouds(String(key), 6));
@@ -258,6 +286,10 @@ export default function PandaRunner({
     imgs.current.grassLeft = load("/assets/grass-left.webp");
     imgs.current.grassMid = load("/assets/grass-mid.webp");
     imgs.current.grassRight = load("/assets/grass-right.webp");
+    imgs.current.cavesCrustLeft = load("/assets/worlds/caves-crust-left.webp");
+    imgs.current.cavesCrustMid = load("/assets/worlds/caves-crust-mid.webp");
+    imgs.current.cavesCrustRight = load("/assets/worlds/caves-crust-right.webp");
+    imgs.current.cavesRock = load("/assets/worlds/caves-rock.webp");
   }, [character, worldIndex]);
 
   const commitBest = useCallback(
@@ -313,22 +345,28 @@ export default function PandaRunner({
       const top = yPx(p.y);
       const h = Math.max(16, H * 0.05);
       const gh = Math.max(10, h * 0.62);
-      ctx.fillStyle = terrain.soil;
-      ctx.fillRect(x, top, w, h);
-      ctx.fillStyle = "rgba(0,0,0,0.32)";
-      ctx.fillRect(x, top + h, w, H * 0.016);
-      if (worldIndex === 0) drawGrassStrip(ctx, imgs.current, x, top, w, gh);
-      else {
-        ctx.fillStyle = terrain.surface;
-        ctx.fillRect(x, top, w, gh * 0.48);
-        ctx.fillStyle = terrain.detail;
-        for (let detailX = x + 8; detailX < x + w - 6; detailX += Math.max(16, H * 0.045)) {
-          if (terrain.vegetation) ctx.fillRect(detailX, top - gh * 0.22, 2, gh * 0.4);
-          else if (worldIndex === 1) {
-            ctx.beginPath(); ctx.moveTo(detailX - 3, top); ctx.lineTo(detailX, top - gh * 0.55); ctx.lineTo(detailX + 3, top); ctx.fill();
-          } else ctx.fillRect(detailX, top + gh * 0.48, gh * 0.6, 2);
+      if (worldIndex === 1) {
+        // World 2 ships real ledge art (scripts/pack-caves-world.py): the
+        // crystal crust standing over a tiled rock body, same as the DOM
+        // platforms and the story screen -- not the painted flat fallback.
+        drawTiledStrip(ctx, imgs.current.cavesRock, x, top, w, h, terrain.soil);
+        drawLedgeStrip(ctx, imgs.current.cavesCrustLeft, imgs.current.cavesCrustMid, imgs.current.cavesCrustRight, x, top, w, gh, terrain.surface);
+      } else {
+        ctx.fillStyle = terrain.soil;
+        ctx.fillRect(x, top, w, h);
+        if (worldIndex === 0) drawLedgeStrip(ctx, imgs.current.grassLeft, imgs.current.grassMid, imgs.current.grassRight, x, top, w, gh, "#6cbb54");
+        else {
+          ctx.fillStyle = terrain.surface;
+          ctx.fillRect(x, top, w, gh * 0.48);
+          ctx.fillStyle = terrain.detail;
+          for (let detailX = x + 8; detailX < x + w - 6; detailX += Math.max(16, H * 0.045)) {
+            if (terrain.vegetation) ctx.fillRect(detailX, top - gh * 0.22, 2, gh * 0.4);
+            else ctx.fillRect(detailX, top + gh * 0.48, gh * 0.6, 2);
+          }
         }
       }
+      ctx.fillStyle = "rgba(0,0,0,0.32)";
+      ctx.fillRect(x, top + h, w, H * 0.016);
     }
 
     // --- coins: the panda-imprint gold coin, matching Coin.tsx ---
