@@ -99,6 +99,7 @@ function stepBoss(s: State, level: Level, dt: number, move: number) {
   b.phase = Math.min(level.world === 7 ? 5 : 3, 1 + Math.floor((1 - b.hp / b.maxHp) * (level.world === 7 ? 5 : 3)));
   b.hit = Math.max(0, b.hit - dt); b.timer -= dt; b.animationTime += dt;
   if (b.stage === "windup") {
+    b.direction = s.x < b.x ? -1 : 1;
     if (b.pattern === 2) b.x = Math.max(level.arena + 290, Math.min(level.arena + 850, b.x - move * 60 * dt));
     if (b.timer <= 0) {
       b.stage = "attack"; b.animationTime = 0; b.timer = b.pattern === 1 ? .7 : .45; b.direction = s.x < b.x ? -1 : 1;
@@ -205,8 +206,9 @@ export function step(s: State, level: Level, input: Input, dt = FIXED_STEP) {
     }
   }
   for (let i = 0; i < s.enemies.length; i++) {
-    const enemy = s.enemies[i]; const spec = level.enemies[i]; if (enemy.hp <= 0) continue;
+    const enemy = s.enemies[i]; const spec = level.enemies[i];
     enemy.hit = Math.max(0, enemy.hit - dt);
+    if (enemy.hp <= 0) continue;
     if (!enemy.hit) enemy.x += enemy.direction * (spec.kind === "moth" ? 95 : 48 + level.world * 4) * worldDt;
     if (enemy.x <= spec.min || enemy.x >= spec.max) { enemy.direction *= -1; enemy.x = Math.max(spec.min, Math.min(spec.max, enemy.x)); }
     enemy.y = spec.y + (spec.kind === "moth" ? Math.sin(s.worldTime * 3 + enemy.id) * 28 - 35 : 0);

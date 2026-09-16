@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { useLayoutEffect, useRef, useState } from "react";
-=======
-import { useEffect, useRef, useState } from "react";
->>>>>>> edfd72d2f29c58d5b1135f7353349b2b2596a19a
 import coinSrc from "../../../frontend/assets/coin.png";
 
 // Coin state is a pure readout of task.done -- it never toggles the task.
@@ -15,10 +11,7 @@ export function CoinIcon({ size = 26 }: { size?: number }) {
       src={coinSrc}
       width={size}
       height={size}
-<<<<<<< HEAD
       style={{ width: size, height: size }}
-=======
->>>>>>> edfd72d2f29c58d5b1135f7353349b2b2596a19a
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -26,9 +19,8 @@ export function CoinIcon({ size = 26 }: { size?: number }) {
   );
 }
 
-// In-world coin size -- a little over 3x the original 26px default so coins
-// read as real collectibles on the platform path.
-const WORLD_COIN_SIZE = 84;
+// Keep collectibles compact so the character and platform path stay visible.
+const WORLD_COIN_SIZE = 30;
 
 // How many sparkle points burst outward on collection, and how long that
 // burst stays on screen -- kept a little longer than .coin.hidden's own

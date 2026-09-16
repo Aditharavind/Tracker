@@ -15,6 +15,9 @@ import { createSeededRandom } from "../../game/seededRandom";
 import { CHARACTER_RUN_ATLAS, characterRunFrame } from "../../game/characterRunAtlas";
 import { createNearBiteTracker, drawPlant, PLANT_SPRITE_ASPECT, type NearBiteTracker } from "../../game/plantJaw";
 import type { DayCell } from "../../types";
+import { WORLDS } from "../../game/adventure/content";
+import { currentWorldIndex } from "../../game/weekSystem";
+import { worldBackground, worldTerrain } from "../../game/worldTheme";
 
 // world-y -> fraction of stage height for the "floor line" at that height.
 const Y_BASE = 0.1;
@@ -160,7 +163,7 @@ function drawGrassStrip(
 export default function PandaRunner({
   character,
   userId,
-  calendar: _calendar,
+  calendar,
   onClose,
 }: {
   character: CharacterId;
@@ -169,6 +172,9 @@ export default function PandaRunner({
   onClose: () => void;
 }) {
   const key = userId ?? "guest";
+  const worldIndex = currentWorldIndex(calendar);
+  const world = WORLDS[worldIndex];
+  const terrain = worldTerrain(worldIndex);
   const bestDistKey = `75hard.dash.best:${key}`;
   const bestCoinKey = `75hard.dash.coins:${key}`;
 
@@ -243,7 +249,7 @@ export default function PandaRunner({
       im.src = src;
       return im;
     };
-    imgs.current.bg = load("/assets/forest-bg-1.webp");
+    imgs.current.bg = load(worldBackground(worldIndex));
     imgs.current.panda = load(CHARACTER_SPRITE[character]);
     imgs.current.run = load(CHARACTER_RUN_ATLAS.characters[character].src);
     imgs.current.plantHead = load("/assets/zombie-plant-head.webp");
@@ -252,7 +258,7 @@ export default function PandaRunner({
     imgs.current.grassLeft = load("/assets/grass-left.webp");
     imgs.current.grassMid = load("/assets/grass-mid.webp");
     imgs.current.grassRight = load("/assets/grass-right.webp");
-  }, [character]);
+  }, [character, worldIndex]);
 
   const commitBest = useCallback(
     (dist: number, coins: number) => {
@@ -280,11 +286,11 @@ export default function PandaRunner({
     const sx = W / 100; // LANE = 100
     const yPx = (wy: number) => H * (1 - (Y_BASE + wy * Y_SCALE));
 
-    // --- backdrop: dark forest wash + the forest art, gently parallaxed ---
+    // The same environment earned on the daily journey, gently parallaxed.
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#0b1a12");
-    g.addColorStop(0.55, "#12271a");
-    g.addColorStop(1, "#081209");
+    g.addColorStop(0, world.sky);
+    g.addColorStop(0.55, terrain.soil);
+    g.addColorStop(1, world.sky);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
     const bg = imgs.current.bg;
@@ -297,10 +303,8 @@ export default function PandaRunner({
       for (; x < W; x += bw) ctx.drawImage(bg, x, 0, bw, H);
       ctx.globalAlpha = 1;
     }
-    // Drifting clouds -- the DOM forest scene's sky layer (Clouds.tsx) has
-    // these; the canvas backdrop didn't, which was the rest of "looks off"
-    // relative to the main game screen.
-    drawClouds(ctx, W, H, cloudDrift.current, clouds.current);
+    // Clouds only appear in open landscapes, never inside the caves.
+    if (worldIndex !== 1 && worldIndex !== 5) drawClouds(ctx, W, H, cloudDrift.current, clouds.current);
 
     // --- ledges ---
     for (const p of st.platforms) {
@@ -308,14 +312,23 @@ export default function PandaRunner({
       const w = p.w * sx;
       const top = yPx(p.y);
       const h = Math.max(16, H * 0.05);
-      // Turf sprite over dirt: the dirt starts just under the sprite's solid
-      // band so the hanging tufts drape onto it rather than floating above it.
       const gh = Math.max(10, h * 0.62);
-      ctx.fillStyle = "#4a3b2c";
-      ctx.fillRect(x, top + gh * 0.55, w, h - gh * 0.55);
+      ctx.fillStyle = terrain.soil;
+      ctx.fillRect(x, top, w, h);
       ctx.fillStyle = "rgba(0,0,0,0.32)";
       ctx.fillRect(x, top + h, w, H * 0.016);
-      drawGrassStrip(ctx, imgs.current, x, top, w, gh);
+      if (worldIndex === 0) drawGrassStrip(ctx, imgs.current, x, top, w, gh);
+      else {
+        ctx.fillStyle = terrain.surface;
+        ctx.fillRect(x, top, w, gh * 0.48);
+        ctx.fillStyle = terrain.detail;
+        for (let detailX = x + 8; detailX < x + w - 6; detailX += Math.max(16, H * 0.045)) {
+          if (terrain.vegetation) ctx.fillRect(detailX, top - gh * 0.22, 2, gh * 0.4);
+          else if (worldIndex === 1) {
+            ctx.beginPath(); ctx.moveTo(detailX - 3, top); ctx.lineTo(detailX, top - gh * 0.55); ctx.lineTo(detailX + 3, top); ctx.fill();
+          } else ctx.fillRect(detailX, top + gh * 0.48, gh * 0.6, 2);
+        }
+      }
     }
 
     // --- coins: the panda-imprint gold coin, matching Coin.tsx ---
@@ -461,7 +474,7 @@ export default function PandaRunner({
     ctx.beginPath();
     ctx.ellipse((PANDA_X + PANDA_W / 2) * sx, yPx(st.y), pw * 0.45, H * 0.012, 0, 0, Math.PI * 2);
     ctx.fill();
-  }, [character]);
+  }, [character, terrain, world.sky, worldIndex]);
 
   const frame = useCallback(
     (ts: number) => {
@@ -610,7 +623,7 @@ export default function PandaRunner({
       className="panda-runner"
       role="dialog"
       aria-modal="true"
-      aria-label="Forest Dash minigame"
+      aria-label={`Dash minigame in ${world.name}`}
       tabIndex={-1}
     >
       {/* Stays upright even while runner-rotate-wrap below is rotated -- see

@@ -26,3 +26,6 @@ Used: Explosion_1, Explosion_3, Explosion_5, Explosion_6, Explosion_9.
 Runtime processing: selected animation frames packed into WebP atlases;
 transparent margins trimmed consistently; effects resized for canvas rendering.
 Only runtime assets are included. Source ZIPs and unused characters are excluded.
+
+Regular Story Mode enemies also reuse the Jinn, Dragon, and Demon atlases
+at a smaller scale, using their walk, hurt, and death animations.

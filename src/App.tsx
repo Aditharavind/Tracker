@@ -28,8 +28,9 @@ import StoryLauncher from "./components/forest/StoryLauncher";
 import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
 import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { CoinIcon } from "./components/forest/Coin";
-import { getStage, type StageMeta } from "./game/stageSystem";
-import { unlockedArcCount } from "./game/weekSystem";
+import { getJourneyStage, type StageMeta } from "./game/stageSystem";
+import { ARC_COUNT, journeyProgress, unlockedArcCount } from "./game/weekSystem";
+import { WORLDS } from "./game/adventure/content";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { isStandalone, useInstallPrompt } from "./installPrompt";
 import CharacterSelect from "./components/CharacterSelect";
@@ -660,14 +661,10 @@ export default function App() {
   const [worldUnlock, setWorldUnlock] = useState<StageMeta | null>(null);
   const [showPeek, setShowPeek] = useState(false);
   const [runnerOpen, setRunnerOpen] = useState(false);
-  // Story Mode's own overlay -- opened from the weekly trail map, not
-  // bundled into the Minigames picker (which is Forest Dash only now).
+  // Story introduces the current environment before returning to daily goals.
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyWorld, setStoryWorld] = useState<number | undefined>(undefined);
-  // The weekly trail map (skill's WeekMap) -- the corner portal in
-  // ForestScene now opens this instead of Story Mode directly; tapping an
-  // unlocked stone here is what actually opens Story Mode, pre-selected on
-  // that world.
+  // The world map is reachable from Story and can revisit earned chapters.
   const [weekMapOpen, setWeekMapOpen] = useState(false);
   // Opt-in preview of the Phaser rebuild of the Forest Entrance environment
   // (?engine=phaser) -- read once; the rest of the app is unaffected either
@@ -712,6 +709,8 @@ export default function App() {
   const intendedDone = useRef<Map<number, boolean>>(new Map());
 
   const me = board.find((p) => p.user_id === meId) ?? null;
+  const journey = journeyProgress(me?.calendar ?? []);
+  const journeyStage = getJourneyStage(me?.calendar ?? []);
   // Deliberately no `|| DEFAULT_CHARACTER` fallback -- undefined here is what
   // drives the mandatory character-select gate below (skill §0). Once set,
   // it never resets.
@@ -756,31 +755,37 @@ export default function App() {
     setOpenPanel("leaderboard");
   };
 
-  // New-world unlock (skill STAGE 4): the run reaching a chapter's first day
-  // means that many days banked without a reset ("25 days consistency" ->
-  // World 3), so announce it once per stage. day_number is the source of
-  // truth for the stage, so this is purely a celebratory readout.
-  const meDayNumber = me?.day_number ?? 0;
+  // Only saved daily goals unlock environments. Scope the announcement to
+  // this run, so restarting the challenge can earn every chapter again.
+  const journeyRun = me ? `${meId}:${me.run_start}:${me.resets}` : null;
   useEffect(() => {
-    if (meId == null || meDayNumber < 1) return;
-    const stage = getStage(meDayNumber);
-    if (stage.id <= 1 || meDayNumber !== stage.minDay) return;
-    const key = `75hard.world:${meId}:${stage.id}`;
+    setWorldUnlock(null);
+    if (!journeyRun || journeyStage.id <= 1) return;
+    const key = `75hard.journey-world:${journeyRun}:${journeyStage.id}`;
     try {
       if (localStorage.getItem(key) === "1") return;
     } catch {
       /* private mode -- just show it */
     }
-    setWorldUnlock(stage);
-  }, [meId, meDayNumber]);
+    dayCompleteDismissed.current = todayISO();
+    setDayCompleteOpen(false);
+    setStoryOpen(false);
+    setWeekMapOpen(false);
+    setWorldUnlock(journeyStage);
+  }, [journeyRun, journeyStage]);
 
   const closeWorldUnlock = () => {
     const stage = worldUnlock;
     setWorldUnlock(null);
     try {
-      if (stage && meId != null) localStorage.setItem(`75hard.world:${meId}:${stage.id}`, "1");
+      if (stage && journeyRun) localStorage.setItem(`75hard.journey-world:${journeyRun}:${stage.id}`, "1");
     } catch {
       /* ignore */
+    }
+    if (stage) {
+      setStoryWorld(stage.id - 1);
+      setStoryOpen(true);
+      setOpenPanel(null);
     }
   };
 
@@ -1527,9 +1532,21 @@ export default function App() {
 
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile" | "pomodoro" | "coach") =>
     setOpenPanel((cur) => (cur === p ? null : p));
+  const openGoals = () => {
+    setStoryOpen(false);
+    setStoryWorld(undefined);
+    setWeekMapOpen(false);
+    setOpenPanel(null);
+    followToday.current = true;
+    setDay(todayISO());
+  };
+  const openStory = () => {
+    setStoryWorld(journey.worldIndex);
+    setStoryOpen(true);
+  };
 
   return (
-    <div className="game-shell" style={{ ["--u" as string]: me.color }}>
+    <div className="game-shell world-theme" data-world={journey.worldIndex} style={{ ["--u" as string]: me.color }}>
       {waving && <SnoozePanda minutes={SNOOZE_MIN} />}
       {alarmActive && lockedTask && (
         <AlarmOverlay
@@ -1612,6 +1629,7 @@ export default function App() {
             character={myCharacter}
             calendar={me.calendar}
             onClose={() => setWeekMapOpen(false)}
+            onOpenGoals={openGoals}
             onOpenWorld={(w) => {
               setWeekMapOpen(false);
               setStoryWorld(w);
@@ -1622,11 +1640,18 @@ export default function App() {
       )}
       {storyOpen && myCharacter && (
         <StoryLauncher
-          key={meId}
+          key={`${journeyRun}:${storyWorld ?? journey.worldIndex}:${journey.worldIndex}`}
           character={myCharacter}
           userId={meId}
           dayNumber={me.day_number}
+          calendar={me.calendar}
           initialWorld={storyWorld}
+          onOpenGoals={openGoals}
+          onOpenMap={() => {
+            setStoryOpen(false);
+            setStoryWorld(undefined);
+            setWeekMapOpen(true);
+          }}
           onClose={() => {
             setStoryOpen(false);
             setStoryWorld(undefined);
@@ -1670,11 +1695,7 @@ export default function App() {
                 <FailureBanner resets={me.resets} />
               </div>
             </div>
-<<<<<<< HEAD
             <div className="topbar-coins" data-coin-target aria-label={`${coinsEarned} coins earned`}>
-=======
-            <div className="topbar-coins" aria-label={`${coinsEarned} coins earned`}>
->>>>>>> edfd72d2f29c58d5b1135f7353349b2b2596a19a
               <CoinIcon size={18} />
               <span className="topbar-coins-count pixel-font">×{String(coinsEarned).padStart(2, "0")}</span>
             </div>
@@ -1705,7 +1726,7 @@ export default function App() {
         </header>
 
         <div className="stage-area">
-          {usePhaserEngine ? (
+          {usePhaserEngine && journey.worldIndex === 0 ? (
             <Suspense fallback={<div className="phaser-forest-container" aria-busy="true" />}>
               <PhaserForestScene
                 detail={detail}
@@ -1718,11 +1739,12 @@ export default function App() {
           <ForestScene
             detail={detail}
             dayNumber={me.day_number}
+            stage={journeyStage}
             seed={`${meId}:${day}`}
             resets={me.resets}
             character={myCharacter}
             onDayCleared={day === todayISO() ? handleDayCleared : undefined}
-            onOpenStory={() => setWeekMapOpen(true)}
+            onOpenStory={openStory}
             unlockedArcs={unlockedArcCount(me.calendar)}
             returnToStart={
               detail.tasks.length > 0 &&
@@ -1737,6 +1759,13 @@ export default function App() {
             }
           />
           )}
+
+          <button className="world-journey-chip" onClick={openStory} aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Open story.`}>
+            <span>WORLD {journey.worldIndex + 1} / {ARC_COUNT}</span>
+            <strong>{WORLDS[journey.worldIndex].name}</strong>
+            <span>{journey.complete ? "75-day journey complete" : `${journey.worldCompletedDays} / 15 days complete`}</span>
+            <progress value={journey.worldCompletedDays} max={15} aria-label="Days completed in this world" />
+          </button>
 
           <div className="day-card-float">
             <button
@@ -1761,6 +1790,7 @@ export default function App() {
               detail={detail}
               day={day}
               dayNumber={me.day_number}
+              stage={journeyStage}
               onShift={(delta) => {
                 const next = shiftISO(day, delta);
                 if (next <= todayISO()) {

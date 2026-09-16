@@ -6,8 +6,7 @@ import { ARC_COUNT } from "../../game/weekSystem";
  * scene, using the same carved sign sprite as StartSign/VictorySign. It
  * doesn't scroll with the follow-cam -- it's a sibling of .forest-path, not
  * a child of it -- so it stays reachable regardless of how far the day's
- * platform run has scrolled. Opens the trail map (skill's WeekMap), not
- * Story Mode directly -- that map is what actually launches a world.
+ * platform run has scrolled. Opens the current world's story and daily goals.
  */
 export default function StoryPortal({ unlockedWorlds, onOpen }: { unlockedWorlds: number; onOpen: () => void }) {
   return (
@@ -15,10 +14,10 @@ export default function StoryPortal({ unlockedWorlds, onOpen }: { unlockedWorlds
       type="button"
       className="story-portal"
       onClick={onOpen}
-      aria-label={`Trail map: ${unlockedWorlds} of ${ARC_COUNT} arcs open`}
+      aria-label={`Open story: world ${unlockedWorlds} of ${ARC_COUNT}`}
     >
       <img className="story-portal-sprite" src="/assets/start-sign.webp" alt="" aria-hidden="true" />
-      <span className="story-portal-plaque pixel-font">ARCS</span>
+      <span className="story-portal-plaque pixel-font">STORY</span>
       <span className="story-portal-count pixel-font">{unlockedWorlds}/{ARC_COUNT}</span>
     </button>
   );

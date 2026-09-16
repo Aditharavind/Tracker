@@ -1,0 +1,96 @@
+.adventure-trail { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; position: relative; background: var(--adventure-bg); padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.adventure-trail-header { flex-shrink: 0; z-index: 2; background: var(--adventure-panel); box-shadow: 0 5px 16px #0005; }
+.adventure-trail-toolbar, .adventure-trail-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; max-width: 1024px; margin: 0 auto; padding: 12px 24px; }
+.adventure-trail-toolbar { padding-bottom: 0; }
+.adventure-trail-tools { display: flex; gap: 8px; }
+.adventure-trail-heading { padding-block: 12px; }
+.panda-adventure .adventure-trail-world { min-width: 0; margin: 0; font-size: 14px; }
+.panda-adventure .adventure-trail-world select { width: 100%; min-height: 36px; padding: 6px 26px 6px 0; border: 0; border-radius: 0; color: var(--adventure-gold); font-family: var(--game-font); font-size: 13px; line-height: 1.8; cursor: pointer; }
+.adventure-trail-count { display: flex; gap: 6px; align-items: center; color: var(--adventure-gold); font-family: var(--game-font); font-size: 10px; white-space: nowrap; }
+.adventure-trail-count small { color: var(--adventure-muted); font: inherit; }
+.adventure-trail-header > progress { display: block; width: 100%; height: 3px; border-radius: 0; }
+.adventure-trail-stage { min-height: 0; flex: 1; position: relative; }
+.adventure-trail-scroll { height: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--adventure-border) transparent; }
+.adventure-trail-scroll:focus-visible { outline: 2px solid var(--adventure-gold); outline-offset: -2px; }
+/* Keep the image and its anchors in one uncropped coordinate system. Only
+   the decorative outer forest is clipped on a narrow phone. */
+.adventure-trail-scene { position: relative; width: clamp(720px, 100%, 1024px); left: 50%; transform: translateX(-50%); }
+.adventure-trail-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
+/* Mission markers rest on the illustrated stones. Only the world's exit
+   below uses portal artwork or rotation. */
+.panda-adventure .adventure-level-stone { position: absolute; width: 66px; height: 44px; padding: 0; border: 2px solid var(--world-surface, #75856b); border-radius: 9px 8px 11px 7px; background: linear-gradient(165deg, color-mix(in srgb, var(--world-surface, #75856b) 48%, var(--adventure-panel)), var(--world-soil, #354332)); color: var(--adventure-cream); transform: translate(-50%, -85%); box-shadow: 0 5px 0 #0006, inset 0 2px 0 #fff2; }
+.adventure-level-number { display: grid; height: 100%; place-items: center; font-family: var(--game-font); font-size: 17px; color: var(--adventure-cream); text-shadow: 0 2px 0 #0009; }
+.adventure-level-badge { position: absolute; right: -5px; top: -8px; display: grid; place-items: center; width: 21px; height: 21px; border: 1px solid var(--adventure-border); border-radius: 6px; background: var(--adventure-panel); color: var(--adventure-gold); }
+.adventure-level-badge:empty { display: none; }
+.panda-adventure .adventure-level-stone:disabled { opacity: .65; cursor: not-allowed; border-color: var(--adventure-muted); box-shadow: 0 4px 0 #0005; }
+.adventure-level-stone:disabled .adventure-level-number { color: var(--adventure-muted); }
+.panda-adventure .adventure-level-stone.current { border-color: var(--adventure-gold); box-shadow: 0 5px 0 #0006, inset 0 2px 0 #fff2, 0 0 0 3px color-mix(in srgb, var(--adventure-gold) 24%, transparent); }
+.adventure-level-stone.current .adventure-level-number { color: var(--adventure-gold); }
+.panda-adventure .adventure-level-stone.completed { border-color: var(--adventure-green); }
+.adventure-level-stone.completed .adventure-level-badge { color: var(--adventure-green); }
+.panda-adventure .adventure-level-stone.boss { border-width: 3px; }
+.panda-adventure .adventure-level-stone:not(:disabled):hover { border-color: var(--adventure-gold); filter: brightness(1.14); }
+.panda-adventure .adventure-level-stone:not(:disabled):active { translate: 0 2px; }
+.panda-adventure .adventure-level-stone:focus-visible { outline: 3px solid var(--adventure-gold); outline-offset: 5px; }
+
+/* Added headroom beyond mission 15 keeps the exit off the final stone. */
+.adventure-world-exit { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 325px; padding: 26px 24px 32px; text-align: center; background: radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--adventure-green) 12%, transparent), transparent 68%), var(--adventure-bg); border-bottom: 1px solid var(--adventure-border-soft); }
+.adventure-world-exit > p { margin: 0; }
+.panda-adventure .adventure-world-exit h2 { max-width: 32ch; margin: 4px 0 0; font-size: clamp(12px, 2.1vw, 18px); line-height: 1.8; }
+.adventure-world-exit > p:last-child, .adventure-world-finish > p:last-child { max-width: 42ch; margin: 0; color: var(--adventure-muted); font-size: 12px; line-height: 1.7; }
+.panda-adventure .adventure-world-portal { position: relative; isolation: isolate; display: grid; place-items: center; flex: none; width: 104px; height: 124px; margin: 5px 0; padding: 0; border: 0; border-radius: 50%; background: var(--adventure-bg); color: var(--adventure-gold); box-shadow: 0 0 32px color-mix(in srgb, var(--adventure-green) 32%, transparent); }
+.adventure-world-portal-ring { position: absolute; inset: 0; overflow: hidden; border: 4px solid var(--world-surface, #8b9981); border-radius: 50%; box-shadow: inset 0 0 0 3px var(--adventure-bg), 0 5px 0 #0005; }
+.adventure-world-portal-ring::before { content: ''; position: absolute; inset: -25%; background: conic-gradient(var(--adventure-green), var(--adventure-bg) 30%, var(--adventure-gold) 50%, var(--adventure-bg) 75%, var(--adventure-green)); animation: adventure-world-portal-spin 7s linear infinite; }
+.adventure-world-portal-ring::after { content: ''; position: absolute; inset: 14%; border: 1px solid color-mix(in srgb, var(--adventure-green) 50%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--adventure-bg) 84%, transparent); }
+.adventure-world-portal > svg { position: relative; z-index: 1; filter: drop-shadow(0 2px 0 #0008); }
+.panda-adventure .adventure-world-portal:disabled { cursor: not-allowed; box-shadow: none; opacity: .6; }
+.adventure-world-portal:disabled .adventure-world-portal-ring::before { animation: none; opacity: .35; }
+.panda-adventure .adventure-world-portal:not(:disabled):hover { filter: brightness(1.15); }
+.panda-adventure .adventure-world-portal:focus-visible { outline: 3px solid var(--adventure-gold); outline-offset: 7px; }
+.adventure-world-finish { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+.adventure-world-finish > svg { box-sizing: content-box; padding: 18px; border: 2px solid var(--adventure-green); border-radius: 16px; color: var(--adventure-green); background: var(--adventure-panel); }
+.adventure-world-finish > p { margin: 0; }
+@keyframes adventure-world-portal-spin { to { transform: rotate(360deg); } }
+.adventure-trail-character { position: absolute; width: 112px; height: 112px; object-fit: contain; image-rendering: pixelated; transform: translate(-50%, -100%); pointer-events: none; filter: drop-shadow(0 5px 3px #07120dbb); }
+.panda-adventure .adventure-trail .adventure-trail-locate { position: absolute; right: max(16px, calc((100% - 1024px) / 2 + 16px)); bottom: 16px; background: #0b1712ed; }
+.adventure-trail-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; flex-shrink: 0; padding: 14px max(24px, calc((100% - 976px) / 2)); background: var(--adventure-panel); border-top: 1px solid var(--adventure-border); }
+.adventure-trail-footer > div { flex: 1; min-width: 0; }
+.adventure-trail-footer p { margin: 6px 0 0; font-size: 13px; color: var(--adventure-cream); line-height: 1.5; }
+.adventure-trail-footer-hint { flex-basis: 100%; font-size: 10px; line-height: 1.6; color: var(--adventure-muted); }
+.panda-adventure .adventure-trail-enter { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.adventure-trail-journal { position: absolute; inset: 0 0 0 auto; z-index: 4; width: min(460px, 100%); padding: 24px; overflow-y: auto; background: var(--adventure-panel); border-left: 2px solid var(--adventure-border); box-shadow: -20px 0 50px #0006; }
+.adventure-trail .adventure-trail-journal h2 { font-size: 15px; }
+.adventure-trail-guardian { display: flex; align-items: center; gap: 12px; border-block: 1px solid var(--adventure-border-soft); margin-block: 24px; padding-block: 8px; }
+.adventure-trail-guardian > div { min-width: 0; }
+.adventure-trail-guardian .adventure-boss-portrait { width: 110px; height: 110px; flex-shrink: 0; }
+.adventure-trail-journal p, .adventure-trail-journal blockquote { font-size: 12px; line-height: 1.8; color: var(--adventure-muted); }
+.adventure-trail-journal blockquote { margin: 20px 0; padding-left: 14px; border-left: 2px solid var(--adventure-gold); }
+.adventure-trail.reduced-motion *, .adventure-trail.reduced-motion *::before { animation: none !important; scroll-behavior: auto; }
+@media (prefers-reduced-motion: reduce) { .adventure-world-portal-ring::before { animation: none !important; } }
+@media (max-width: 700px) {
+  .adventure-trail-toolbar, .adventure-trail-heading { padding-inline: 14px; gap: 8px; }
+  .adventure-trail-toolbar { padding-top: 8px; }
+  .adventure-trail-heading { padding-block: 6px; }
+  .adventure-trail-tools { gap: 5px; }
+  .panda-adventure .adventure-trail-world select { font-size: 9px; padding-right: 10px; }
+  .adventure-trail-count { font-size: 8px; gap: 3px; }
+  .adventure-trail-count svg { display: none; }
+  .panda-adventure .adventure-level-stone { width: 50px; height: 44px; }
+  .adventure-level-number { font-size: 13px; }
+  .adventure-world-exit { min-height: 305px; padding-inline: 20px; }
+  .adventure-world-exit > .story-eyebrow { font-size: 7px; }
+  .panda-adventure .adventure-world-portal { width: 88px; height: 106px; }
+  .adventure-trail-character { width: 92px; height: 92px; }
+  .adventure-trail-footer { padding: 10px 14px; gap: 8px 12px; }
+  .panda-adventure .adventure-trail-enter { max-width: 48%; font-size: 8px !important; padding-inline: 10px; }
+  .adventure-trail-footer p { font-size: 12px; }
+  .adventure-trail-journal { padding: 18px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .adventure-trail-header { display: flex; flex-wrap: wrap; }
+  .adventure-trail-toolbar { flex: 1; padding: 5px 16px; margin: 0; }
+  .adventure-trail-heading { flex: 1; padding: 5px 16px; }
+  .adventure-trail-toolbar > .story-eyebrow { display: none; }
+  .panda-adventure .adventure-trail-world select { font-size: 10px; }
+  .adventure-trail-footer { padding-block: 7px; }
+}

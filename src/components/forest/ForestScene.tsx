@@ -1,7 +1,7 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 import type { DayDetail } from "../../types";
 import { generatePlatforms, goalPoint, startPoint, type Point } from "../../game/platformGenerator";
-import { getStage } from "../../game/stageSystem";
+import { getStage, type StageMeta } from "../../game/stageSystem";
 import { pandaPlatformIndex } from "../../game/progress";
 import Panda, { type PandaAnim } from "./Panda";
 import Platform from "./Platform";
@@ -75,6 +75,7 @@ function remapPlatformRun<T extends Point>(platforms: T[], lo: number, hi: numbe
 export default function ForestScene({
   detail,
   dayNumber,
+  stage: activeStage,
   seed,
   resets,
   character = DEFAULT_CHARACTER,
@@ -85,6 +86,7 @@ export default function ForestScene({
 }: {
   detail: DayDetail;
   dayNumber: number;
+  stage?: StageMeta;
   seed: string;
   resets: number;
   character?: CharacterId;
@@ -95,7 +97,7 @@ export default function ForestScene({
    * is ticked.
    */
   onDayCleared?: () => void;
-  /** Opens the 15-day arc trail map -- the gate in front of Story Mode. */
+  /** Opens the current world's story and its daily-goal journey. */
   onOpenStory?: () => void;
   /** How many arc-stones real consistency has unlocked (see game/weekSystem) -- shown on the corner portal's badge. */
   unlockedArcs?: number;
@@ -119,7 +121,7 @@ export default function ForestScene({
   const doneCount = tasks.filter((t) => t.done).length;
 
   const reducedMotion = usePrefersReducedMotion();
-  const stage = getStage(dayNumber);
+  const stage = activeStage ?? getStage(dayNumber);
 
   const sceneRef = useRef<HTMLDivElement>(null);
   // Spacing is authored against a 1040px-wide reference viewport. Dividing by
@@ -472,12 +474,8 @@ export default function ForestScene({
         ["--cam-x" as string]: `${camX}%`,
       }}
     >
-      {/* Parallax stack (skill §14): each layer carries a fraction of the
-          follow-cam shift so the world reads as depth in motion, not a flat
-          backdrop sliding as one piece. Stage 1 swaps the painted sky +
-          silhouette layers for the hand-drawn forest-bg-1 art (CSS keys this
-          off [data-stage="1"]); the drifting clouds and fireflies stay on
-          top. Stages 2-6 keep the CSS parallax, re-tinted per chapter. */}
+      {/* The world theme supplies distinct landscape art and terrain.
+          The backdrop follows the camera slowly, with weather above it. */}
       <div className="forest-photo" aria-hidden="true" />
       <div className="forest-sky" aria-hidden="true" />
       <div className="forest-mountains" aria-hidden="true" />

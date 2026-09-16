@@ -17,19 +17,12 @@ function getCoinImage() {
 export function drawCoin(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
   const img = getCoinImage();
   if (img?.complete && img.naturalWidth > 0) {
-<<<<<<< HEAD
     const size = r * 6;
-=======
-    const size = r * 2.65;
->>>>>>> edfd72d2f29c58d5b1135f7353349b2b2596a19a
     ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
     return;
   }
 
-<<<<<<< HEAD
   const fallbackR = r * 3;
-=======
->>>>>>> edfd72d2f29c58d5b1135f7353349b2b2596a19a
   ctx.beginPath();
   ctx.arc(cx, cy, fallbackR, 0, Math.PI * 2);
   ctx.fillStyle = "#f0c04a";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { DayDetail, TaskItem } from "../types";
 import { prettyDate, todayISO } from "../api";
-import { getStage } from "../game/stageSystem";
+import { getStage, type StageMeta } from "../game/stageSystem";
 import { dayProgressPercent } from "../game/progress";
 
 function Check() {
@@ -22,6 +22,7 @@ export default function Checklist({
   detail,
   day,
   dayNumber,
+  stage: activeStage,
   onShift,
   onToggle,
   onAdd,
@@ -32,6 +33,7 @@ export default function Checklist({
   detail: DayDetail;
   day: string;
   dayNumber: number;
+  stage?: StageMeta;
   onShift: (delta: number) => void;
   onToggle: (t: TaskItem) => void;
   onAdd: (title: string) => void;
@@ -46,7 +48,7 @@ export default function Checklist({
   const doneCore = core.filter((t) => t.done).length;
   const doneAll = detail.tasks.filter((t) => t.done).length;
   const totalAll = detail.tasks.length;
-  const stage = getStage(dayNumber);
+  const stage = activeStage ?? getStage(dayNumber);
   const progressPct = dayProgressPercent(doneAll, totalAll);
   const allDone = totalAll > 0 && doneAll === totalAll;
 

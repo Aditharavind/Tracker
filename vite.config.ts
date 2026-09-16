@@ -82,7 +82,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/assets\/(?:Adventure-[^/]+\.(?:js|css)|story\/[^/]+\.webp)$/,
+            urlPattern: /\/assets\/(?:Adventure-[^/]+\.(?:js|css)|story\/[^/]+\.(?:webp|png))$/,
             handler: "CacheFirst",
             options: {
               cacheName: "panda-adventure-assets",

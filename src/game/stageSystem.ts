@@ -1,7 +1,8 @@
-// The 75-day journey is six chapters of the same run, not six challenges.
-// Stage is always derived from the day number -- never stored independently.
+import type { DayCell } from "../types";
+import { WORLDS } from "./adventure/content";
+import { ARC_DAYS, currentWorldIndex, JOURNEY_DAYS } from "./weekSystem";
 
-export type StageId = 1 | 2 | 3 | 4 | 5 | 6;
+export type StageId = 1 | 2 | 3 | 4 | 5;
 
 export type StageMeta = {
   id: StageId;
@@ -12,15 +13,20 @@ export type StageMeta = {
 };
 
 export const STAGES: StageMeta[] = [
-  { id: 1, theme: "entrance", name: "Forest Entrance", minDay: 1, maxDay: 12 },
-  { id: 2, theme: "mossy-trail", name: "Mossy Trail", minDay: 13, maxDay: 25 },
-  { id: 3, theme: "moonlit-grove", name: "Moonlit Grove", minDay: 26, maxDay: 38 },
-  { id: 4, theme: "ancient-forest", name: "Ancient Forest", minDay: 39, maxDay: 50 },
-  { id: 5, theme: "golden-canopy", name: "Golden Canopy", minDay: 51, maxDay: 63 },
-  { id: 6, theme: "summit-sanctuary", name: "Summit Sanctuary", minDay: 64, maxDay: 75 },
+  { id: 1, theme: "entrance", name: WORLDS[0].name, minDay: 1, maxDay: 15 },
+  { id: 2, theme: "caves", name: WORLDS[1].name, minDay: 16, maxDay: 30 },
+  { id: 3, theme: "grove", name: WORLDS[2].name, minDay: 31, maxDay: 45 },
+  { id: 4, theme: "mountains", name: WORLDS[3].name, minDay: 46, maxDay: 60 },
+  { id: 5, theme: "valley", name: WORLDS[4].name, minDay: 61, maxDay: 75 },
 ];
 
+/** Day labels use the same 15-day world boundaries as daily goal progress. */
 export function getStage(day: number): StageMeta {
-  const clamped = Math.min(75, Math.max(1, Math.round(day)));
-  return STAGES.find((s) => clamped >= s.minDay && clamped <= s.maxDay) ?? STAGES[STAGES.length - 1];
+  const clamped = Number.isFinite(day) ? Math.min(JOURNEY_DAYS, Math.max(1, Math.round(day))) : 1;
+  return STAGES[Math.floor((clamped - 1) / ARC_DAYS)];
+}
+
+/** Active environments follow completed goals, not the number of days elapsed. */
+export function getJourneyStage(calendar: DayCell[]): StageMeta {
+  return STAGES[currentWorldIndex(calendar)];
 }

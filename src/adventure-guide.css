@@ -1,0 +1,57 @@
+.adventure-guide {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  width: min(340px, calc(100% - 24px));
+  padding: 12px 42px 12px 12px;
+  border: 1px solid var(--adventure-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--adventure-panel) 95%, transparent);
+  color: var(--adventure-cream);
+  box-shadow: 0 3px 12px #0003;
+  pointer-events: none;
+}
+.adventure-guide-status { display: flex; align-items: flex-start; gap: 10px; }
+.adventure-guide-icon { display: grid; place-items: center; width: 26px; min-width: 26px; height: 30px; color: var(--adventure-gold); }
+.adventure-guide-copy { min-width: 0; }
+.adventure-guide-label { display: block; margin-bottom: 4px; color: var(--adventure-muted); font-size: 10px; line-height: 1.3; }
+.adventure-guide-copy strong { display: block; font-size: 13px; line-height: 1.35; }
+.adventure-guide-copy p { margin: 5px 0 0; font-size: 12px; line-height: 1.45; }
+.adventure-guide-dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--adventure-muted);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.adventure-guide-dismiss:hover { color: var(--adventure-cream); background: #ffffff0d; }
+.adventure-guide-dismiss:focus-visible { outline: 2px solid var(--adventure-gold); outline-offset: -4px; }
+.adventure-guide-complete { border-color: var(--adventure-green); }
+.adventure-guide-complete .adventure-guide-icon { color: var(--adventure-green); }
+
+@media (max-width: 700px), (max-height: 500px) {
+  .adventure-guide { bottom: 8px; left: 8px; width: min(310px, calc(100% - 16px)); padding: 9px 40px 9px 10px; }
+  .adventure-guide-status { gap: 7px; }
+  .adventure-guide-icon { width: 22px; min-width: 22px; height: 26px; }
+  .adventure-guide-label { font-size: 9px; margin-bottom: 3px; }
+  .adventure-guide-copy strong { font-size: 12px; }
+  .adventure-guide-copy p { margin-top: 3px; font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adventure-guide, .adventure-guide * { animation: none; transition: none; }
+}
+
+/* On short screens keep the lesson above the ground and the player's feet. */
+@media (max-height: 500px) {
+  .adventure-viewport:not(:has(.adventure-boss-bar)) .adventure-guide { top: 8px; bottom: auto; }
+}
