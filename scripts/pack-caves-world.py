@@ -3,13 +3,13 @@ Usage: python scripts/pack-caves-world.py
 
 Two sources, both editor screenshots:
 
-* frontend/assets/caves-platform.png -- one long crystal-topped ledge on a
+* frontend/assets/world-2/caves-platform.png -- one long crystal-topped ledge on a
   checkerboard. Cut the same way as the grass ledge (see pack-grass-platform.py):
   a left cap, a repeating middle and a right cap for the crystal crust, plus a
   separate tiling strip of the rock body underneath. Three tiles rather than one
   stretched image is the point: a ledge keeps its finished ends and its pixel
   density at any width, with only the middle repeating.
-* frontend/assets/caves-platform2.png -- the cave parallax backdrop, which only
+* frontend/assets/world-2/caves-platform2.png -- the cave parallax backdrop, which only
   needs resizing to the same budget as the other world backgrounds.
 
 Unlike the grass script this keys the backdrop by connected component rather
@@ -22,9 +22,9 @@ import numpy as np
 from scipy import ndimage
 
 root = Path(__file__).resolve().parents[1]
-platform_source = root / 'frontend/assets/caves-platform.png'
-background_source = root / 'frontend/assets/caves-platform2.png'
-out = root / 'public/assets/worlds'
+platform_source = root / 'frontend/assets/world-2/caves-platform.png'
+background_source = root / 'frontend/assets/world-2/caves-platform2.png'
+out = root / 'public/assets/world-2'
 
 # Ledge geometry in source pixels, measured off the art.
 SPIKE_TOP = 241     # tips of the tall crystal clusters, above the deck

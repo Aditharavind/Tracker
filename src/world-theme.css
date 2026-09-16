@@ -47,10 +47,10 @@
   --accent: #a6adf1;
   --good: #a1c4ec;
   --on-accent: #161629;
-  --world-background: url('/assets/worlds/caves-bg.webp');
-  --caves-crust: url('/assets/worlds/caves-crust-left.webp'), url('/assets/worlds/caves-crust-right.webp'), url('/assets/worlds/caves-crust-mid.webp');
+  --world-background: url('/assets/world-2/caves-bg.webp');
+  --caves-crust: url('/assets/world-2/caves-crust-left.webp'), url('/assets/world-2/caves-crust-right.webp'), url('/assets/world-2/caves-crust-mid.webp');
   --grass-image: var(--caves-crust);
-  --world-trail: url('/assets/worlds/caves-trail.svg');
+  --world-trail: url('/assets/world-2/caves-trail.svg');
   --world-sky: #21243e;
   --world-soil: #34334e;
   --world-surface: #8581b0;
@@ -202,7 +202,7 @@
 .world-theme[data-world='1'] .victory-lane { height: 25px; }
 .world-theme[data-world='1'] .platform-stone {
   background-color: transparent;
-  background-image: url('/assets/worlds/caves-rock.webp');
+  background-image: url('/assets/world-2/caves-rock.webp');
   background-position: left top;
   background-repeat: repeat-x;
   background-size: auto 100%;
@@ -212,7 +212,7 @@
    band instead of stretching one tile over the whole depth. */
 .world-theme[data-world='1'] .forest-fg {
   background-color: transparent;
-  background-image: url('/assets/worlds/caves-rock.webp');
+  background-image: url('/assets/world-2/caves-rock.webp');
   background-position: left top;
   background-repeat: repeat;
   background-size: auto 30px;

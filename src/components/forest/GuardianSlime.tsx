@@ -61,7 +61,7 @@ export default function GuardianSlime({
           <span className="plant-bubble-text pixel-font">DON'T START — I'LL DOUBT U</span>
         </div>
       )}
-      <img className="slime-sprite" src="/assets/crystal-slime.webp" alt="" />
+      <img className="slime-sprite" src="/assets/world-2/crystal-slime.webp" alt="" />
     </div>
   );
 }

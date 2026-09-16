@@ -174,7 +174,7 @@
   z-index: 1;
   inset: auto 0 0;
   height: 30px;
-  background: url('/assets/worlds/caves-rock.webp') left top / auto 100% repeat-x;
+  background: url('/assets/world-2/caves-rock.webp') left top / auto 100% repeat-x;
 }
 
 .world-story .world-story-ledge::before {

@@ -1,4 +1,4 @@
-"""Build the crystal-slime sprite from frontend/assets/slim.png.
+"""Build the crystal-slime sprite from frontend/assets/world-2/slim.png.
 
 Usage: python scripts/pack-crystal-slime.py
 
@@ -8,7 +8,7 @@ rather than a plain brightness threshold (see pack-caves-world.py), cropped
 to content with a small pad, and downscaled with premultiplied alpha so the
 transparent edge can't bleed black into the glassy highlights.
 
-Outputs public/assets/crystal-slime.webp, drawn by PandaRunner.tsx in place
+Outputs public/assets/world-2/crystal-slime.webp, drawn by PandaRunner.tsx in place
 of the zombie plant for world 1's "slime" hazard kind.
 """
 from pathlib import Path
@@ -17,8 +17,8 @@ import numpy as np
 from scipy import ndimage
 
 root = Path(__file__).resolve().parents[1]
-source = root / 'frontend/assets/slim.png'
-out = root / 'public/assets/crystal-slime.webp'
+source = root / 'frontend/assets/world-2/slim.png'
+out = root / 'public/assets/world-2/crystal-slime.webp'
 
 OUT_WIDTH = 260  # native size of the exported sprite; canvas scales it down further
 

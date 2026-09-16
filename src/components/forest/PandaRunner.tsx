@@ -289,11 +289,11 @@ export default function PandaRunner({
     imgs.current.grassLeft = load("/assets/grass-left.webp");
     imgs.current.grassMid = load("/assets/grass-mid.webp");
     imgs.current.grassRight = load("/assets/grass-right.webp");
-    imgs.current.cavesCrustLeft = load("/assets/worlds/caves-crust-left.webp");
-    imgs.current.cavesCrustMid = load("/assets/worlds/caves-crust-mid.webp");
-    imgs.current.cavesCrustRight = load("/assets/worlds/caves-crust-right.webp");
-    imgs.current.cavesRock = load("/assets/worlds/caves-rock.webp");
-    imgs.current.slime = load("/assets/crystal-slime.webp");
+    imgs.current.cavesCrustLeft = load("/assets/world-2/caves-crust-left.webp");
+    imgs.current.cavesCrustMid = load("/assets/world-2/caves-crust-mid.webp");
+    imgs.current.cavesCrustRight = load("/assets/world-2/caves-crust-right.webp");
+    imgs.current.cavesRock = load("/assets/world-2/caves-rock.webp");
+    imgs.current.slime = load("/assets/world-2/crystal-slime.webp");
   }, [character, worldIndex]);
 
   const commitBest = useCallback(
