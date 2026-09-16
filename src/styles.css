@@ -2730,6 +2730,61 @@ h3 {
   }
 }
 
+/* World 2's guardian: the crystal slime standing in for the zombie plant on
+   this world's copy of the start-of-level scene (GuardianSlime.tsx). Reuses
+   the plant's bubble chrome (.plant-bubble) since the taunt-popup look is
+   shared; only the creature itself and its idle motion differ -- a
+   squash-stretch breathe instead of a biting jaw, since the art is one
+   static pose with no separate jaw layer. */
+.guardian-slime {
+  position: absolute;
+  /* Same anchor as .zombie-plant -- tucked against the START sign's right
+     edge, close enough to read as "guarding the start". */
+  left: calc(clamp(76px, 9vw, 116px) * 0.5) !important;
+  transform: translate(0, 4%);
+  z-index: 10;
+}
+
+.start-area .guardian-slime {
+  bottom: 0;
+}
+
+.slime-sprite {
+  display: block;
+  width: clamp(58px, 7vw, 92px);
+  height: auto;
+  image-rendering: pixelated;
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+  animation: slime-breathe 2.2s ease-in-out infinite;
+}
+
+/* The slime sits lower and wider than the plant's head, so its bubble hangs
+   a little lower too -- .plant-bubble's own left/width stay unchanged. */
+.slime-bubble {
+  bottom: 78%;
+}
+
+/* Same rising-edge reaction as the plant's bite (see GuardianSlime.tsx's
+   pounceNow): a quick startled squash the instant the panda arrives, then
+   back to the idle breathe once the class comes off again. */
+.guardian-slime-pounce-now .slime-sprite {
+  animation: none;
+  transition: transform 0.12s ease-out;
+  transform: scaleX(1.16) scaleY(0.8);
+}
+
+@keyframes slime-breathe {
+  0%,
+  100% {
+    transform: scaleX(1) scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleX(1.05) scaleY(0.92) translateY(1px);
+  }
+}
+
+
 .platform {
   position: absolute;
   transform: translate(-50%, 50%);
@@ -3978,6 +4033,10 @@ h3 {
   }
   .plant-mouth-shutter {
     transform: rotate(0deg);
+  }
+  .slime-sprite,
+  .slime-bubble {
+    animation: none;
   }
 }
 

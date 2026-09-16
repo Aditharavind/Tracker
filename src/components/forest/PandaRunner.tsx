@@ -374,7 +374,10 @@ export default function PandaRunner({
     }
 
     // --- coins: the panda-imprint gold coin, matching Coin.tsx ---
-    const coinR = Math.max(6, H * 0.017);
+    // Smaller than the original 0.017/6 -- COIN_R (runnerEngine.ts) is the
+    // separate, untouched hit-test radius, so this only shrinks how the coin
+    // looks, not how forgiving picking one up is.
+    const coinR = Math.max(4.5, H * 0.012);
     for (const c of st.coins) {
       if (c.taken) continue;
       drawCoin(ctx, c.x * sx, yPx(c.y), coinR);

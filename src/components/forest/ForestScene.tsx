@@ -10,6 +10,7 @@ import GoalFlag from "./GoalFlag";
 import StartSign from "./StartSign";
 import VictorySign from "./VictorySign";
 import ZombiePlant from "./ZombiePlant";
+import GuardianSlime from "./GuardianSlime";
 import Clouds from "./Clouds";
 import Scenery from "./Scenery";
 import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
@@ -517,7 +518,12 @@ export default function ForestScene({
 
         <div className="start-area" aria-hidden="true">
           <StartSign left={0} bottom={0} />
-          <ZombiePlant left={0} bottom={0} near={atStartRest} />
+          {/* World 2 (Self-Doubt Caves) swaps the zombie plant for its own
+             villain, the crystal slime -- same reference sheet PandaRunner's
+             Forest Dash follows for World 2's "slime" hazard kind. */}
+          {activeStage?.theme === "caves"
+            ? <GuardianSlime left={0} bottom={0} near={atStartRest} />
+            : <ZombiePlant left={0} bottom={0} near={atStartRest} />}
         </div>
 
         {tasks.map((t, i) => {
