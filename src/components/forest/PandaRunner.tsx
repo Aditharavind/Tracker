@@ -181,8 +181,10 @@ function drawTiledStrip(ctx: CanvasRenderingContext2D, img: HTMLImageElement | u
  * Rendered on a single <canvas> with the game's own flat sprites and forest
  * art -- no <model-viewer>, no animated CSS parallax layers -- so the loop
  * actually holds 60fps. Floating ledges only, no ground: every gap must be
- * jumped. Some ledges carry a zombie plant or a landmine to hop. One miss and
- * it restarts. Nothing here touches challenge state; only a local best is kept.
+ * jumped. Some ledges carry a hazard to hop -- a zombie plant or a landmine
+ * (world 1's caves swap the plant for a crystal slime that paces its ledge).
+ * One miss and it restarts. Nothing here touches challenge state; only a
+ * local best is kept.
  */
 export default function PandaRunner({
   character,
@@ -208,7 +210,7 @@ export default function PandaRunner({
   const coinRef = useRef<HTMLSpanElement | null>(null);
   const starRef = useRef<HTMLSpanElement | null>(null);
 
-  const stateRef = useRef<RunnerState>(createRunner(String(key)));
+  const stateRef = useRef<RunnerState>(createRunner(String(key), worldIndex));
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
   const jumpRef = useRef(0); // press edges queued since the last frame
@@ -227,6 +229,7 @@ export default function PandaRunner({
     cavesCrustMid?: HTMLImageElement;
     cavesCrustRight?: HTMLImageElement;
     cavesRock?: HTMLImageElement;
+    slime?: HTMLImageElement;
   }>({});
   const bgShift = useRef(0);
   const clouds = useRef(makeClouds(String(key), 6));
@@ -290,6 +293,7 @@ export default function PandaRunner({
     imgs.current.cavesCrustMid = load("/assets/worlds/caves-crust-mid.webp");
     imgs.current.cavesCrustRight = load("/assets/worlds/caves-crust-right.webp");
     imgs.current.cavesRock = load("/assets/worlds/caves-rock.webp");
+    imgs.current.slime = load("/assets/crystal-slime.webp");
   }, [character, worldIndex]);
 
   const commitBest = useCallback(
@@ -411,7 +415,7 @@ export default function PandaRunner({
           ctx.fillStyle = "#6fae4a";
           ctx.fillRect(hx - hw / 2, baseY - hh, hw, hh);
         }
-      } else {
+      } else if (h.kind === "mine") {
         const im = imgs.current.mine;
         const mh = charH * 0.72;
         const mw = im?.naturalWidth ? mh * (im.naturalWidth / im.naturalHeight) : mh * 1.5;
@@ -421,6 +425,24 @@ export default function PandaRunner({
           ctx.fillStyle = "#3a3d42";
           ctx.fillRect(hx - mw / 2, baseY - mh, mw, mh);
         }
+      } else {
+        // World 1's villain: a crystal slime pacing its ledge (h.dir flips it
+        // to face the way it's moving) with a gentle squash/stretch wobble so
+        // patrolling reads as alive, not a plant/mine sliding sideways.
+        const im = imgs.current.slime;
+        const sh = charH * 0.85;
+        const sw = im?.naturalWidth ? sh * (im.naturalWidth / im.naturalHeight) : sh * 1.5;
+        const wobble = Math.sin(st.t / 220 + h.id * 137) * 0.06;
+        ctx.save();
+        ctx.translate(hx, baseY);
+        ctx.scale((h.dir ?? 1) * (1 - wobble), 1 + wobble);
+        if (im && im.complete && im.naturalWidth) {
+          ctx.drawImage(im, -sw / 2, -sh, sw, sh);
+        } else {
+          ctx.fillStyle = "#6a5ee0";
+          ctx.fillRect(-sw / 2, -sh, sw, sh);
+        }
+        ctx.restore();
       }
     }
 
@@ -614,12 +636,12 @@ export default function PandaRunner({
   }, []);
 
   const start = useCallback(() => {
-    stateRef.current = createRunner(`${key}:${Date.now()}`);
+    stateRef.current = createRunner(`${key}:${Date.now()}`, worldIndex);
     lastTsRef.current = null;
     bgShift.current = 0;
     runningRef.current = true;
     setPhase("running");
-  }, [key]);
+  }, [key, worldIndex]);
 
   const onJumpInput = useCallback(() => {
     if (phase === "ready" || phase === "over") {

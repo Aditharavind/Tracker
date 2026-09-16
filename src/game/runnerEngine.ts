@@ -65,8 +65,24 @@ const Y_MAX = 26;
 // Recoloured zombie plants -- the view hue-rotates the sprite by this many deg.
 export const PLANT_HUES = [0, 65, 135, 205, 285];
 
-export type HazardKind = "plant" | "mine";
-export type Hazard = { id: number; x: number; y: number; kind: HazardKind; hue: number };
+// World 1's villain patrols its ledge instead of sitting still -- slow and
+// telegraphed, since it has to stay dodgeable while the panda is mid-air.
+export const SLIME_SPEED = 9; // units / s
+
+export type HazardKind = "plant" | "mine" | "slime";
+export type Hazard = {
+  id: number;
+  x: number;
+  y: number;
+  kind: HazardKind;
+  hue: number;
+  // Only set for "slime": the ledge-safe window (see addLedge's landRoom /
+  // runwayAfter) it paces back and forth within, so patrolling never eats
+  // into the landing room a hop already needs.
+  patrolMin?: number;
+  patrolMax?: number;
+  dir?: 1 | -1;
+};
 export type Platform = { id: number; x: number; y: number; w: number };
 export type Coin = { id: number; x: number; y: number; taken: boolean };
 export type Star = { id: number; x: number; y: number; taken: boolean };
@@ -74,6 +90,10 @@ export type Star = { id: number; x: number; y: number; taken: boolean };
 export type RunnerState = {
   rng: () => number;
   ids: number;
+  // Fixed for the whole run -- decides the hazard mix in addLedge (world 1's
+  // villain is the crystal slime, not the zombie plant). Never changes
+  // mid-run even if the underlying day's world advances.
+  world: number;
   t: number;
   distance: number;
   speed: number;
@@ -192,22 +212,27 @@ function addLedge(state: RunnerState) {
   if (wantHazard) {
     const minHx = x + landRoom;
     const maxHx = x + w - runwayAfter - HAZARD_W;
+    // World 1's caves swap the zombie plant for the crystal slime, its own
+    // villain (see reference sheet); every other world's mix is unchanged.
+    const kind: HazardKind = state.world === 1 ? (state.rng() < 0.5 ? "slime" : "mine") : state.rng() < 0.5 ? "plant" : "mine";
     state.hazards.push({
       id: state.ids++,
       x: minHx + state.rng() * Math.max(0, maxHx - minHx),
       y,
-      kind: state.rng() < 0.5 ? "plant" : "mine",
+      kind,
       hue: PLANT_HUES[Math.floor(state.rng() * PLANT_HUES.length)],
+      ...(kind === "slime" ? { patrolMin: minHx, patrolMax: Math.max(minHx, maxHx), dir: state.rng() < 0.5 ? 1 : (-1 as const) } : {}),
     });
   }
 }
 
-export function createRunner(seed: string): RunnerState {
+export function createRunner(seed: string, world = 0): RunnerState {
   const rng = createSeededRandom(`dash:${seed}`);
   const startY = 16;
   const state: RunnerState = {
     rng,
     ids: 1,
+    world,
     t: 0,
     distance: 0,
     speed: BASE_SPEED,
@@ -277,7 +302,18 @@ export function step(state: RunnerState, dtMs: number, jumps: number | boolean):
 
   const shift = state.speed * dt;
   for (const p of state.platforms) p.x -= shift;
-  for (const h of state.hazards) h.x -= shift;
+  for (const h of state.hazards) {
+    h.x -= shift;
+    if (h.kind === "slime" && h.patrolMin != null && h.patrolMax != null) {
+      h.patrolMin -= shift;
+      h.patrolMax -= shift;
+      h.x += (h.dir ?? 1) * SLIME_SPEED * dt;
+      // Bounce at the ledge-safe window's edges rather than clamping and
+      // sticking, so the slime reads as pacing, not stuck against a wall.
+      if (h.x <= h.patrolMin) { h.x = h.patrolMin; h.dir = 1; }
+      else if (h.x >= h.patrolMax) { h.x = h.patrolMax; h.dir = -1; }
+    }
+  }
   for (const c of state.coins) c.x -= shift;
   for (const st of state.stars) st.x -= shift;
   state.edgeX -= shift;

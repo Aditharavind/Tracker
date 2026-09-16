@@ -15,6 +15,7 @@ import {
   PANDA_X,
   STAR_MS,
   step,
+  type Hazard,
   type RunnerState,
 } from "../runnerEngine";
 
@@ -256,5 +257,61 @@ describe("hazard hitbox forgiveness", () => {
     // (per the constant's own comment: short enough to jump, not zero).
     expect(HAZARD_H).toBeGreaterThan(0);
     expect(HAZARD_H).toBeLessThan(jumpPeak());
+  });
+});
+
+describe("world 1 hazard mix: crystal slime replaces the zombie plant", () => {
+  it("world 0 (default) never spawns a slime", () => {
+    const seenKinds = new Set<Hazard["kind"]>();
+    run(createRunner("mix-world0"), 20000, (s) => {
+      for (const h of s.hazards) seenKinds.add(h.kind);
+      return play(s);
+    });
+    expect(seenKinds.has("slime")).toBe(false);
+    expect(seenKinds.has("plant")).toBe(true);
+  });
+
+  it("world 1 never spawns a plant, and does spawn a slime", () => {
+    const seenKinds = new Set<Hazard["kind"]>();
+    run(createRunner("mix-world1", 1), 20000, (s) => {
+      for (const h of s.hazards) seenKinds.add(h.kind);
+      return play(s);
+    });
+    expect(seenKinds.has("plant")).toBe(false);
+    expect(seenKinds.has("slime")).toBe(true);
+  });
+
+  it("a slime paces back and forth without ever leaving its ledge-safe window", () => {
+    // A hand-placed hazard, not an organically spawned one: the point here is
+    // the patrol mechanics themselves (bounded movement, a bounce at each
+    // wall), which a fixed seed's natural spawn rate would make this test
+    // flaky about ever actually observing.
+    const s = createRunner("patrol-fixture", 1);
+    const startX = s.hazards[0]?.x ?? 60;
+    const patrolMin = startX - 4;
+    const patrolMax = startX + 4;
+    s.hazards = [{ id: 900, x: startX, y: s.y, kind: "slime", hue: 0, patrolMin, patrolMax, dir: 1 }];
+    // Freeze the panda well clear of the hazard -- this test is about the
+    // patrol, not about surviving a hit -- by never jumping past the first
+    // ledge; the camera itself still scrolls the world (and the hazard's
+    // window with it) every step, exactly as it does in a real run.
+    let sawMinBounce = false;
+    let sawMaxBounce = false;
+    for (let i = 0; i < 600 && !s.over; i++) {
+      step(s, 16, false);
+      const h = s.hazards.find((hz) => hz.id === 900);
+      if (!h) break; // scrolled off the left edge -- the window moved correctly
+      // Patrolling never eats into the landing room a hop already needs --
+      // the whole point of bounding it to the same window addLedge already
+      // reserves for a stationary hazard.
+      expect(h.x).toBeGreaterThanOrEqual((h.patrolMin ?? -Infinity) - 1e-6);
+      expect(h.x).toBeLessThanOrEqual((h.patrolMax ?? Infinity) + 1e-6);
+      if (h.x <= (h.patrolMin ?? -Infinity) + 1e-6) sawMinBounce = true;
+      if (h.x >= (h.patrolMax ?? Infinity) - 1e-6) sawMaxBounce = true;
+    }
+    // It reached both walls and turned around each time -- a patrol, not a
+    // one-way drift.
+    expect(sawMinBounce).toBe(true);
+    expect(sawMaxBounce).toBe(true);
   });
 });
