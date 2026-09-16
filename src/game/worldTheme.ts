@@ -1,7 +1,7 @@
 /** Shared landscape assets for the daily world, story canvas, and menus. */
 export const WORLD_BACKGROUNDS = [
   "/assets/forest-bg-1.webp",
-  "/assets/worlds/caves.svg",
+  "/assets/worlds/caves-bg.webp",
   "/assets/worlds/grove.svg",
   "/assets/worlds/mountains.svg",
   "/assets/worlds/valley.svg",

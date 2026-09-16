@@ -1,11 +1,27 @@
 /* The story, daily goals and optional adventure share the earned world palette. */
 .world-story .world-story-art.journey-scene {
+  display: block;
+  height: auto;
+  aspect-ratio: 320 / 120;
+  /* Short viewports crop the scene's ceiling rather than squash it. */
+  max-height: clamp(170px, 30dvh, 300px);
+  padding: 0;
+}
+
+/* The companion stands on the diorama's ground line, in front of the scene.
+   The scene is cropped from the top, so its ground stays 7.5% of the frame's
+   WIDTH above the bottom edge — which is what a percentage padding resolves
+   against. Subtracting the hello label puts the sprite's feet on the soil. */
+.world-story .journey-stage {
+  --hello-label: 31px;
+  position: absolute;
+  z-index: 2;
+  inset: auto 0 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   gap: 20px;
-  height: clamp(130px, 20dvh, 175px);
-  padding: 12px 24px;
+  padding: 0 24px max(0px, calc(7.5% - var(--hello-label)));
 }
 
 .world-story .journey-companion {
@@ -129,9 +145,12 @@
 }
 
 @media (max-width: 520px) {
-  .world-story .world-story-art.journey-scene { height: 140px; padding-inline: 14px; gap: 10px; }
+  .world-story .journey-stage { --hello-label: 27px; gap: 10px; padding-inline: 14px; }
   .world-story .journey-greeting { padding: 9px 11px; margin-bottom: 17px; font-size: 12px; }
   .world-story .journey-companion { padding-inline: 2px; }
+  /* The scene scales with width here, so the sprite has to as well, or a narrow
+     phone clips the companion's head against the frame. */
+  .world-story .journey-companion img { width: clamp(56px, 22vw, 90px); }
   .world-story .journey-how { grid-template-columns: 1fr; gap: 6px; margin-top: 16px; }
   .world-story .journey-how li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
   .world-story .journey-step-icon { flex: 0 0 40px; justify-content: center; margin: 0; }
@@ -143,3 +162,36 @@
 @media (prefers-reduced-motion: reduce) {
   .world-story .journey-companion-wave { animation: none; }
 }
+
+/* Worlds with painted backdrop art show the artwork itself, with a ledge of the
+   same world's tiles across the bottom for the companion to stand on. */
+.world-story .world-story-art.is-photo {
+  background: var(--world-background) center 55% / cover;
+}
+
+.world-story .world-story-ledge {
+  position: absolute;
+  z-index: 1;
+  inset: auto 0 0;
+  height: 30px;
+  background: url('/assets/worlds/caves-rock.webp') left top / auto 100% repeat-x;
+}
+
+.world-story .world-story-ledge::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 25px;
+  /* The drips hang over the rock, exactly as they do on a ledge in the world. */
+  margin-bottom: -6px;
+  background-image: var(--grass-image);
+  background-position: var(--grass-position);
+  background-repeat: var(--grass-repeat);
+  background-size: var(--grass-size);
+  image-rendering: pixelated;
+}
+
+/* The deck of that ledge sits 42px up; the hello label takes the rest. */
+.world-story .is-photo .journey-stage { padding-bottom: calc(42px - var(--hello-label)); }

@@ -3,7 +3,9 @@ import { Check, Flag, Footprints, Play } from "lucide-react";
 import { CHARACTERS, CHARACTER_SPRITE, type CharacterId } from "../../game/characters";
 import type { DayCell } from "../../types";
 import { ARC_COUNT, ARC_DAYS, journeyProgress } from "../../game/weekSystem";
-import { WORLDS } from "../../game/adventure/content";
+import { LEVELS_PER_WORLD, WORLDS } from "../../game/adventure/content";
+import { worldScenery } from "../../game/worldScenery";
+import WorldDiorama from "./WorldDiorama";
 import { CoinIcon } from "./Coin";
 import "../../story.css";
 import "../../journey-play.css";
@@ -63,6 +65,7 @@ export default function StoryLauncher({
   const nextMilestone = MILESTONES.find(milestone => milestone > completed);
   const companionName = CHARACTERS.find(item => item.id === character)!.name;
   const greetings = COMPANION_HELLOS[worldIndex];
+  const scenery = worldScenery(worldIndex);
 
   useEffect(() => {
     if (adventureOpen) return;
@@ -89,16 +92,25 @@ export default function StoryLauncher({
           <span className="story-eyebrow">{bonus ? "BONUS CHAPTER" : `WORLD ${worldIndex + 1} / ${ARC_COUNT}`}</span>
           <button className="story-text-button" onClick={onOpenMap}>World map</button>
         </header>
-        <div className="world-story-art journey-scene">
-          <button type="button" className="journey-companion" onClick={() => setHelloCount(count => count + 1)} aria-label={`Say hello to ${companionName}`}>
-            <img key={helloCount} className={helloCount ? "journey-companion-wave" : ""} src={CHARACTER_SPRITE[character]} alt="" />
-            <span>Say hello ♡</span>
-          </button>
-          <p className="journey-greeting" role="status">{helloCount ? greetings[(helloCount - 1) % greetings.length] : "Ready for a little adventure?"}</p>
+        <div className={`world-story-art journey-scene${scenery.art === "photo" ? " is-photo" : ""}`}>
+          {scenery.art === "photo" ? <div className="world-story-ledge" aria-hidden="true" /> : <WorldDiorama worldIndex={worldIndex} />}
+          <p className="world-story-quote">“{world.motto}”</p>
+          <div className="journey-stage">
+            <button type="button" className="journey-companion" onClick={() => setHelloCount(count => count + 1)} aria-label={`Say hello to ${companionName}`}>
+              <img key={helloCount} className={helloCount ? "journey-companion-wave" : ""} src={CHARACTER_SPRITE[character]} alt="" />
+              <span>Say hello ♡</span>
+            </button>
+            <p className="journey-greeting" role="status">{helloCount ? greetings[(helloCount - 1) % greetings.length] : "Ready for a little adventure?"}</p>
+          </div>
         </div>
         <div className="world-story-copy">
-          <p className="story-eyebrow">{world.motto}</p>
+          <p className="story-eyebrow">{world.emotion}</p>
           <h1 id="world-story-title">{world.name}</h1>
+          <p className="world-story-meta">
+            <span>{LEVELS_PER_WORLD} adventure levels</span>
+            <span className="world-story-blurb">{scenery.blurb}</span>
+          </p>
+          <ul className="world-story-moods" aria-label={`How ${world.name} feels`}>{scenery.moods.map(mood => <li key={mood}>{mood}</li>)}</ul>
           <p aria-live="polite">{world.intro[page]}</p>
           {page < world.intro.length - 1 && <div className="world-story-actions journey-story-next"><button className="story-text-button" data-story-primary onClick={() => setPage(page + 1)}>Continue story → <span className="journey-page-count">{page + 1}/{world.intro.length}</span></button></div>}
           {!bonus && <ol className="journey-how" aria-label="How your daily journey works">
