@@ -326,7 +326,13 @@
   box-shadow: 0 4px 0 var(--line);
 }
 
-.world-theme.panda-adventure { background: var(--bg); }
+/* Not .weekmap -- it also carries these two classes (for the shared
+   story-button/progress styling), but wants its OWN background rule (the
+   world's real backdrop art, see weekmap.css) to win. Two classes beats
+   .weekmap's one regardless of file order, so without this exclusion the
+   flat fallback colour here always wins and the map never shows a world's
+   own art -- in every world, not just one. */
+.world-theme.panda-adventure:not(.weekmap) { background: var(--bg); }
 .world-theme.panda-adventure .adventure-map {
   background-image: linear-gradient(90deg, var(--bg) 5%, color-mix(in srgb, var(--bg) 60%, transparent) 62%, transparent), linear-gradient(0deg, var(--bg) 5%, transparent 65%), var(--world-background);
   background-size: 100% 840px, 100% 840px, auto 840px;
@@ -350,10 +356,13 @@
 .world-theme.panda-adventure .story-button:disabled { background: var(--raised); color: var(--dim); border-color: var(--line); box-shadow: none; }
 .world-theme.panda-adventure .adventure-trail .adventure-trail-locate { background: var(--panel); }
 
-.world-theme.weekmap { background: var(--bg); color: var(--text); }
-.world-theme.weekmap[data-world]:not([data-world='0']) .weekmap-bg {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 15%, transparent), transparent, color-mix(in srgb, var(--bg) 15%, transparent)), var(--world-background) center / cover fixed;
-}
+/* Not `background` here -- .weekmap (weekmap.css) already paints the map's
+   real backdrop (a gradient over that world's own art), and at equal
+   specificity this rule, loading later, would silently win and flatten it
+   to var(--bg) -- the second half of the same bug the .panda-adventure
+   exclusion above fixes. .weekmap-bg was an older child element this used
+   to layer the same backdrop onto; WeekMap.tsx no longer renders one. */
+.world-theme.weekmap { color: var(--text); }
 .world-theme.weekmap .weekmap-close { background: var(--panel); color: var(--text); }
 .world-theme.weekmap .weekmap-intro h1 { color: var(--text); }
 .world-theme.weekmap :is(.weekmap-description, .weekmap-progress-heading span, .weekmap-instruction) { color: var(--dim); }
