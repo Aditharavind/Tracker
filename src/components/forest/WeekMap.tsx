@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Check } from "lucide-react";
+import { Check, LockKeyhole } from "lucide-react";
 import type { CharacterId } from "../../game/characters";
 import type { DayCell } from "../../types";
 import { WORLDS } from "../../game/adventure/content";
@@ -103,9 +103,15 @@ export default function WeekMap({
             const day = worldStart + stage;
             const done = day <= progress.completedDays;
             const current = !progress.complete && day === currentDay;
+            // Day N+1 only opens once day N is actually done -- same
+            // sequential gate the Adventure minigame's own level stones use,
+            // so a stone this far ahead can't be tapped to skip the wait.
+            const locked = day > currentDay;
             const cellStatus = calendar[day - 1]?.status;
-            const status = done ? "complete" : cellStatus === "missed" ? "missed" : current ? "today" : "upcoming";
-            const label = `Day ${day}: ${status}. Return to your forest.`;
+            const status = done ? "complete" : locked ? "locked" : cellStatus === "missed" ? "missed" : current ? "today" : "upcoming";
+            const label = locked
+              ? `Day ${day}: locked. Complete day ${currentDay} first.`
+              : `Day ${day}: ${status}. Return to your forest.`;
             return (
               <button
                 key={`day-${day}`}
@@ -113,12 +119,15 @@ export default function WeekMap({
                 className={`adventure-level-stone${current ? " current" : ""}${done ? " completed" : ""}`}
                 style={{ left: `${(stone.x / TRAIL_ART.width) * 100}%`, top: `${(stone.y / TRAIL_ART.height) * 100}%` }}
                 aria-current={current ? "step" : undefined}
+                disabled={locked}
                 title={label}
                 aria-label={label}
                 onClick={onClose}
               >
-                <span className="adventure-level-number" aria-hidden="true">{stage + 1}</span>
-                <span className="adventure-level-badge" aria-hidden="true">{done ? <Check size={13} /> : null}</span>
+                <span className="adventure-level-number" aria-hidden="true">DAY<b>{stage + 1}</b></span>
+                <span className="adventure-level-badge" aria-hidden="true">
+                  {locked ? <LockKeyhole size={12} /> : done ? <Check size={13} /> : null}
+                </span>
               </button>
             );
           })}

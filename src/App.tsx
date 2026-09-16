@@ -179,11 +179,25 @@ function IconStats() {
   );
 }
 
-function IconHabits() {
+function IconSettings() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M4 5.5h8M4 8h8M4 10.5h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="8" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 1.6v1.5M8 12.9v1.5M14.4 8h-1.5M3.1 8H1.6M12.36 3.64l-1.06 1.06M4.7 11.3l-1.06 1.06M12.36 12.36l-1.06-1.06M4.7 4.7 3.64 3.64"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconCheckAll() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M1.5 8.2 4.3 11l5-6.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8.2 8.6 10 11l5-6.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -235,21 +249,6 @@ function IconDownload() {
     <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
       <path d="M8.5 1.8v8.4M5.4 7.1l3.1 3.1 3.1-3.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M2.2 12v1.6a1.4 1.4 0 0 0 1.4 1.4h9.8a1.4 1.4 0 0 0 1.4-1.4V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconPencil() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path
-        d="M2 10.2 9.1 3.1l1.8 1.8L3.8 12H2v-1.8Z"
-        fill="currentColor"
-        stroke="currentColor"
-        strokeWidth="0.8"
-        strokeLinejoin="round"
-      />
-      <path d="M9.1 3.1 10.4 1.8a1 1 0 0 1 1.4 0l.4.4a1 1 0 0 1 0 1.4L10.9 4.9Z" fill="currentColor" />
     </svg>
   );
 }
@@ -1318,6 +1317,19 @@ export default function App() {
       });
   };
 
+  /** Ticks (or unticks) every one of today's tasks -- same single-task path as
+   * `toggle`, just called once per task, so it gets the same optimistic
+   * update, outbox replay, and in-flight queuing guarantees for free. */
+  const setAllTasks = (done: boolean) => {
+    if (day !== todayISO()) {
+      flash("That day is locked. Come back tomorrow for the next one.");
+      return;
+    }
+    detail?.tasks.forEach((t) => {
+      if (t.done !== done) toggle(t);
+    });
+  };
+
   const addTask = (title: string) => {
     if (meId == null || adding) return;
     runWithPin(meId, async (pin) => {
@@ -1550,6 +1562,7 @@ export default function App() {
   const myCharacterName = CHARACTERS.find((c) => c.id === myCharacter)?.name ?? myCharacter;
 
   const isToday = day === todayISO();
+  const allTasksDone = detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
   const overallProgressPct = Math.round((bankedDays / 75) * 100);
   // Derived, never stored -- a pure readout of already-persisted task
@@ -1809,20 +1822,21 @@ export default function App() {
             <button
               type="button"
               className="daycard-reset daycard-iconbtn pixel-font"
-              onClick={() => setConfirmRestartOpen(true)}
-              title="Reset run — wipe this run and start again from day 1"
-              aria-label="Reset run"
+              onClick={() => setAllTasks(!allTasksDone)}
+              title={allTasksDone ? "Untick all of today's tasks" : "Tick all of today's tasks"}
+              aria-label={allTasksDone ? "Untick all tasks" : "Tick all tasks"}
+              disabled={!detail.tasks.length}
             >
-              <IconRestart />
+              <IconCheckAll />
             </button>
             <button
               type="button"
               className="daycard-edit daycard-iconbtn pixel-font"
               onClick={() => togglePanel("habits")}
-              title="Edit your tasks"
-              aria-label="Edit tasks"
+              title="Settings — add, edit, or remove tasks"
+              aria-label="Settings"
             >
-              <IconPencil />
+              <IconSettings />
             </button>
             <Checklist
               detail={detail}
@@ -2224,6 +2238,16 @@ export default function App() {
                 </div>
               )}
 
+              <div className="card panel-section">
+                <div className="card-head">
+                  <h2>Reset run</h2>
+                </div>
+                <p className="muted">Wipe this run and start again from day 1 today. Your tasks stay put.</p>
+                <button className="btn danger wide" onClick={() => setConfirmRestartOpen(true)}>
+                  <IconRestart /> Reset run
+                </button>
+              </div>
+
               <div
                 className="card panel-section"
                 style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}
@@ -2281,15 +2305,6 @@ export default function App() {
           >
             <IconStats />
             STATS
-          </button>
-          <button
-            className={`nav-btn${openPanel === "habits" ? " on" : ""}`}
-            role="tab"
-            aria-selected={openPanel === "habits"}
-            onClick={() => togglePanel("habits")}
-          >
-            <IconHabits />
-            HABITS
           </button>
           <button
             className={`nav-btn${openPanel === "profile" ? " on" : ""}`}

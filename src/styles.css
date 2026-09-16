@@ -4297,8 +4297,10 @@ h3 {
     inset 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
-/* "Reset run" pinned to the top-right of the task card (moved here out of the
-   Profile drawer). Sticky so it stays put while a long task list scrolls. */
+/* "Tick/untick all" pinned to the top-right of the task card -- a bulk
+   toggle, not a destructive action, so it gets a friendly green instead of
+   the old red "Reset run" treatment (that button now lives in Profile).
+   Sticky so it stays put while a long task list scrolls. */
 .daycard-reset {
   position: sticky;
   top: 16px;
@@ -4308,25 +4310,25 @@ h3 {
   padding: 5px 9px;
   font-size: 8px;
   letter-spacing: 0.1em;
-  color: #ffdede;
-  background: linear-gradient(180deg, #d64545, #a82c2c);
-  border: 2px solid #5c1414;
+  color: #f2ffe6;
+  background: linear-gradient(180deg, #6fb54a, #4a8a32);
+  border: 2px solid #2c5c1e;
   border-radius: 6px;
-  box-shadow: 0 3px 0 #5c1414;
+  box-shadow: 0 3px 0 #2c5c1e;
   cursor: pointer;
 }
 
 .daycard-reset:hover {
-  background: linear-gradient(180deg, #e25555, #b83636);
+  background: linear-gradient(180deg, #7ec659, #59a03e);
 }
 
 .daycard-reset:active {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 #5c1414;
+  box-shadow: 0 1px 0 #2c5c1e;
 }
 
-/* Icon-only variants of the reset / edit controls -- a reset arrow and a
-   pencil, square buttons instead of text labels. */
+/* Icon-only variants of the tick-all / settings controls -- square buttons
+   instead of text labels. */
 .daycard-iconbtn {
   display: inline-flex;
   align-items: center;
@@ -4334,7 +4336,7 @@ h3 {
   width: 26px;
   height: 26px;
   padding: 0;
-  color: #ffdede;
+  color: #f2ffe6;
 }
 
 .daycard-edit.daycard-iconbtn {
@@ -4344,8 +4346,8 @@ h3 {
   color: #21140a;
 }
 
-/* "Edit" sits just left of "Reset run" -- same pinned/sticky row, deliberately
-   smaller and quieter (it's the low-stakes twin of the destructive button). */
+/* "Settings" (add/edit/remove tasks) sits just left of "Tick/untick all" --
+   same pinned/sticky row, deliberately smaller and quieter. */
 .daycard-edit {
   position: sticky;
   top: 16px;
