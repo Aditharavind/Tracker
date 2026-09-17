@@ -2766,10 +2766,12 @@ h3 {
   bottom: 78%;
 }
 
-/* World 4's ice beast is a "boss"-scale creature (WORLDS[3].boss, "The
-   Beast of Fear") -- it reads bigger than World 2's slime, same as the
-   reference art itself does. */
-.world-theme[data-world='3'] .creature-sprite {
+/* World 4's ice beast, World 5's sky sentinel and World 6's lava golem are
+   all "boss"-scale creatures -- they read bigger than World 2's slime, same
+   as their reference art itself does. */
+.world-theme[data-world='3'] .creature-sprite,
+.world-theme[data-world='4'] .creature-sprite,
+.world-theme[data-world='5'] .creature-sprite {
   width: clamp(74px, 9vw, 116px);
 }
 

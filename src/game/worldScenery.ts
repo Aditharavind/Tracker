@@ -35,8 +35,14 @@ export const WORLD_SCENERY: Scenery[] = [
     blurb: "Snowbound peaks, icy ridges, and pale blue stone.", moods: ["Cold", "Vast", "Still", "Brave"], prop: "peak", ceiling: "icicle", art: "photo", motes: "snow",
     guardian: { sprite: "/assets/world-4/ice-beast.webp", taunt: "DON'T START — I'LL SCARE U" },
   },
-  { blurb: "Golden canyon walls, a long desert trail, and amber light.", moods: ["Open", "Sunlit", "Long", "Steady"], prop: "butte", ceiling: "none", art: "diorama", motes: "spark" },
-  { blurb: "A smoking volcano, glowing lava, and dark red stone.", moods: ["Restless", "Fierce", "Heavy", "Resolute"], prop: "spire", ceiling: "none", art: "diorama", motes: "ember" },
+  {
+    blurb: "Floating islands, twin moons, and a spire of arcane light.", moods: ["Vast", "Ancient", "Weightless", "Awed"], prop: "crystal", ceiling: "none", art: "photo", motes: "spark",
+    guardian: { sprite: "/assets/world-5/sky-sentinel.webp", taunt: "DON'T START — I'LL BANISH U" },
+  },
+  {
+    blurb: "A smoking volcano, glowing lava, and dark red stone.", moods: ["Restless", "Fierce", "Heavy", "Resolute"], prop: "spire", ceiling: "none", art: "photo", motes: "ember",
+    guardian: { sprite: "/assets/world-6/lava-golem.webp", taunt: "DON'T START — I'LL BURN U" },
+  },
 ];
 
 export function worldScenery(worldIndex: number): Scenery {

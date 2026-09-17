@@ -69,10 +69,10 @@ export const PLANT_HUES = [0, 65, 135, 205, 285];
 // telegraphed, since they have to stay dodgeable while the panda is mid-air.
 export const CREATURE_SPEED = 9; // units / s
 
-export type HazardKind = "plant" | "mine" | "slime" | "beast";
+export type HazardKind = "plant" | "mine" | "slime" | "beast" | "sentinel" | "golem";
 // Kinds that pace their ledge rather than sit still (see PATROL_SPEED /
 // addLedge's patrolMin-patrolMax below) -- one world villain per world.
-const PATROLLING: HazardKind[] = ["slime", "beast"];
+const PATROLLING: HazardKind[] = ["slime", "beast", "sentinel", "golem"];
 export type Hazard = {
   id: number;
   x: number;
@@ -220,6 +220,8 @@ function addLedge(state: RunnerState) {
     const kind: HazardKind =
       state.world === 1 ? (state.rng() < 0.5 ? "slime" : "mine")
       : state.world === 3 ? (state.rng() < 0.5 ? "beast" : "mine")
+      : state.world === 4 ? (state.rng() < 0.5 ? "sentinel" : "mine")
+      : state.world === 5 ? (state.rng() < 0.5 ? "golem" : "mine")
       : state.rng() < 0.5 ? "plant" : "mine";
     state.hazards.push({
       id: state.ids++,

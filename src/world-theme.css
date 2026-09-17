@@ -106,22 +106,31 @@
   --world-light: #d2ecff;
 }
 .world-theme[data-world='4'] {
-  --bg: #241a16;
-  --panel: #34271e;
-  --raised: #493629;
-  --text: #fff3df;
-  --dim: #d8c3a3;
-  --dimmer: #b99d7c;
-  --accent: #efbd70;
-  --good: #d7c584;
-  --on-accent: #2c1c13;
-  --world-background: url('/assets/worlds/valley.svg');
+  --bg: #120b24;
+  --panel: #1d1338;
+  --raised: #2c1f52;
+  --text: #f3eeff;
+  --dim: #c9bce8;
+  --dimmer: #9c8ec4;
+  --accent: #e3b96a;
+  --good: #c9a6e8;
+  --on-accent: #241536;
+  --world-background: url('/assets/world-5/skyrealm-bg.webp');
+  --skyrealm-crust: url('/assets/world-5/skyrealm-crust-left.webp'), url('/assets/world-5/skyrealm-crust-right.webp'), url('/assets/world-5/skyrealm-crust-mid.webp');
+  --grass-image: var(--skyrealm-crust);
+  --rock-image: url('/assets/world-5/skyrealm-rock.webp');
+  /* Story screen's small ledge footer -- see journey-play.css's
+     .world-story-ledge. The rune medallion is a smaller share of this tile
+     than World 4's ice spikes, so it needs less headroom above the deck. */
+  --story-ledge-crust: 26px;
+  --story-ledge-overlap: 6px;
+  --story-ledge-deck: 40px;
   --world-trail: url('/assets/worlds/valley-trail.svg');
-  --world-sky: #3e2d29;
-  --world-soil: #715039;
-  --world-surface: #b98b43;
-  --world-detail: #e6ba68;
-  --world-light: #f9da9c;
+  --world-sky: #1a1140;
+  --world-soil: #241a3a;
+  --world-surface: #4a3a72;
+  --world-detail: #c9974f;
+  --world-light: #e9d9ff;
 }
 .world-theme[data-world='5'] {
   --bg: #23151e;
@@ -133,7 +142,13 @@
   --accent: #f4a47c;
   --good: #e3bf93;
   --on-accent: #2b171b;
-  --world-background: url('/assets/worlds/volcano.svg');
+  --world-background: url('/assets/world-6/volcano-bg.webp');
+  --volcano-crust: url('/assets/world-6/volcano-crust-left.webp'), url('/assets/world-6/volcano-crust-right.webp'), url('/assets/world-6/volcano-crust-mid.webp');
+  --grass-image: var(--volcano-crust);
+  --rock-image: url('/assets/world-6/volcano-rock.webp');
+  --story-ledge-crust: 27px;
+  --story-ledge-overlap: 6px;
+  --story-ledge-deck: 40px;
   --world-trail: url('/assets/worlds/volcano-trail.svg');
   --world-sky: #331e2d;
   --world-soil: #472f34;
@@ -168,27 +183,39 @@
   image-rendering: auto;
 }
 .world-theme[data-world='1'] .forest-clouds,
-.world-theme[data-world='2'] .forest-clouds {
+.world-theme[data-world='2'] .forest-clouds,
+.world-theme[data-world='4'] .forest-clouds,
+.world-theme[data-world='5'] .forest-clouds {
   display: none;
 }
-.world-theme[data-world='5'] .forest-clouds { opacity: .25; }
 .world-theme[data-world='3'] .forest-fireflies {
   background-image: radial-gradient(circle, #e6f5ff 0 1px, transparent 2px);
   background-size: 111px 97px;
   opacity: .6;
 }
-.world-theme[data-world='4'] .forest-fireflies { opacity: .2; }
+/* World 5's arcane motes and World 6's embers reskin the same firefly layer
+   rather than removing it, same as World 4's snow-sparkle above. */
+.world-theme[data-world='4'] .forest-fireflies {
+  background-image: radial-gradient(circle, #d9b8ff 0 1px, transparent 2px);
+  background-size: 97px 83px;
+  opacity: .55;
+}
+.world-theme[data-world='5'] .forest-fireflies {
+  background-image: radial-gradient(circle, #ffb066 0 1px, transparent 2px);
+  background-size: 89px 101px;
+  opacity: .5;
+}
 .world-theme .forest-fireflies { background-size: 113px 139px; }
 
 /* Replace turf with mineral ledges where the geography has no vegetation.
    Worlds that ship real ledge art (world 2) are excluded and style their own. */
-.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']) :is(.platform-stone, .forest-fg) {
+.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']):not([data-world='4']):not([data-world='5']) :is(.platform-stone, .forest-fg) {
   background-color: var(--world-soil);
   background-image: repeating-linear-gradient(170deg, transparent 0 17px, #0002 18px 20px);
   background-size: auto;
 }
-.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']) :is(.platform-moss, .victory-lane),
-.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']) .forest-fg::before {
+.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']):not([data-world='4']):not([data-world='5']) :is(.platform-moss, .victory-lane),
+.world-theme[data-world]:not([data-world='0']):not([data-world='1']):not([data-world='3']):not([data-world='4']):not([data-world='5']) .forest-fg::before {
   background: linear-gradient(var(--world-detail) 0 3px, var(--world-surface) 3px 9px, var(--world-soil) 10px);
   border-radius: 5px 5px 1px 1px;
   clip-path: polygon(0 12%, 9% 0, 92% 0, 100% 17%, 100% 83%, 74% 100%, 44% 85%, 15% 100%, 0 83%);
@@ -251,6 +278,62 @@
   border-radius: 0;
 }
 .world-theme[data-world='3'] .forest-fg {
+  background-color: transparent;
+  background-image: var(--rock-image);
+  background-position: left top;
+  background-repeat: repeat;
+  background-size: auto 30px;
+}
+
+/* World 5's ledges are art: a gold-trimmed rune crust over sampled deck
+   stone (scripts/pack-skyrealm-world.py -- this source has no separate
+   rock-body chunk, so the "rock" tile is a flat panel of the deck's own
+   stone rather than a matching second screenshot). The rune medallion sits
+   at a middling deck-to-tile ratio (0.35) between World 2's (0.29) and
+   World 4's (0.475), so its height/margin-top land between theirs too. */
+.world-theme[data-world='4'] .forest-scene { --grass-image: var(--skyrealm-crust); }
+.world-theme[data-world='4'] .platform-moss,
+.world-theme[data-world='4'] .forest-fg::before {
+  height: calc(28px * var(--step-scale, 1));
+  margin-top: calc(-10px * var(--step-scale, 1));
+}
+.world-theme[data-world='4'] .victory-lane { height: 28px; }
+.world-theme[data-world='4'] .platform-stone {
+  background-color: transparent;
+  background-image: var(--rock-image);
+  background-position: left top;
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  border-radius: 0;
+}
+.world-theme[data-world='4'] .forest-fg {
+  background-color: transparent;
+  background-image: var(--rock-image);
+  background-position: left top;
+  background-repeat: repeat;
+  background-size: auto 30px;
+}
+
+/* World 6's ledges are art too: a lava-cracked obsidian crust (see
+   scripts/pack-volcano-world.py). Its rock bumps take up a smaller share of
+   the tile than either World 2's or World 4's spikes do (ratio 0.19), so it
+   needs the least headroom above the deck of any of these worlds. */
+.world-theme[data-world='5'] .forest-scene { --grass-image: var(--volcano-crust); }
+.world-theme[data-world='5'] .platform-moss,
+.world-theme[data-world='5'] .forest-fg::before {
+  height: calc(20px * var(--step-scale, 1));
+  margin-top: calc(-2px * var(--step-scale, 1));
+}
+.world-theme[data-world='5'] .victory-lane { height: 20px; }
+.world-theme[data-world='5'] .platform-stone {
+  background-color: transparent;
+  background-image: var(--rock-image);
+  background-position: left top;
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  border-radius: 0;
+}
+.world-theme[data-world='5'] .forest-fg {
   background-color: transparent;
   background-image: var(--rock-image);
   background-position: left top;

@@ -265,6 +265,16 @@ export default function PandaRunner({
     mountainsCrustRight?: HTMLImageElement;
     mountainsRock?: HTMLImageElement;
     beast?: HTMLImageElement;
+    skyrealmCrustLeft?: HTMLImageElement;
+    skyrealmCrustMid?: HTMLImageElement;
+    skyrealmCrustRight?: HTMLImageElement;
+    skyrealmRock?: HTMLImageElement;
+    sentinel?: HTMLImageElement;
+    volcanoCrustLeft?: HTMLImageElement;
+    volcanoCrustMid?: HTMLImageElement;
+    volcanoCrustRight?: HTMLImageElement;
+    volcanoRock?: HTMLImageElement;
+    golem?: HTMLImageElement;
   }>({});
   const bgShift = useRef(0);
   const clouds = useRef(makeClouds(String(key), 6));
@@ -334,6 +344,16 @@ export default function PandaRunner({
     imgs.current.mountainsCrustRight = load("/assets/world-4/mountains-crust-right.webp");
     imgs.current.mountainsRock = load("/assets/world-4/mountains-rock.webp");
     imgs.current.beast = load("/assets/world-4/ice-beast.webp");
+    imgs.current.skyrealmCrustLeft = load("/assets/world-5/skyrealm-crust-left.webp");
+    imgs.current.skyrealmCrustMid = load("/assets/world-5/skyrealm-crust-mid.webp");
+    imgs.current.skyrealmCrustRight = load("/assets/world-5/skyrealm-crust-right.webp");
+    imgs.current.skyrealmRock = load("/assets/world-5/skyrealm-rock.webp");
+    imgs.current.sentinel = load("/assets/world-5/sky-sentinel.webp");
+    imgs.current.volcanoCrustLeft = load("/assets/world-6/volcano-crust-left.webp");
+    imgs.current.volcanoCrustMid = load("/assets/world-6/volcano-crust-mid.webp");
+    imgs.current.volcanoCrustRight = load("/assets/world-6/volcano-crust-right.webp");
+    imgs.current.volcanoRock = load("/assets/world-6/volcano-rock.webp");
+    imgs.current.golem = load("/assets/world-6/lava-golem.webp");
   }, [character, worldIndex]);
 
   const commitBest = useCallback(
@@ -382,7 +402,7 @@ export default function PandaRunner({
     // Clouds only appear in open landscapes, never over a world's own
     // painted sky (the caves' ceiling, the mountains' aurora, the volcano's
     // smoke).
-    if (worldIndex !== 1 && worldIndex !== 3 && worldIndex !== 5) drawClouds(ctx, W, H, cloudDrift.current, clouds.current);
+    if (worldIndex !== 1 && worldIndex !== 3 && worldIndex !== 4 && worldIndex !== 5) drawClouds(ctx, W, H, cloudDrift.current, clouds.current);
 
     // --- ledges ---
     for (const p of st.platforms) {
@@ -402,6 +422,16 @@ export default function PandaRunner({
         // ice crust over a tiled stone body.
         drawTiledStrip(ctx, imgs.current.mountainsRock, x, top, w, h, terrain.soil);
         drawLedgeStrip(ctx, imgs.current.mountainsCrustLeft, imgs.current.mountainsCrustMid, imgs.current.mountainsCrustRight, x, top, w, gh, terrain.surface);
+      } else if (worldIndex === 4) {
+        // World 5 ships real ledge art too (pack-skyrealm-world.py): a
+        // gold-trimmed rune crust over a tiled deck-stone body.
+        drawTiledStrip(ctx, imgs.current.skyrealmRock, x, top, w, h, terrain.soil);
+        drawLedgeStrip(ctx, imgs.current.skyrealmCrustLeft, imgs.current.skyrealmCrustMid, imgs.current.skyrealmCrustRight, x, top, w, gh, terrain.surface);
+      } else if (worldIndex === 5) {
+        // World 6 ships real ledge art too (pack-volcano-world.py): a
+        // lava-cracked obsidian crust over a tiled deck-stone body.
+        drawTiledStrip(ctx, imgs.current.volcanoRock, x, top, w, h, terrain.soil);
+        drawLedgeStrip(ctx, imgs.current.volcanoCrustLeft, imgs.current.volcanoCrustMid, imgs.current.volcanoCrustRight, x, top, w, gh, terrain.surface);
       } else {
         ctx.fillStyle = terrain.soil;
         ctx.fillRect(x, top, w, h);
@@ -477,10 +507,14 @@ export default function PandaRunner({
         }
       } else if (h.kind === "slime") {
         drawPatrollingCreature(ctx, imgs.current.slime, hx, baseY, h, charH * 0.85, st.t, "#6a5ee0");
-      } else {
+      } else if (h.kind === "beast") {
         // World 3's villain reads bigger -- a "boss"-scale creature, same as
         // its larger .creature-sprite override for the home-page guardian.
         drawPatrollingCreature(ctx, imgs.current.beast, hx, baseY, h, charH * 1.3, st.t, "#dce8f5");
+      } else if (h.kind === "sentinel") {
+        drawPatrollingCreature(ctx, imgs.current.sentinel, hx, baseY, h, charH * 1.3, st.t, "#b98af0");
+      } else {
+        drawPatrollingCreature(ctx, imgs.current.golem, hx, baseY, h, charH * 1.3, st.t, "#e8834a");
       }
     }
 
