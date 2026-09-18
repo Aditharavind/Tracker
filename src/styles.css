@@ -3025,6 +3025,46 @@ h3 {
   }
 }
 
+/* "+1"/"+N" readout that pops from the coin and rises away on collection
+   (Coin.tsx's `valuePop`, ~800ms) -- independent of the sparkle burst and the
+   fly-to-bank arc so it stays legible even once those finish. */
+.coin-value-pop {
+  position: absolute;
+  left: 50%;
+  bottom: 60%;
+  transform: translateX(-50%);
+  padding: 2px 5px;
+  font-size: 9px;
+  line-height: 1;
+  color: #2a1a0c;
+  background: var(--forest-gold, #f0c04a);
+  border: 1.5px solid #6b3d10;
+  border-radius: 3px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: coin-value-pop-rise 0.8s cubic-bezier(0.18, 0.9, 0.2, 1) forwards;
+}
+
+@keyframes coin-value-pop-rise {
+  0% {
+    transform: translate(-50%, 0) scale(0.4);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -6px) scale(1.15);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(-50%, -14px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -46px) scale(0.9);
+    opacity: 0;
+  }
+}
+
 @keyframes coin-absorb {
   0% {
     transform: translate(-50%, 50%) scale(1);

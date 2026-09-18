@@ -97,6 +97,32 @@ export function playPomodoroChime() {
   }
 }
 
+/** A bright two-note "ding" for a collected coin. Shares companionAudio's
+ * AudioContext -- same reasoning as playPomodoroChime: short, one-shot,
+ * synthesized, no reason to spin up a second context. */
+export function playCoinCollect() {
+  if (muted || typeof AudioContext === "undefined") return;
+  try {
+    companionAudio ??= new AudioContext();
+    void companionAudio.resume();
+    const start = companionAudio.currentTime + 0.01;
+    [0, 0.09].forEach((offset, index) => {
+      const osc = companionAudio!.createOscillator();
+      const gain = companionAudio!.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(index === 0 ? 988 : 1568, start + offset); // B5, G6
+      gain.gain.setValueAtTime(0.001, start + offset);
+      gain.gain.exponentialRampToValueAtTime(0.1, start + offset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + offset + 0.22);
+      osc.connect(gain).connect(companionAudio!.destination);
+      osc.start(start + offset);
+      osc.stop(start + offset + 0.24);
+    });
+  } catch {
+    // Audio is a flourish; an unavailable context must not block collection.
+  }
+}
+
 /** A tiny, warm two-note laugh for a direct tap on the forest companion. */
 export function playCompanionGiggle() {
   if (muted || typeof AudioContext === "undefined") return;

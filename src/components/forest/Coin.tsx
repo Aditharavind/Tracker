@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import coinSrc from "../../../frontend/assets/coin.png";
+import { playCoinCollect } from "../../sound";
 
 // Coin state is a pure readout of task.done -- it never toggles the task.
 // See CLAUDE.md section 8: "coin count is never the source of truth."
@@ -29,6 +30,9 @@ const WORLD_COIN_SIZE = 30;
 const SPARKLE_COUNT = 6;
 const SPARKLE_MS = 650;
 const FLY_MS = 720;
+// The "+1"/"+N" value readout that pops up and rises away on collection --
+// held a touch longer than the sparkle burst so it reads clearly before fading.
+const VALUE_POP_MS = 800;
 
 type CoinFlight = {
   startX: number;
@@ -55,6 +59,7 @@ export default function Coin({
   // firing again on an unrelated re-render where `visible` was already
   // false, same pattern as ZombiePlant's bite reaction.
   const [collecting, setCollecting] = useState(false);
+  const [valuePop, setValuePop] = useState(false);
   const [flight, setFlight] = useState<CoinFlight | null>(null);
   const coinRef = useRef<HTMLDivElement | null>(null);
   const wasVisible = useRef(visible);
@@ -72,11 +77,15 @@ export default function Coin({
         setFlight({ startX, startY, dx: targetX - startX, dy: targetY - startY });
         flightTimer = window.setTimeout(() => setFlight(null), FLY_MS);
       }
+      playCoinCollect();
       setCollecting(true);
+      setValuePop(true);
       const t = window.setTimeout(() => setCollecting(false), SPARKLE_MS);
+      const vt = window.setTimeout(() => setValuePop(false), VALUE_POP_MS);
       wasVisible.current = visible;
       return () => {
         window.clearTimeout(t);
+        window.clearTimeout(vt);
         if (flightTimer !== undefined) window.clearTimeout(flightTimer);
       };
     }
@@ -98,6 +107,11 @@ export default function Coin({
             {Array.from({ length: SPARKLE_COUNT }, (_, i) => (
               <span key={i} className="coin-sparkle" style={{ ["--i" as string]: i, ["--n" as string]: SPARKLE_COUNT }} />
             ))}
+          </span>
+        )}
+        {valuePop && (
+          <span className="coin-value-pop pixel-font" aria-hidden="true">
+            +{multiplier ?? 1}
           </span>
         )}
       </div>
