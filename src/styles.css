@@ -1289,15 +1289,18 @@ h3 {
   left: 50%;
   bottom: 26px;
   transform: translateX(-50%);
-  background: var(--accent);
-  color: var(--on-accent);
+  background: none;
+  color: var(--forest-gold, #f0c04a);
   padding: 11px 20px;
-  border-radius: 100px;
   font-weight: 600;
   font-size: 14px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  text-shadow:
+    0 0 6px var(--forest-gold, #f0c04a),
+    0 0 16px color-mix(in srgb, var(--forest-gold, #f0c04a) 80%, transparent),
+    0 2px 2px rgba(0, 0, 0, 0.6);
   animation: pop 0.3s cubic-bezier(0.2, 1.4, 0.5, 1);
   z-index: 50;
+  pointer-events: none;
 }
 
 @keyframes pop {
@@ -4404,81 +4407,94 @@ h3 {
     inset 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
-/* "Tick/untick all" pinned to the top-right of the task card -- a bulk
-   toggle, not a destructive action, so it gets a friendly green instead of
-   the old red "Reset run" treatment (that button now lives in Profile).
-   Sticky so it stays put while a long task list scrolls. */
-.daycard-reset {
+/* "Tick/untick all" pinned to the top-right of the task card -- styled to
+   match the per-task checkbox (.box in Checklist.tsx) rather than a separate
+   pill button, just with a double-tick icon instead of one. Sticky so it
+   stays put while a long task list scrolls. */
+.daycard-reset.box-style {
   position: sticky;
   top: 16px;
   z-index: 3;
   float: right;
   margin: 16px 2px 2px 10px;
-  padding: 5px 9px;
-  font-size: 8px;
-  letter-spacing: 0.1em;
-  color: #f2ffe6;
-  background: linear-gradient(180deg, #6fb54a, #4a8a32);
-  border: 2px solid #2c5c1e;
   border-radius: 6px;
-  box-shadow: 0 3px 0 #2c5c1e;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--dim);
   cursor: pointer;
+  transition: 0.15s;
 }
 
-.daycard-reset:hover {
-  background: linear-gradient(180deg, #7ec659, #59a03e);
+.daycard-reset.box-style:hover {
+  border-color: var(--dimmer);
+  color: var(--text);
 }
 
-.daycard-reset:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #2c5c1e;
+.daycard-reset.box-style:active {
+  transform: translateY(1px);
+}
+
+.daycard-reset.box-style.done {
+  background: var(--good);
+  border-color: var(--good);
+  color: #0b1a10;
+}
+
+.daycard-reset.box-style:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Like .task.done .box svg -- the double-tick only appears once every task
+   is done; an untouched day shows a plain empty box, same as any other
+   unchecked task checkbox. */
+.daycard-reset.box-style svg {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: 0.15s;
+}
+
+.daycard-reset.box-style.done svg {
+  opacity: 1;
+  transform: scale(1);
 }
 
 /* Icon-only variants of the tick-all / settings controls -- square buttons
-   instead of text labels. */
+   instead of text labels, sized to match the per-task checkbox (.box) so
+   both HUD icons read as the same unit as the checklist below them. */
 .daycard-iconbtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   color: #f2ffe6;
 }
 
-.daycard-edit.daycard-iconbtn {
-  width: 22px;
-  height: 22px;
-  margin-top: 18px;
-  color: #21140a;
-}
-
 /* "Settings" (add/edit/remove tasks) sits just left of "Tick/untick all" --
-   same pinned/sticky row, deliberately smaller and quieter. */
+   a plain gear, no pill/chip chrome, so it just reads as "the settings
+   gear" rather than a second labelled button competing with tick-all. */
 .daycard-edit {
   position: sticky;
   top: 16px;
   z-index: 3;
   float: right;
   margin: 16px 2px 2px 6px;
-  padding: 3px 7px;
-  font-size: 7px;
-  letter-spacing: 0.1em;
-  color: #21140a;
-  background: linear-gradient(180deg, #e7c473, #caa155);
-  border: 2px solid #7c5a1f;
-  border-radius: 6px;
-  box-shadow: 0 3px 0 #7c5a1f;
+  padding: 0;
+  color: var(--dim);
+  background: transparent;
+  border: none;
   cursor: pointer;
+  transition: 0.15s;
 }
 
 .daycard-edit:hover {
-  background: linear-gradient(180deg, #f0d089, #d8ad60);
+  color: var(--text);
 }
 
 .daycard-edit:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #7c5a1f;
+  transform: translateY(1px);
 }
 
 /* The default browser scrollbar is a grey slab against the forest -- it was
@@ -5473,15 +5489,13 @@ h3 {
   inset: 0;
   z-index: 60;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: clamp(10px, 3vh, 22px);
   padding: 24px;
-  background: radial-gradient(
-    ellipse at 50% 20%,
-    #16301d 0%,
-    #0a1710 55%,
-    #050b07 100%
-  );
+  overflow: hidden;
+  background: #050b07;
   animation: character-select-in 0.18s ease-out;
 }
 
@@ -5491,103 +5505,189 @@ h3 {
   }
 }
 
-.character-select-card {
-  position: relative;
-  width: min(520px, 100%);
-  max-height: 100%;
-  overflow-y: auto;
-  padding: 28px 22px 24px;
-  border-radius: 18px;
-  border: 2px solid rgba(210, 177, 103, 0.4);
-  background: linear-gradient(to bottom, #0f1f13 0%, #0a170d 100%);
-  box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.55),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-  text-align: center;
+/* The pixel-art lakeside scene (frontend/assets/choose_character.png) as the
+   gate's backdrop, darkened so the card and cream/gold type stay readable.
+   "left top" instead of "center" keeps the tree in the corner pinned on
+   screen rather than getting cropped away by cover-fit on tall/mobile
+   viewports (see the skill's "responsive gameplay" rules). */
+.character-select-bg {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: left top;
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(5, 11, 7, 0.55) 0%,
+      rgba(5, 11, 7, 0.35) 45%,
+      rgba(5, 11, 7, 0.75) 100%
+    ),
+    var(--character-select-scene);
 }
 
+/* A second, identical copy of the same scene -- clipped to just the top-left
+   tree canopy and gently rotated around the trunk. Because it shares the
+   exact same size/position/background as .character-select-bg, a 0deg
+   rotation lines up perfectly with the layer underneath; only the sway is
+   visible. */
+.character-select-branch {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: left top;
+  background-image: var(--character-select-scene);
+  clip-path: polygon(0 0, 42% 0, 42% 40%, 0 40%);
+  transform-origin: 4% 2%;
+  animation: character-select-branch-sway 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes character-select-branch-sway {
+  0%,
+  100% {
+    transform: rotate(-1.4deg);
+  }
+  50% {
+    transform: rotate(1.4deg);
+  }
+}
+
+/* No boxed card any more -- the heading, platform and name sit directly on
+   the forest backdrop (see .character-select-bg/.character-select-branch),
+   full-bleed like the rest of the game's HUD instead of a floating dialog. */
 .character-select-close {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 32px;
-  height: 32px;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   display: grid;
   place-items: center;
   color: var(--forest-cream, #f3e6c8);
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1.5px solid rgba(210, 177, 103, 0.35);
 }
 
 .character-select-close:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .character-select-title {
-  margin: 0 0 22px;
-  font-size: clamp(12px, 3vw, 16px);
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
   letter-spacing: 0.08em;
   color: var(--forest-gold, #f0c04a);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
 }
 
-.character-select-row {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
+/* The huge top-of-screen heading the redesign calls for -- big pixel type,
+   not the small label the old boxed card used. */
+.character-select-title-huge {
+  font-size: clamp(20px, 6vw, 36px);
+  line-height: 1.35;
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.6),
+    0 0 18px rgba(240, 192, 74, 0.35);
 }
 
-.character-card {
-  width: 132px;
-  padding: 14px 10px 12px;
-  border-radius: 12px;
-  border: 2px solid rgba(210, 177, 103, 0.25);
-  background: rgba(0, 0, 0, 0.22);
+.character-carousel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 3vw, 24px);
+  width: min(560px, 100%);
+}
+
+/* Pixel-art arrow buttons either side of the platform -- the non-touch
+   equivalent of the swipe gesture, always available regardless of input. */
+.carousel-arrow {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--forest-gold, #f0c04a);
+  background: rgba(0, 0, 0, 0.32);
+  border: 2px solid rgba(210, 177, 103, 0.4);
+  transition: 0.15s;
+}
+
+.carousel-arrow:hover {
+  border-color: var(--forest-gold, #f0c04a);
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.carousel-arrow:active {
+  transform: scale(0.94);
+}
+
+.carousel-stage {
+  position: relative;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    transform 0.15s ease;
+  min-width: 0;
+  touch-action: pan-y;
+  user-select: none;
 }
 
-.character-card:hover {
-  border-color: rgba(210, 177, 103, 0.5);
-  transform: translateY(-2px);
-}
-
-.character-card.on {
-  border-color: var(--forest-gold, #f0c04a);
-  background: color-mix(
-    in srgb,
-    var(--forest-gold, #f0c04a) 12%,
-    rgba(0, 0, 0, 0.22)
-  );
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--forest-gold, #f0c04a) 35%, transparent);
-}
-
-.character-card-art {
+.carousel-platform {
   position: relative;
-  display: block;
-  width: 88px;
-  height: 88px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: min(220px, 60vw);
+  height: clamp(150px, 32vh, 200px);
+}
+
+/* A simple mossy stone ledge -- deliberately standalone CSS (not the
+   ForestScene stage-tinted platform variables) since this screen has no
+   active stage/day context to derive them from. */
+.carousel-platform::before {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 0;
+  height: clamp(26px, 5vh, 36px);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, #7ec659 0%, #7ec659 32%, #4b3a22 32%, #362a17 100%);
+  border: 2px solid #2c5c1e;
+  box-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.45),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.25);
+}
+
+.carousel-sprite-art {
+  position: relative;
+  z-index: 1;
+  width: clamp(110px, 22vw, 160px);
+  height: clamp(110px, 22vw, 160px);
+  margin-bottom: clamp(18px, 4vh, 26px);
 }
 
 .character-card-sprite {
-  width: 88px;
-  height: 88px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.5));
 }
 
-.character-card.on .character-card-art {
+.carousel-sprite-art {
   animation: character-card-bob 1.1s ease-in-out infinite;
 }
 
@@ -5601,17 +5701,50 @@ h3 {
   }
 }
 
-.character-card-name {
-  font-size: 9px;
-  letter-spacing: 0.06em;
+/* The "demo indication" that this platform swipes -- a small pixel chip
+   under it with chevrons nudging back and forth to read as a swipe gesture,
+   not just decoration. Purely a hint; the arrow buttons and swipe both work
+   without it. */
+.carousel-swipe-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 4px 10px;
+  border-radius: 100px;
   color: var(--forest-cream, #f3e6c8);
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(210, 177, 103, 0.3);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  animation: carousel-swipe-hint-nudge 1.8s ease-in-out infinite;
 }
 
-.character-card.on .character-card-name {
+@keyframes carousel-swipe-hint-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateX(4px);
+    opacity: 1;
+  }
+}
+
+.carousel-name {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: clamp(14px, 3.4vw, 20px);
+  letter-spacing: 0.06em;
   color: var(--forest-gold, #f0c04a);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
 }
 
 .character-select-start {
+  position: relative;
+  z-index: 1;
   padding: 12px 28px;
   border-radius: 10px;
   font-size: 11px;
@@ -5645,20 +5778,12 @@ h3 {
     animation: none;
   }
 
-  .character-card.on .character-card-sprite {
+  .carousel-sprite-art {
     animation: none;
   }
-}
 
-@media (max-width: 560px) {
-  .character-card {
-    width: 96px;
-    padding: 10px 6px 8px;
-  }
-
-  .character-card-sprite {
-    width: 64px;
-    height: 64px;
+  .carousel-swipe-hint {
+    animation: none;
   }
 }
 
