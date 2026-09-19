@@ -37,7 +37,10 @@ export default defineConfig({
         // when a route actually asks for them. That avoids pulling the 3D
         // viewer, models, story art, or map art during service-worker install
         // on admin/share/invite pages.
-        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2,glb}"],
+        // Precache the shell only. Artwork is cached the first time its screen
+        // uses it, instead of downloading several megabytes after every fresh
+        // install whether the user visits those screens or not.
+        globPatterns: ["**/*.{js,css,html,svg,woff2}"],
         globIgnores: [
           "**/model-viewer-*.js",
           "**/*.glb",
@@ -76,7 +79,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
-            urlPattern: /\/assets\/(?:puzzles\/[^/]+\.png|character_selection\/[^/]+\.(?:gif|jpg))$/,
+            urlPattern: /\/assets\/(?:puzzles\/[^/]+\.png|character_selection\/[^/]+\.(?:gif|jpg|webp))$/,
             handler: "CacheFirst",
             options: {
               cacheName: "world-puzzle-character-assets",
@@ -113,6 +116,14 @@ export default defineConfig({
             options: {
               cacheName: "weekmap-assets",
               expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
+          },
+          {
+            urlPattern: /\.(?:png|webp|gif|jpg|jpeg)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "visual-assets",
+              expiration: { maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
           {

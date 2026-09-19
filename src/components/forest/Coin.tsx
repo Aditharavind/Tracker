@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import coinSrc from "../../../frontend/assets/coin.png";
+import coinSrc from "../../../frontend/assets/coin.webp";
 import { playCoinCollect } from "../../sound";
 
 // Coin state is a pure readout of task.done -- it never toggles the task.

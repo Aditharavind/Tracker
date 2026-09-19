@@ -1,4 +1,4 @@
-import coinImageSrc from "../../frontend/assets/coin.png";
+import coinImageSrc from "../../frontend/assets/coin.webp";
 
 export { coinImageSrc };
 

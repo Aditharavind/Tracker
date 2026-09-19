@@ -16,7 +16,7 @@ export const TEXTURES = {
 export const TEXTURE_PATHS: Record<(typeof TEXTURES)[keyof typeof TEXTURES], string> = {
   [TEXTURES.forestEntranceBg]: "/assets/forest-bg-1.webp",
   [TEXTURES.startSign]: "/assets/start-sign.webp",
-  [TEXTURES.coin]: "/assets/coin.png",
+  [TEXTURES.coin]: "/assets/coin.webp",
 };
 
 /** The flat character sprite -- one static image per character, same as CHARACTER_SPRITE everywhere else in the app. */

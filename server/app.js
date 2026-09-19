@@ -13,6 +13,7 @@ import { bumpGroupVersion, cacheGet, cacheSet, groupVersion } from "./cache.js";
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 const PIN = /^\d{4,6}$/;
+const ADMIN_CREDENTIALS_CONFIGURED = Boolean(process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD);
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "AdithxTanu";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "TanuxAdith";
 
@@ -49,6 +50,12 @@ const safeTextEqual = (a, b) => {
 };
 
 function requireAdmin(req, res) {
+  // Local memory-mode development keeps the convenient defaults used by the
+  // test suite. A production deploy must explicitly supply both secrets;
+  // silently shipping source-code credentials would expose every admin row.
+  if (process.env.NODE_ENV === "production" && !ADMIN_CREDENTIALS_CONFIGURED) {
+    throw new HttpError(503, "admin credentials are not configured");
+  }
   const header = req.get("authorization") ?? "";
   if (!header.startsWith("Basic ")) {
     res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
@@ -101,7 +108,8 @@ function adminPageParams(query) {
     : 25;
   const offset = Number.isFinite(rawOffset) ? Math.max(Math.trunc(rawOffset), 0) : 0;
   const search = String(query.q ?? "").trim().toLowerCase().slice(0, 80);
-  return { limit, offset, search };
+  const refresh = query.refresh === "1";
+  return { limit, offset, search, refresh };
 }
 
 function setPageHeaders(res, { limit, offset }, total) {
@@ -323,7 +331,7 @@ async function dayFor(store, user, day) {
   return dayDetail({ tasks, doneIds: new Set(done.map((c) => c.task_id)), note: note?.text }, day);
 }
 
-async function adminSummary(store, page = { limit: 25, offset: 0, search: "" }) {
+async function buildAdminSnapshot(store) {
   const users = await store.listUsers();
   const ids = users.map((u) => Number(u.id));
   const [tasks, completions] = ids.length
@@ -443,22 +451,6 @@ async function adminSummary(store, page = { limit: 25, offset: 0, search: "" }) 
     const recent = String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
     return recent || Number(b.id) - Number(a.id);
   });
-  const filteredRows = page.search
-    ? sortedRows.filter((u) =>
-        [
-          u.name,
-          String(u.id),
-          String(u.group_id ?? ""),
-          u.timezone ?? "",
-          u.location_label,
-          u.last_country ?? "",
-          u.last_region ?? "",
-          u.last_city ?? "",
-        ].some((v) => v.toLowerCase().includes(page.search))
-      )
-    : sortedRows;
-  const pageRows = filteredRows.slice(page.offset, page.offset + page.limit);
-
   return {
     generated_at: now.toISOString(),
     totals: {
@@ -479,14 +471,66 @@ async function adminSummary(store, page = { limit: 25, offset: 0, search: "" }) 
       timezone_regions: chart(countBy((u) => u.timezone_region)),
       signup_days: [...signupsByDay.entries()].map(([label, count]) => ({ label, count })),
     },
+    rows: sortedRows,
+  };
+}
+
+// Search and pagination used to re-read every user's complete history on every
+// keystroke. Keep the expensive, sanitized snapshot briefly in this process;
+// paging and filtering then happen in memory. Refresh bypasses the cache.
+const ADMIN_SNAPSHOT_TTL = 15_000;
+let adminSnapshotCache = null;
+let adminSnapshotBuild = null;
+
+function pageAdminSnapshot(snapshot, page) {
+  const filteredRows = page.search
+    ? snapshot.rows.filter((user) => [
+        user.name,
+        String(user.id),
+        String(user.group_id ?? ""),
+        user.timezone ?? "",
+        user.location_label,
+        user.last_country ?? "",
+        user.last_region ?? "",
+        user.last_city ?? "",
+      ].some(value => String(value).toLowerCase().includes(page.search)))
+    : snapshot.rows;
+  const lastPageOffset = Math.max(0, Math.floor(Math.max(0, filteredRows.length - 1) / page.limit) * page.limit);
+  const offset = Math.min(page.offset, lastPageOffset);
+  return {
+    generated_at: snapshot.generated_at,
+    totals: snapshot.totals,
+    charts: snapshot.charts,
     pagination: {
       total: filteredRows.length,
       limit: page.limit,
-      offset: page.offset,
-      has_more: page.offset + page.limit < filteredRows.length,
+      offset,
+      has_more: offset + page.limit < filteredRows.length,
     },
-    users: pageRows,
+    users: filteredRows.slice(offset, offset + page.limit),
   };
+}
+
+async function adminSummary(store, page = { limit: 25, offset: 0, search: "", refresh: false }) {
+  const now = Date.now();
+  let snapshot = !page.refresh && adminSnapshotCache?.store === store && adminSnapshotCache.expires > now
+    ? adminSnapshotCache.snapshot
+    : null;
+  if (!snapshot) {
+    if (!page.refresh && adminSnapshotBuild?.store === store) {
+      snapshot = await adminSnapshotBuild.promise;
+    } else {
+      const promise = buildAdminSnapshot(store);
+      adminSnapshotBuild = { store, promise };
+      try {
+        snapshot = await promise;
+        adminSnapshotCache = { store, snapshot, expires: Date.now() + ADMIN_SNAPSHOT_TTL };
+      } finally {
+        if (adminSnapshotBuild?.promise === promise) adminSnapshotBuild = null;
+      }
+    }
+  }
+  return pageAdminSnapshot(snapshot, page);
 }
 
 /** The caller identifies themself with ?as=<their user id>. */
@@ -604,6 +648,7 @@ export function createRouter() {
     wrap(async (req, res) => {
       requireAdmin(req, res);
       const store = getStore();
+      res.set("Cache-Control", "private, no-store");
       res.json(await adminSummary(store, adminPageParams(req.query)));
     })
   );

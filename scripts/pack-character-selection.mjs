@@ -17,6 +17,15 @@ execFileSync("ffmpeg", [
   "-an", "-loop", "0", assetPath("character_selection.gif"),
 ], { stdio: "inherit" });
 
+// Modern browsers use the much smaller animated WebP; the GIF remains as a
+// compatibility fallback and as the requested source-format deliverable.
+execFileSync("ffmpeg", [
+  ...common,
+  "-vf", "fps=10,scale=640:-1:flags=lanczos",
+  "-an", "-loop", "0", "-c:v", "libwebp_anim", "-quality", "62",
+  "-compression_level", "6", assetPath("character_selection.webp"),
+], { stdio: "inherit" });
+
 execFileSync("ffmpeg", [
   ...common,
   "-frames:v", "1", "-update", "1", assetPath("character_selection.jpg"),

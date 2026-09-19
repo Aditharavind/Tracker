@@ -4,7 +4,6 @@ import { registerSW } from "virtual:pwa-register";
 import "@fontsource/press-start-2p";
 import "./styles.css";
 import "./world-theme.css";
-import { loadModelViewer } from "./modelViewer";
 
 const App = React.lazy(() => import("./App"));
 const SharedView = React.lazy(() => import("./components/SharedView"));
@@ -15,7 +14,6 @@ const params = new URLSearchParams(location.search);
 const shareToken = params.get("share");
 const joinToken = params.get("join");
 const isAdminRoute = location.pathname === "/adminpanda";
-const isPrimaryAppRoute = !isAdminRoute && !shareToken && !joinToken;
 
 const w = window as Window & {
   requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void;
@@ -39,43 +37,9 @@ if (document.readyState === "complete") {
   window.addEventListener("load", registerAppServiceWorker, { once: true });
 }
 
-// The forest character is a <model-viewer>, so its ~1MB runtime gets pulled in
-// on the first screen whether or not anything else needs 3D. It is deliberately
-// started at IDLE rather than during boot.
-//
-// It does not gate anything visible: every character renders a flat sprite as
-// its base layer and the viewer only paints over it once ready (see Panda.tsx),
-// so a late start costs nothing but a slightly later swap to 3D. Executing that
-// megabyte while the phone is still assembling the first screen, on the other
-// hand, costs a great deal. Measured on a throttled mid-range phone (4x CPU,
-// ~1.6Mbps), eager vs idle:
-//
-//     total blocking time   205ms -> 17ms     (how long taps go unanswered)
-//     transferred in 7s     604KB -> 409KB
-//
-// The idle start now also does the FETCHING. index.html used to carry a
-// <link rel="modulepreload"> for this chunk, on the theory that pulling the
-// bytes early and only deferring execution was free. On a phone it is not: the
-// preload is high priority, so a megabyte competed with the app bundle for a
-// narrow pipe and index.js took 1065ms to arrive instead of ~370ms. The
-// measurement that cleared the preload had been reading the loading skeleton,
-// which paints before any of this matters, so the cost never showed up.
-//
-// Do NOT reinstate it as rel="prefetch": prefetch and the module import use
-// different caches, so the whole megabyte downloads twice (measured: 897KB,
-// blocking back up to 167ms). The service worker runtime-caches this chunk on
-// first real use, so later visits still get the device-side cache win.
-//
-// loadModelViewer() memoises its promise, so this is the same import Panda
-// awaits, not a second fetch. The catch only stops a failed fetch becoming an
-// unhandled rejection -- anything rendering a <model-viewer> already falls back
-// to the flat sprite when it never resolves.
-const startViewer = () => void loadModelViewer().catch(() => {});
-// The timeout is a ceiling, not a delay: if the phone never goes idle it starts
-// anyway, so a busy device still ends up with the 3D character.
-if (isPrimaryAppRoute) {
-  runWhenIdle(startViewer, 3000);
-}
+// The 1MB model-viewer runtime now loads only when a component actually opens
+// a 3D preview. Every such component has a sprite fallback, so eagerly fetching
+// it here spent bandwidth and main-thread time without improving first paint.
 
 function Root() {
   const view =

@@ -4,7 +4,7 @@ import { CHARACTERS, type CharacterId } from "../game/characters";
 import { CharBlink } from "./forest/Panda";
 import { usePrefersReducedMotion } from "./forest/ForestScene";
 
-const ANIMATED_SCENE = "/assets/character_selection/character_selection.gif";
+const ANIMATED_SCENE = "image-set(url('/assets/character_selection/character_selection.webp') type('image/webp'), url('/assets/character_selection/character_selection.gif') type('image/gif'))";
 const STILL_SCENE = "/assets/character_selection/character_selection.jpg";
 
 // A swipe has to travel at least this far (in px) before it counts as a
@@ -93,7 +93,7 @@ export default function CharacterSelect({
       <div
         className="character-select-bg"
         style={{
-          ["--character-select-scene" as string]: `url(${reducedMotion ? STILL_SCENE : ANIMATED_SCENE})`,
+          ["--character-select-scene" as string]: reducedMotion ? `url(${STILL_SCENE})` : ANIMATED_SCENE,
         }}
         aria-hidden="true"
       />

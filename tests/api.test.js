@@ -680,6 +680,8 @@ test("admin summary is protected and returns sanitized user stats", async () => 
     headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
   });
   assert.equal(ok.status, 200);
+  assert.match(ok.headers.get("cache-control") ?? "", /private/);
+  assert.match(ok.headers.get("cache-control") ?? "", /no-store/);
   const body = await ok.json();
 
   assert.equal(body.totals.total_users, (await call("GET", "/stats")).body.users);
@@ -717,4 +719,17 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   const pageTwo = await secondPage.json();
   assert.equal(pageTwo.pagination.offset, 2);
   assert.ok(pageTwo.users.length <= 2);
+
+  const later = await call("POST", "/users", { name: "Later Admin User", pin: "7788" });
+  assert.equal(later.status, 201);
+  const cached = await fetch(`${base}/admin/summary`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  assert.equal((await cached.json()).totals.total_users, body.totals.total_users, "ordinary paging reuses the short admin snapshot");
+  const refreshed = await fetch(`${base}/admin/summary?refresh=1&offset=9999`, {
+    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+  });
+  const refreshedBody = await refreshed.json();
+  assert.equal(refreshedBody.totals.total_users, body.totals.total_users + 1, "Refresh bypasses the snapshot cache");
+  assert.ok(refreshedBody.pagination.offset < refreshedBody.pagination.total, "an out-of-range page is clamped to the last real page");
 });
