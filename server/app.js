@@ -54,16 +54,32 @@ const safeTextEqual = (a, b) => {
   return left.length === right.length && timingSafeEqual(left, right);
 };
 
-function requireAdmin(req, res) {
+// The admin pair is typed by hand into a form on a phone, where autocapitalise
+// and a trailing space from a paste are routine. Both sides are folded to
+// lowercase and trimmed before the constant-time compare, so "Adithxtanu",
+// "adithxtanu" and "adithxtanu " all match. This deliberately makes the
+// credential case-insensitive; it is a shared operator login, not a per-user
+// secret, and the alternative was being locked out of the panel.
+const safeCredentialEqual = (a, b) =>
+  safeTextEqual(String(a).trim().toLowerCase(), String(b).trim().toLowerCase());
+
+// `_res` is unused now that no 401 sets a response header, but the parameter
+// stays so the call sites keep reading as ordinary middleware-style guards.
+function requireAdmin(req, _res) {
   // The built-in pair above is accepted in production too, so the panel stays
   // reachable when the deploy's env vars are missing or blank. That is a
   // deliberate trade: the pair lives in this repo, so anyone who can read the
   // source can sign in to a deploy that has not set ADMIN_USERNAME /
   // ADMIN_PASSWORD. Setting both env vars overrides it and closes that door --
   // do it on any deploy holding real user rows.
+  // No WWW-Authenticate header on any of the 401s below. The credentials still
+  // ride in a normal `Authorization: Basic` header, but that response header is
+  // what makes the browser hijack a failed fetch and throw up its own native
+  // "Sign in to ontrack.ruokpanda.com" dialog over the page. AdminPanel.tsx
+  // renders its own sign-in form and handles 401 itself, so the header would
+  // only ever produce a second, uglier login box the app cannot control.
   const header = req.get("authorization") ?? "";
   if (!header.startsWith("Basic ")) {
-    res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
     throw new HttpError(401, "admin login required");
   }
 
@@ -71,14 +87,15 @@ function requireAdmin(req, res) {
   try {
     decoded = Buffer.from(header.slice("Basic ".length), "base64").toString("utf8");
   } catch {
-    res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
     throw new HttpError(401, "admin login required");
   }
   const split = decoded.indexOf(":");
   const username = split >= 0 ? decoded.slice(0, split) : decoded;
   const password = split >= 0 ? decoded.slice(split + 1) : "";
-  if (!safeTextEqual(username, ADMIN_USERNAME) || !safeTextEqual(password, ADMIN_PASSWORD)) {
-    res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
+  if (
+    !safeCredentialEqual(username, ADMIN_USERNAME) ||
+    !safeCredentialEqual(password, ADMIN_PASSWORD)
+  ) {
     throw new HttpError(401, "admin login required");
   }
 }
