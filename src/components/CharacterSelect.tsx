@@ -3,7 +3,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CHARACTERS, type CharacterId } from "../game/characters";
 import { CharBlink } from "./forest/Panda";
 import { usePrefersReducedMotion } from "./forest/ForestScene";
-import sceneSrc from "../../frontend/assets/choose_character.png";
+
+const ANIMATED_SCENE = "/assets/character_selection/character_selection.gif";
+const STILL_SCENE = "/assets/character_selection/character_selection.jpg";
 
 // A swipe has to travel at least this far (in px) before it counts as a
 // deliberate "next/previous character" gesture instead of an accidental
@@ -90,22 +92,11 @@ export default function CharacterSelect({
     >
       <div
         className="character-select-bg"
-        style={{ ["--character-select-scene" as string]: `url(${sceneSrc})` }}
+        style={{
+          ["--character-select-scene" as string]: `url(${reducedMotion ? STILL_SCENE : ANIMATED_SCENE})`,
+        }}
         aria-hidden="true"
       />
-      {/* Same scene image again, clipped to just the top-left tree canopy and
-          rotated around the trunk -- an identical, unclipped copy sits behind
-          it, so at rest (0deg) the two are pixel-for-pixel aligned and only
-          the sway motion is visible. background-position "left top" on both
-          layers keeps the tree pinned to a screen corner instead of getting
-          cropped out by cover-fit on tall mobile viewports. */}
-      {!reducedMotion && (
-        <div
-          className="character-select-branch"
-          style={{ ["--character-select-scene" as string]: `url(${sceneSrc})` }}
-          aria-hidden="true"
-        />
-      )}
 
       {mode === "switch" && (
         <button type="button" className="character-select-close" onClick={onClose} aria-label="Close">

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Check, LockKeyhole, LocateFixed, Settings, Skull, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, LockKeyhole, LocateFixed, Puzzle, Settings, Skull, X } from "lucide-react";
 import { CHARACTERS, type CharacterId } from "../../game/characters";
 import { firstLevelForWorld, LEVELS_PER_WORLD, makeLevel, POWERS, WORLDS, type Power } from "../../game/adventure/content";
 import { canPlay, resumeLevelForWorld, type Save } from "../../game/adventure/save";
@@ -12,10 +12,10 @@ type Props = {
   unlockedWorlds?: number;
   onWorldChange: (world: number) => void; onBegin: (id: number) => void;
   onEnterNextWorld?: () => void;
-  onClose: () => void; onSettings: () => void;
+  onClose: () => void; onSettings: () => void; onOpenPuzzle: () => void;
 };
 
-export default function AdventureTrail({ character, save, worldIndex, dayNumber, unlockedWorlds = WORLDS.length, onWorldChange, onBegin, onEnterNextWorld, onClose, onSettings }: Props) {
+export default function AdventureTrail({ character, save, worldIndex, dayNumber, unlockedWorlds = WORLDS.length, onWorldChange, onBegin, onEnterNextWorld, onClose, onSettings, onOpenPuzzle }: Props) {
   const [journal, setJournal] = useState(false);
   const scroll = useRef<HTMLDivElement>(null);
   const scene = useRef<HTMLDivElement>(null);
@@ -55,6 +55,7 @@ export default function AdventureTrail({ character, save, worldIndex, dayNumber,
         <button className="story-text-button" onClick={onClose}><ArrowLeft size={16} aria-hidden="true" />Trails</button>
         <span className="story-eyebrow">WORLD {worldIndex + 1}</span>
         <div className="adventure-trail-tools">
+          <button className="story-text-button adventure-trail-puzzle" onClick={onOpenPuzzle} aria-label={`World ${worldIndex + 1} puzzle: ${complete} of ${LEVELS_PER_WORLD} pieces`} title="View your puzzle"><Puzzle size={18} aria-hidden="true" /><span>{complete}/{LEVELS_PER_WORLD}</span></button>
           <button ref={journalToggle} className="story-text-button adventure-icon-button" onClick={() => journal ? closeJournal() : setJournal(true)} aria-label="Powers & memories" aria-expanded={journal} aria-controls="adventure-trail-journal" title="Powers & memories"><BookOpen size={18} /></button>
           <button className="story-text-button adventure-icon-button" onClick={onSettings} aria-label="Settings" title="Settings"><Settings size={18} /></button>
         </div>
@@ -102,7 +103,7 @@ export default function AdventureTrail({ character, save, worldIndex, dayNumber,
     <footer className="adventure-trail-footer">
       <div><span className="story-eyebrow">{worldComplete ? "WORLD COMPLETE" : `MISSION ${current.stage + 1} / ${LEVELS_PER_WORLD}${current.boss ? " / BOSS" : ""}`}</span><p>{worldComplete ? nextWorld ? nextWorldReady ? `Your next world: ${nextWorld.name}` : "This exit is not available yet." : "All worlds complete. You can replay any mission." : !current.playable ? "Finish the earlier missions to reach this trail." : current.title}</p></div>
       {worldComplete ? nextWorld ? <button className="story-button adventure-trail-enter" disabled={!nextWorldReady || !onEnterNextWorld} data-story-primary onClick={onEnterNextWorld}>Enter next world<ArrowRight size={16} aria-hidden="true" /></button> : <button className="story-button adventure-trail-enter" data-story-primary onClick={onClose}>Back to story<ArrowLeft size={16} aria-hidden="true" /></button> : <button className="story-button adventure-trail-enter" disabled={!current.playable} data-story-primary onClick={() => onBegin(currentId)}>{current.attempt ? "Resume" : current.done ? "Replay" : "Begin"}<ArrowRight size={16} aria-hidden="true" /></button>}
-      {!worldComplete && <small className="adventure-trail-footer-hint">{nextWorld ? "Finish all 15 missions to reveal the next-world portal." : "Finish all 15 missions to complete the final world."}</small>}
+      <small className="adventure-trail-footer-hint">{worldComplete ? "All 15 puzzle pieces joined! Open your puzzle to see the complete picture." : "Each new mission earns a puzzle piece. Finish all 15 to complete the picture."}</small>
     </footer>
 
     {journal && <div className="adventure-trail-journal" id="adventure-trail-journal" role="region" aria-label="Powers and memories" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeJournal(); } }}>

@@ -13,10 +13,10 @@ function through(id: number): Save {
 const frames = (s: State, id: number, n: number, input = idleInput()) => { for (let i = 0; i < n; i++) step(s, makeLevel(id), input); };
 
 describe("campaign progression and saves", () => {
-  it("resumes the latest attempt in the chosen world before older reflection screens", () => {
+  it("resumes the latest attempt in the chosen world before older reward screens", () => {
     const save = through(14);
     const latest = recordAttempt(save, 14, snapshot(createState(makeLevel(14), save)));
-    expect(latest.attempts[0].scene).toBe("reflection");
+    expect(latest.attempts[0].scene).toBe("puzzle");
     expect(resumeLevelForWorld(latest, 0)).toBe(14);
     expect(resumeLevelForWorld(latest, 1)).toBe(15);
   });
@@ -52,6 +52,38 @@ describe("campaign progression and saves", () => {
     save = recordAttempt(save, 0, snapshot(state)); save = completeLevel(save, 0, { ...snapshot(state), elapsed: 80 });
     save = completeLevel(save, 0, { ...snapshot(state), elapsed: 100 });
     expect(save.collectibles[0]).toHaveLength(1); expect(save.completed).toEqual([0]); expect(save.bestTimes[0]).toBe(80);
+  });
+  it("saves a first-clear puzzle reward across reloads and skips the award on replay", () => {
+    const level = makeLevel(0);
+    const attempt = snapshot(createState(level, emptySave()));
+    const firstClear = completeLevel(emptySave(), 0, attempt);
+    const loaded = parseSave(JSON.stringify(firstClear));
+    expect(loaded.completed).toEqual([0]);
+    expect(loaded.attempts[0].scene).toBe("puzzle");
+    expect(loaded.lastLevel).toBe(0);
+    const continued = parseSave(JSON.stringify(recordAttempt(loaded, 0, { ...loaded.attempts[0], scene: "reflection" })));
+    expect(continued.attempts[0].scene).toBe("reflection");
+    expect(completeLevel(continued, 0, attempt).attempts[0].scene).toBe("reflection");
+  });
+  it("awards the fifteenth piece before each world's boss reward and the final ending", () => {
+    for (let world = 0; world < WORLDS.length; world++) {
+      const id = finalLevelForWorld(world);
+      const save = through(id);
+      const attempt = snapshot(createState(makeLevel(id), save));
+      const completed = parseSave(JSON.stringify(completeLevel(save, id, attempt)));
+      expect(completed.attempts[id].scene).toBe("puzzle");
+      expect(completed.bosses).toContain(world);
+      expect(completeLevel(completed, id, attempt).attempts[id].scene).toBe(id === FINAL_LEVEL_ID ? "ending" : "reflection");
+    }
+  });
+  it("rejects an unearned puzzle reward while preserving legacy completion scenes", () => {
+    const unearned = recordAttempt(emptySave(), 0, { ...snapshot(createState(makeLevel(0), emptySave())), scene: "puzzle" });
+    expect(parseSave(JSON.stringify(unearned)).attempts[0]).toBeUndefined();
+    const legacy = through(1);
+    legacy.attempts[0].scene = "reflection";
+    const loaded = parseSave(JSON.stringify(legacy));
+    expect(loaded.completed).toEqual([0]);
+    expect(loaded.attempts[0].scene).toBe("reflection");
   });
   it("preserves cutscene pages, settings and remapped controls", () => {
     let save = emptySave(); save.settings.music = .15; save.settings.buttonSize = 70; save.settings.keys.attack = "k";

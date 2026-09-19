@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 export type Attempt = {
   checkpoint: number; coins: number[]; lore: number[]; defeated: number[]; opened: number[];
-  elapsed: number; scene: "intro" | "play" | "reflection" | "reward" | "ending"; page: number;
+  elapsed: number; scene: "intro" | "play" | "puzzle" | "reflection" | "reward" | "ending"; page: number;
 };
 export type Save = {
   version: 3; completed: number[]; bosses: number[]; powers: Power[]; upgrades: string[];
@@ -69,8 +69,8 @@ export function parseSave(raw: string | null): Save {
       const best = object(v.bestTimes)[k];
       if (typeof best === "number" && best > 0 && Number.isFinite(best)) next.bestTimes[k] = best;
       const a = object(object(v.attempts)[k]);
-      if (!["intro", "play", "reflection", "reward", "ending"].includes(String(a.scene))) continue;
-      if (["reflection", "reward", "ending"].includes(String(a.scene)) && !next.completed.includes(id)) continue;
+      if (!["intro", "play", "puzzle", "reflection", "reward", "ending"].includes(String(a.scene))) continue;
+      if (["puzzle", "reflection", "reward", "ending"].includes(String(a.scene)) && !next.completed.includes(id)) continue;
       if (a.scene === "ending" && id !== FINAL_LEVEL_ID) continue;
       if (a.scene === "reward" && (!level.boss || !WORLDS[level.world].reward || id >= MAIN_LEVELS)) continue;
       next.attempts[k] = {
@@ -106,7 +106,10 @@ export function completeLevel(save: Save, id: number, attempt: Attempt): Save {
   const level = makeLevel(id);
   const completed = [...new Set([...save.completed, id])].sort((a, b) => a - b);
   const bosses = [...new Set([...save.bosses, ...(level.boss && id < MAIN_LEVELS ? [level.world] : [])])];
-  const next = recordAttempt(save, id, { ...attempt, scene: id === FINAL_LEVEL_ID ? "ending" : "reflection", page: 0 });
+  // The first clear awards its puzzle piece before the story continues. Keep
+  // that moment in the attempt so closing/reloading cannot lose the reward.
+  const scene = !save.completed.includes(id) ? "puzzle" : id === FINAL_LEVEL_ID ? "ending" : "reflection";
+  const next = recordAttempt(save, id, { ...attempt, scene, page: 0 });
   const best = save.bestTimes[id];
   return { ...next, completed, bosses, powers: earnedPowers(bosses), bestTimes: { ...save.bestTimes, [id]: best ? Math.min(best, attempt.elapsed) : Math.max(.01, attempt.elapsed) } };
 }

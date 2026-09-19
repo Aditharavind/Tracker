@@ -15,12 +15,13 @@ import AdventureTouch from "./AdventureTouch";
 import AdventureCinema from "./AdventureCinema";
 import AdventureTrail from "./AdventureTrail";
 import AdventureGuide from "./AdventureGuide";
+import AdventurePuzzle from "./AdventurePuzzle";
 import WorldTransition from "./WorldTransition";
 import { CoinIcon } from "./Coin";
 import "../../adventure.css";
 
-type Phase = "map" | "intro" | "loading" | "play" | "paused" | "dead" | "reflection" | "reward" | "ending" | "settings";
-const asScene = (phase: Phase): Attempt["scene"] => ["intro", "reflection", "reward", "ending"].includes(phase) ? phase as Attempt["scene"] : "play";
+type Phase = "map" | "collection" | "puzzle" | "intro" | "loading" | "play" | "paused" | "dead" | "reflection" | "reward" | "ending" | "settings";
+const asScene = (phase: Phase): Attempt["scene"] => ["intro", "puzzle", "reflection", "reward", "ending"].includes(phase) ? phase as Attempt["scene"] : "play";
 const ENDING = ["The old shadow loosens its grip. It fades into the trees. For a moment, there is only silence.", "Sunlight returns to the original trail. Same forest. Same panda. A different way of seeing.", "I thought I had to become someone else. You helped me find my way back to myself.", "The journey doesn't end here."];
 
 export default function Adventure({ character, userId, dayNumber, initialWorld, unlockedWorlds = WORLDS.length, onClose }: { character: CharacterId; userId: number | null; dayNumber: number; initialWorld?: number; unlockedWorlds?: number; onClose: () => void }) {
@@ -70,7 +71,7 @@ export default function Adventure({ character, userId, dayNumber, initialWorld, 
   const storeAttempt = useCallback((scene?: Attempt["scene"], nextPage?: number) => {
     if (!active.current) return;
     if (state.current.status === "won" && (scene ?? asScene(phaseRef.current)) === "play") return;
-    if (!scene && ["map", "settings"].includes(phaseRef.current)) return;
+    if (!scene && ["map", "collection", "settings"].includes(phaseRef.current)) return;
     return persist(recordAttempt(saved.current, idRef.current, snapshot(state.current, scene ?? asScene(phaseRef.current), nextPage ?? pageRef.current)));
   }, [persist]);
   const refreshHud = useCallback(() => {
@@ -80,7 +81,16 @@ export default function Adventure({ character, userId, dayNumber, initialWorld, 
   const hideGuide = () => { guideRef.current = null; setGuideStep(null); canvas.current?.focus({ preventScroll: true }); };
   const showGuide = () => { guideOrigin.current = state.current.x; guideRef.current = 0; setGuideStep(0); canvas.current?.focus({ preventScroll: true }); };
   const selectPower = useCallback((power: Power) => { selectedRef.current = power; setSelected(power); }, []);
-  const pause = useCallback(() => { if (phaseRef.current === "play") { storeAttempt("play"); moveTo("paused"); } }, [moveTo, storeAttempt]);
+  const pause = useCallback(() => {
+    if (phaseRef.current !== "play") return;
+    // A blur during the boss's defeat animation must still show the earned
+    // piece, rather than treating the already-saved win as another replay.
+    if (state.current.status === "won") {
+      moveTo(saved.current.attempts[idRef.current]?.scene ?? "reflection");
+      return;
+    }
+    storeAttempt("play"); moveTo("paused");
+  }, [moveTo, storeAttempt]);
   const leaveLevel = () => { storeAttempt(); moveTo("map"); };
   const begin = (id: number, fresh = false) => {
     if (!canPlay(saved.current, id, dayNumber, unlockedWorlds)) return;
@@ -123,7 +133,13 @@ export default function Adventure({ character, userId, dayNumber, initialWorld, 
     if (toWorld === nextWorldForTrail(saved.current, worldIndex, unlockedWorlds)) enterNextWorld();
     else setWorldIndex(toWorld);
   };
-  const openSettings = () => { storeAttempt(); previousPhase.current = phaseRef.current === "play" ? "paused" : phaseRef.current; moveTo("settings"); };
+  const openSettings = () => {
+    storeAttempt();
+    previousPhase.current = phaseRef.current === "play"
+      ? state.current.status === "won" ? saved.current.attempts[idRef.current]?.scene ?? "reflection" : "paused"
+      : phaseRef.current;
+    moveTo("settings");
+  };
 
   useEffect(() => {
     if (phase !== "loading" && phase !== "intro") return;
@@ -246,7 +262,7 @@ export default function Adventure({ character, userId, dayNumber, initialWorld, 
         if (victoryAt === null) { victoryAt = now; persist(completeLevel(saved.current, level.id, snapshot(s))); refreshHud(); controls.current.clear(); }
         if (s.boss) s.boss.animationTime += Math.min(.1, rawDt);
         if (!s.boss || saved.current.settings.reducedMotion || systemMotion.matches || now - victoryAt >= 850) {
-          ended = true; moveTo(level.id === FINAL_LEVEL_ID ? "ending" : "reflection");
+          ended = true; moveTo(saved.current.attempts[level.id]?.scene ?? "reflection");
         }
       }
       else {
@@ -272,11 +288,17 @@ export default function Adventure({ character, userId, dayNumber, initialWorld, 
   const wisdom = WISDOM[level.world === 5 ? 3 : level.world]; const reward = world.reward;
   const available = save.powers.filter(p => ["focus", "shield", "strength", "hope"].includes(p));
   const heroName = CHARACTERS.find(c => c.id === character)!.name;
+  const viewingMap = phase === "map" || phase === "collection" || (phase === "settings" && previousPhase.current === "map");
+  const continuePuzzle = () => {
+    const next = levelId === FINAL_LEVEL_ID ? "ending" : "reflection";
+    storeAttempt(next, 0); moveTo(next);
+  };
   const continueReflection = () => { if (level.boss && reward && levelId !== FINAL_LEVEL_ID) { storeAttempt("reward", 0); moveTo("reward"); } else finishMoment(); };
 
-  return <div ref={root} className="story-mode panda-adventure world-theme" data-world={phase === "map" || (phase === "settings" && previousPhase.current === "map") ? worldIndex : level.world} role="dialog" aria-modal="true" aria-label="Panda Story Mode: Find the path again" style={{ "--adventure-ui": settings.uiScale, "--world-accent": (phase === "map" ? mapWorld : world).color } as React.CSSProperties}>
+  return <div ref={root} className="story-mode panda-adventure world-theme" data-world={viewingMap ? worldIndex : level.world} role="dialog" aria-modal="true" aria-label="Panda Story Mode: Find the path again" style={{ "--adventure-ui": settings.uiScale, "--world-accent": (viewingMap ? mapWorld : world).color } as React.CSSProperties}>
     {travel && <WorldTransition fromWorld={travel.fromWorld} toWorld={travel.toWorld} character={character} reducedMotion={settings.reducedMotion} onComplete={() => { setWorldIndex(travel.toWorld); setTravel(null); moveTo("map"); }} />}
-    {phase === "map" ? <AdventureTrail character={character} save={save} worldIndex={worldIndex} dayNumber={dayNumber} unlockedWorlds={unlockedWorlds} onWorldChange={changeWorld} onEnterNextWorld={enterNextWorld} onBegin={begin} onClose={onClose} onSettings={openSettings} /> : phase === "settings" ? <AdventureSettings settings={settings} onChange={next => persist({ ...saved.current, settings: next })} onClose={() => moveTo(previousPhase.current)} />
+    {phase === "map" ? <AdventureTrail character={character} save={save} worldIndex={worldIndex} dayNumber={dayNumber} unlockedWorlds={unlockedWorlds} onWorldChange={changeWorld} onEnterNextWorld={enterNextWorld} onBegin={begin} onClose={onClose} onSettings={openSettings} onOpenPuzzle={() => moveTo("collection")} /> : phase === "settings" ? <AdventureSettings settings={settings} onChange={next => persist({ ...saved.current, settings: next })} onClose={() => moveTo(previousPhase.current)} />
+      : phase === "collection" || phase === "puzzle" ? <AdventurePuzzle key={`${phase}-${phase === "collection" ? worldIndex : levelId}`} save={save} worldIndex={phase === "collection" ? worldIndex : level.world} earnedLevelId={phase === "puzzle" ? levelId : undefined} onClose={phase === "puzzle" ? continuePuzzle : () => moveTo("map")} />
       : ["intro", "reflection", "reward", "ending"].includes(phase) ? <div className={`adventure-story-moment moment-${phase}`}>
         <header className="adventure-map-top"><button className="story-text-button" onClick={leaveLevel}><ArrowLeft size={16} aria-hidden="true" />World map</button><span className="story-eyebrow">{world.emotion} / {level.title}</span>{phase === "intro" && <button className="story-text-button" onClick={play}>Skip to trail →</button>}</header>
         <AdventureCinema character={character} world={phase === "ending" ? 0 : level.world} mood={phase === "intro" ? "intro" : phase === "reward" ? "power" : "peace"} endingPage={phase === "ending" ? page : undefined} reducedMotion={settings.reducedMotion} />

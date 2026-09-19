@@ -46,6 +46,8 @@ export default defineConfig({
           "**/Adventure-*.js",
           "**/Adventure-*.css",
           "**/assets/story/**",
+          "**/assets/puzzles/**",
+          "**/assets/character_selection/**",
           // The week map's background art is a 2.6MB PNG (no lossy re-encode
           // tooling available when it was added) -- same reasoning as the
           // Adventure chunk above: it sits behind a tap, not on the critical
@@ -73,6 +75,14 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/(?:puzzles\/[^/]+\.png|character_selection\/[^/]+\.(?:gif|jpg))$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "world-puzzle-character-assets",
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 60 },
+            },
+          },
           {
             urlPattern: /\/assets\/PhaserForestScene-[^/]+\.js$/,
             handler: "CacheFirst",

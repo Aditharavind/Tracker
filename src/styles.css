@@ -5507,14 +5507,13 @@ h3 {
   }
 }
 
-/* The pixel-art lakeside scene (frontend/assets/choose_character.png) as the
-   gate's backdrop, darkened so the card and cream/gold type stay readable.
-   "left top" instead of "center" keeps the tree in the corner pinned on
-   screen rather than getting cropped away by cover-fit on tall/mobile
-   viewports (see the skill's "responsive gameplay" rules). */
+/* The looping lakeside GIF fills the viewport; reduced motion uses a still
+   from the same video. Keep the tree anchored on narrow screens and darken
+   the scene enough for the cream/gold controls to stay readable. */
 .character-select-bg {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background-repeat: no-repeat;
   background-size: cover;
   background-position: left top;
@@ -5528,36 +5527,8 @@ h3 {
     var(--character-select-scene);
 }
 
-/* A second, identical copy of the same scene -- clipped to just the top-left
-   tree canopy and gently rotated around the trunk. Because it shares the
-   exact same size/position/background as .character-select-bg, a 0deg
-   rotation lines up perfectly with the layer underneath; only the sway is
-   visible. */
-.character-select-branch {
-  position: absolute;
-  inset: 0;
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: left top;
-  background-image: var(--character-select-scene);
-  clip-path: polygon(0 0, 42% 0, 42% 40%, 0 40%);
-  transform-origin: 4% 2%;
-  animation: character-select-branch-sway 4.5s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes character-select-branch-sway {
-  0%,
-  100% {
-    transform: rotate(-1.4deg);
-  }
-  50% {
-    transform: rotate(1.4deg);
-  }
-}
-
 /* No boxed card any more -- the heading, platform and name sit directly on
-   the forest backdrop (see .character-select-bg/.character-select-branch),
+   the forest backdrop (see .character-select-bg),
    full-bleed like the rest of the game's HUD instead of a floating dialog. */
 .character-select-close {
   position: absolute;
