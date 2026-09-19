@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { CheckCheck, Settings as SettingsIcon } from "lucide-react";
 import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
 import * as outbox from "./outbox";
 import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
@@ -175,29 +176,6 @@ function IconStats() {
       <rect x="1.5" y="9" width="3.4" height="5.5" rx="0.8" fill="currentColor" />
       <rect x="6.3" y="4.5" width="3.4" height="10" rx="0.8" fill="currentColor" />
       <rect x="11.1" y="1.5" width="3.4" height="13" rx="0.8" fill="currentColor" />
-    </svg>
-  );
-}
-
-function IconSettings() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M8 1.6v1.5M8 12.9v1.5M14.4 8h-1.5M3.1 8H1.6M12.36 3.64l-1.06 1.06M4.7 11.3l-1.06 1.06M12.36 12.36l-1.06-1.06M4.7 4.7 3.64 3.64"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconCheckAll() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M1.5 8.2 4.3 11l5-6.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8.2 8.6 10 11l5-6.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -542,7 +520,7 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
   return (
     <div className="panel-drawer pomodoro-drawer">
       <div className="panel-drawer-head">
-        <button className="panel-close" aria-label="Close" onClick={onClose}>
+        <button className="panel-close" aria-label="Close" title="Close" onClick={onClose}>
           <IconClose />
         </button>
       </div>
@@ -565,6 +543,7 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
           className="day-clock pomodoro-clock pomodoro-clock-btn"
           onClick={toggleRunning}
           aria-label={running ? "Pause the timer" : resuming ? "Resume the timer" : "Start the timer"}
+          title={running ? "Pause the timer" : resuming ? "Resume the timer" : "Start the timer"}
         >
           <img className="day-clock-frame" src="/assets/day-clock-frame.webp" alt="" aria-hidden="true" />
           <div className="day-clock-readout" aria-hidden="true">
@@ -581,7 +560,7 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
         </div>
 
         <div className="pomodoro-controls">
-          <button className="btn ghost" onClick={() => act(pomodoroStop())}>
+          <button className="btn ghost" onClick={() => act(pomodoroStop())} title="Reset the timer">
             <IconRestart /> Reset
           </button>
         </div>
@@ -1722,6 +1701,7 @@ export default function App() {
             className="topbar-character"
             onClick={() => setCharacterPanelOpen(true)}
             aria-label={`Character: ${myCharacterName}. Change character.`}
+            title={`Character: ${myCharacterName} — tap to change`}
           >
             <img src={CHARACTER_SPRITE[myCharacter]} alt="" aria-hidden="true" className="topbar-character-sprite" />
             <span className="topbar-character-name pixel-font">{myCharacterName.toUpperCase()}</span>
@@ -1811,7 +1791,12 @@ export default function App() {
           />
           )}
 
-          <button className="world-journey-chip" onClick={() => setWeekMapOpen(true)} aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Open world map.`}>
+          <button
+            className="world-journey-chip"
+            onClick={() => setWeekMapOpen(true)}
+            aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Open world map.`}
+            title="Open the world map"
+          >
             <span>WORLD {journey.worldIndex + 1} / {ARC_COUNT}</span>
             <strong>{WORLDS[journey.worldIndex].name}</strong>
             <span>{journey.complete ? "75-day journey complete" : `${journey.worldCompletedDays} / 15 days complete`}</span>
@@ -1821,22 +1806,22 @@ export default function App() {
           <div className="day-card-float">
             <button
               type="button"
-              className="daycard-reset daycard-iconbtn pixel-font"
+              className={`daycard-reset daycard-iconbtn box-style${allTasksDone ? " done" : ""}`}
               onClick={() => setAllTasks(!allTasksDone)}
               title={allTasksDone ? "Untick all of today's tasks" : "Tick all of today's tasks"}
               aria-label={allTasksDone ? "Untick all tasks" : "Tick all tasks"}
               disabled={!detail.tasks.length}
             >
-              <IconCheckAll />
+              <CheckCheck size={13} strokeWidth={2.4} aria-hidden="true" />
             </button>
             <button
               type="button"
-              className="daycard-edit daycard-iconbtn pixel-font"
+              className="daycard-edit daycard-iconbtn"
               onClick={() => togglePanel("habits")}
               title="Settings — add, edit, or remove tasks"
               aria-label="Settings"
             >
-              <IconSettings />
+              <SettingsIcon size={14} strokeWidth={2.2} aria-hidden="true" />
             </button>
             <Checklist
               detail={detail}
@@ -1909,7 +1894,7 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head">
                 <h2>Leaderboard</h2>
-                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
                   <IconClose />
                 </button>
               </div>
@@ -1945,7 +1930,7 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head">
                 <h2>Stats</h2>
-                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
                   <IconClose />
                 </button>
               </div>
@@ -2010,7 +1995,7 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head">
                 <h2>Coach</h2>
-                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
                   <IconClose />
                 </button>
               </div>
@@ -2027,7 +2012,7 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head">
                 <h2>Habits</h2>
-                <button className="panel-close" aria-label="Close" onClick={() => setOpenPanel(null)}>
+                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
                   <IconClose />
                 </button>
               </div>
@@ -2042,7 +2027,7 @@ export default function App() {
                     {!t.is_core && <span className="tag">bonus</span>}
                     {t.locked && <span className="tag locked">locked</span>}
                     {!t.locked && (
-                      <button className="kill" onClick={() => removeTask(t)} aria-label={`delete ${t.title}`}>
+                      <button className="kill" onClick={() => removeTask(t)} aria-label={`delete ${t.title}`} title={`Delete "${t.title}"`}>
                         &times;
                       </button>
                     )}
@@ -2092,7 +2077,7 @@ export default function App() {
             <div className="panel-drawer">
               <div className="panel-drawer-head panel-drawer-head-sticky">
                 <h2>Profile</h2>
-                <button className="panel-close" aria-label="Close profile" onClick={() => setOpenPanel(null)}>
+                <button className="panel-close" aria-label="Close profile" title="Close" onClick={() => setOpenPanel(null)}>
                   <IconClose />
                 </button>
               </div>
@@ -2293,6 +2278,7 @@ export default function App() {
             role="tab"
             aria-selected={openPanel === null}
             onClick={() => setOpenPanel(null)}
+            title="Home"
           >
             <IconHome />
             HOME
@@ -2302,6 +2288,7 @@ export default function App() {
             role="tab"
             aria-selected={openPanel === "stats"}
             onClick={() => togglePanel("stats")}
+            title="Stats"
           >
             <IconStats />
             STATS
@@ -2311,6 +2298,7 @@ export default function App() {
             role="tab"
             aria-selected={openPanel === "profile"}
             onClick={() => togglePanel("profile")}
+            title="Profile"
           >
             <IconProfile />
             PROFILE
@@ -2320,6 +2308,7 @@ export default function App() {
             role="tab"
             aria-selected={openPanel === "pomodoro"}
             onClick={() => togglePanel("pomodoro")}
+            title="Focus timer"
           >
             <IconTimer />
             FOCUS

@@ -97,11 +97,11 @@ export default function Checklist({
 
       <div className="card-head">
         <div className="daynav">
-          <button onClick={() => onShift(-1)} aria-label="previous day">
+          <button onClick={() => onShift(-1)} aria-label="previous day" title="Previous day">
             &lsaquo;
           </button>
           <span className="label">{day === today ? "Today" : prettyDate(day)}</span>
-          <button onClick={() => onShift(1)} disabled={day >= today} aria-label="next day">
+          <button onClick={() => onShift(1)} disabled={day >= today} aria-label="next day" title="Next day">
             &rsaquo;
           </button>
         </div>
@@ -126,17 +126,23 @@ export default function Checklist({
               disabled={locked}
               aria-label={t.done ? `uncheck ${t.title}` : `check ${t.title}`}
               aria-pressed={t.done}
+              title={t.done ? `Uncheck "${t.title}"` : `Check "${t.title}"`}
             >
               <Check />
             </button>
             <span className="emoji">{t.emoji}</span>
-            <button className="title" onClick={() => !locked && onToggle(t)} disabled={locked}>
+            <button
+              className="title"
+              onClick={() => !locked && onToggle(t)}
+              disabled={locked}
+              title={t.done ? `Uncheck "${t.title}"` : `Check "${t.title}"`}
+            >
               {t.title}
             </button>
             {!t.is_core && <span className="tag">bonus</span>}
             {t.locked && <span className="tag locked">locked</span>}
             {!locked && !t.locked && (
-              <button className="kill" onClick={() => onRemove(t)} aria-label={`delete ${t.title}`}>
+              <button className="kill" onClick={() => onRemove(t)} aria-label={`delete ${t.title}`} title={`Delete "${t.title}"`}>
                 &times;
               </button>
             )}
@@ -153,7 +159,7 @@ export default function Checklist({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()}
           />
-          <button className="btn" onClick={add}>
+          <button className="btn" onClick={add} title="Add this task">
             Add
           </button>
         </div>
