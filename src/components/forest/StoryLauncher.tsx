@@ -38,6 +38,7 @@ export default function StoryLauncher({
   dayNumber,
   calendar,
   initialWorld,
+  startInAdventure = false,
   onOpenGoals,
   onOpenMap,
   onClose,
@@ -48,11 +49,15 @@ export default function StoryLauncher({
   calendar: DayCell[];
   // The selected world's introduction opens before goals or optional play.
   initialWorld?: number;
+  // The home-screen world card is already an explicit request to enter the
+  // playable world, so it can skip the story choice screen and open the
+  // mission trail directly. Other entry points keep the introduction.
+  startInAdventure?: boolean;
   onOpenGoals: () => void;
   onOpenMap: () => void;
   onClose: () => void;
 }) {
-  const [adventureOpen, setAdventureOpen] = useState(false);
+  const [adventureOpen, setAdventureOpen] = useState(startInAdventure);
   const [page, setPage] = useState(0);
   const [helloCount, setHelloCount] = useState(0);
   const root = useRef<HTMLDivElement>(null);

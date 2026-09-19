@@ -11,9 +11,9 @@ import "../../adventure-trail.css";
 import "../../weekmap.css";
 
 const BACK_CHARACTER: Record<CharacterId, string> = {
-  panda: "/assets/story/panda-back.png",
-  koala: "/assets/story/koala-back.png",
-  redpanda: "/assets/story/redpanda-back.png",
+  panda: "/assets/story/panda-back.webp",
+  koala: "/assets/story/koala-back.webp",
+  redpanda: "/assets/story/redpanda-back.webp",
 };
 
 // The same 15-stone trail art and stone anchors the Adventure minigame's own

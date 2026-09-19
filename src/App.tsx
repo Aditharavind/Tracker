@@ -6,11 +6,6 @@ import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
 import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
 import Checklist from "./components/Checklist";
-import Calendar75 from "./components/Calendar75";
-import Badges from "./components/Badges";
-import Rivals from "./components/Rivals";
-import DashLeaderboard from "./components/DashLeaderboard";
-import Coach from "./components/Coach";
 import LevelRing from "./components/LevelRing";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
@@ -22,19 +17,24 @@ const PhaserForestScene = lazy(() => import("./components/forest/PhaserForestSce
 const CoachChat = lazy(() => import("./components/CoachChat"));
 const Minigames = lazy(() => import("./components/Minigames"));
 const WeekMap = lazy(() => import("./components/forest/WeekMap"));
+const Calendar75 = lazy(() => import("./components/Calendar75"));
+const Badges = lazy(() => import("./components/Badges"));
+const Rivals = lazy(() => import("./components/Rivals"));
+const DashLeaderboard = lazy(() => import("./components/DashLeaderboard"));
+const Coach = lazy(() => import("./components/Coach"));
+const CharacterSelect = lazy(() => import("./components/CharacterSelect"));
+const CharacterTurntable = lazy(() => import("./components/forest/CharacterTurntable"));
+const DayCompleteOverlay = lazy(() => import("./components/forest/DayCompleteOverlay"));
+const StoryLauncher = lazy(() => import("./components/forest/StoryLauncher"));
+const WorldUnlockOverlay = lazy(() => import("./components/forest/WorldUnlockOverlay"));
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCountdown from "./components/forest/DayCountdown";
-import DayCompleteOverlay from "./components/forest/DayCompleteOverlay";
-import StoryLauncher from "./components/forest/StoryLauncher";
-import WorldUnlockOverlay from "./components/forest/WorldUnlockOverlay";
-import CharacterTurntable from "./components/forest/CharacterTurntable";
 import { CoinIcon } from "./components/forest/Coin";
 import { getJourneyStage, type StageMeta } from "./game/stageSystem";
 import { ARC_COUNT, journeyProgress } from "./game/weekSystem";
 import { WORLDS } from "./game/adventure/content";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { isStandalone, useInstallPrompt } from "./installPrompt";
-import CharacterSelect from "./components/CharacterSelect";
 import { CHARACTER_SPRITE, CHARACTERS, isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
 import SnoozePanda from "./components/SnoozePanda";
@@ -669,6 +669,7 @@ export default function App() {
   // Story introduces the current environment before returning to daily goals.
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyWorld, setStoryWorld] = useState<number | undefined>(undefined);
+  const [storyStartsInAdventure, setStoryStartsInAdventure] = useState(false);
   // The world map is a stones-only readout of the current world's 15 days --
   // no story or minigame launches from it, see WeekMap.tsx.
   const [weekMapOpen, setWeekMapOpen] = useState(false);
@@ -699,6 +700,10 @@ export default function App() {
   >([]);
   const [coach, setCoach] = useState<CoachReport | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
+  // WebLLM adds a multi-megabyte runtime to the page and its model is a much
+  // larger first-use download. Keep that work behind its own explicit action;
+  // opening the lightweight coaching report should stay fast.
+  const [coachChatOpen, setCoachChatOpen] = useState(false);
   // Set whenever a write (tick / note / restart) is rejected, so the UI can
   // stop pretending the optimistic change was committed. Cleared by the next
   // clean write or a successful refetch.
@@ -717,6 +722,7 @@ export default function App() {
   const pendingToggles = useRef<Set<number>>(new Set());
   const queuedToggles = useRef<Map<number, boolean>>(new Map());
   const intendedDone = useRef<Map<number, boolean>>(new Map());
+  const runnerWasOpen = useRef(false);
 
   const me = board.find((p) => p.user_id === meId) ?? null;
   const journey = journeyProgress(me?.calendar ?? []);
@@ -794,6 +800,7 @@ export default function App() {
     }
     if (stage) {
       setStoryWorld(stage.id - 1);
+      setStoryStartsInAdventure(false);
       setStoryOpen(true);
       setOpenPanel(null);
     }
@@ -1462,10 +1469,10 @@ export default function App() {
   // Global Forest Dash leaderboard -- pulled when the board opens or the
   // minigame closes (a fresh score may have landed).
   useEffect(() => {
-    if (!shellVisible) return;
-    if (openPanel === "leaderboard" || !runnerOpen) {
-      api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
-    }
+    const runnerJustClosed = runnerWasOpen.current && !runnerOpen;
+    runnerWasOpen.current = runnerOpen;
+    if (!shellVisible || (openPanel !== "leaderboard" && !runnerJustClosed)) return;
+    api.dashLeaderboard().then(setDashBoard).catch(() => setDashBoard([]));
   }, [openPanel, runnerOpen, shellVisible]);
 
   // The habit coach -- persona, what's slipping, and a plan, built server-side
@@ -1533,7 +1540,7 @@ export default function App() {
   // characterPanelOpen below) reuses the same component in "switch" mode
   // instead of this blocking one.
   if (!myCharacter) {
-    return <CharacterSelect mode="gate" onSelect={(c) => setCharacterFor(meId!, c)} />;
+    return <Suspense fallback={<Skeleton />}><CharacterSelect mode="gate" onSelect={(c) => setCharacterFor(meId!, c)} /></Suspense>;
   }
 
   // Display name for the topbar badge/aria-label -- CHARACTERS is the single
@@ -1559,13 +1566,15 @@ export default function App() {
   const openGoals = () => {
     setStoryOpen(false);
     setStoryWorld(undefined);
+    setStoryStartsInAdventure(false);
     setWeekMapOpen(false);
     setOpenPanel(null);
     followToday.current = true;
     setDay(todayISO());
   };
-  const openStory = () => {
+  const openStory = (startInAdventure = false) => {
     setStoryWorld(journey.worldIndex);
+    setStoryStartsInAdventure(startInAdventure);
     setStoryOpen(true);
   };
 
@@ -1609,31 +1618,37 @@ export default function App() {
         />
       )}
       {characterPanelOpen && (
-        <CharacterSelect
-          mode="switch"
-          current={myCharacter}
-          onSelect={(c) => setCharacterFor(meId!, c)}
-          onClose={() => setCharacterPanelOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <CharacterSelect
+            mode="switch"
+            current={myCharacter}
+            onSelect={(c) => setCharacterFor(meId!, c)}
+            onClose={() => setCharacterPanelOpen(false)}
+          />
+        </Suspense>
       )}
       {dayCompleteOpen && (
-        <DayCompleteOverlay
-          dayNumber={me.day_number}
-          tasksCompleted={detail.tasks.filter((t) => t.done).length}
-          totalTasks={detail.tasks.length}
-          coins={coinsEarned}
-          streak={me.streak}
-          character={myCharacter}
-          onClose={closeDayComplete}
-          onPlayRunner={() => {
-            setDayCompleteOpen(false);
-            dayCompleteDismissed.current = day;
-            setRunnerOpen(true);
-          }}
-        />
+        <Suspense fallback={null}>
+          <DayCompleteOverlay
+            dayNumber={me.day_number}
+            tasksCompleted={detail.tasks.filter((t) => t.done).length}
+            totalTasks={detail.tasks.length}
+            coins={coinsEarned}
+            streak={me.streak}
+            character={myCharacter}
+            onClose={closeDayComplete}
+            onPlayRunner={() => {
+              setDayCompleteOpen(false);
+              dayCompleteDismissed.current = day;
+              setRunnerOpen(true);
+            }}
+          />
+        </Suspense>
       )}
       {worldUnlock && (
-        <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
+        <Suspense fallback={null}>
+          <WorldUnlockOverlay stage={worldUnlock} character={myCharacter} onClose={closeWorldUnlock} />
+        </Suspense>
       )}
       {showPeek && <PandaPeekPrompt onDone={() => setShowPeek(false)} />}
       {minigamePickerOpen && (
@@ -1670,24 +1685,28 @@ export default function App() {
         </Suspense>
       )}
       {storyOpen && myCharacter && (
-        <StoryLauncher
-          key={`${journeyRun}:${storyWorld ?? journey.worldIndex}:${journey.worldIndex}`}
-          character={myCharacter}
-          userId={meId}
-          dayNumber={me.day_number}
-          calendar={me.calendar}
-          initialWorld={storyWorld}
-          onOpenGoals={openGoals}
-          onOpenMap={() => {
-            setStoryOpen(false);
-            setStoryWorld(undefined);
-            setWeekMapOpen(true);
-          }}
-          onClose={() => {
-            setStoryOpen(false);
-            setStoryWorld(undefined);
-          }}
-        />
+        <Suspense fallback={<div className="pin-backdrop" role="status"><div className="confirm-modal"><p>Opening your story…</p></div></div>}>
+          <StoryLauncher
+            key={`${journeyRun}:${storyWorld ?? journey.worldIndex}:${journey.worldIndex}:${storyStartsInAdventure ? "play" : "intro"}`}
+            character={myCharacter}
+            userId={meId}
+            dayNumber={me.day_number}
+            calendar={me.calendar}
+            initialWorld={storyWorld}
+            startInAdventure={storyStartsInAdventure}
+            onOpenGoals={openGoals}
+            onOpenMap={() => {
+              setStoryOpen(false);
+              setStoryWorld(undefined);
+              setWeekMapOpen(true);
+            }}
+            onClose={() => {
+              setStoryOpen(false);
+              setStoryWorld(undefined);
+              setStoryStartsInAdventure(false);
+            }}
+          />
+        </Suspense>
       )}
 
       <div className="game-shell-inner">
@@ -1793,9 +1812,9 @@ export default function App() {
 
           <button
             className="world-journey-chip"
-            onClick={() => setWeekMapOpen(true)}
-            aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Open world map.`}
-            title="Open the world map"
+            onClick={() => openStory(true)}
+            aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Enter adventure missions.`}
+            title="Enter adventure missions"
           >
             <span>WORLD {journey.worldIndex + 1} / {ARC_COUNT}</span>
             <strong>{WORLDS[journey.worldIndex].name}</strong>
@@ -1913,14 +1932,18 @@ export default function App() {
                 </button>
               )}
 
-              <Rivals board={board} meId={me.user_id} />
+              <Suspense fallback={<div className="card panel-section muted">Loading standings…</div>}>
+                <Rivals board={board} meId={me.user_id} />
+              </Suspense>
 
               {dashBoard.length > 0 && (
                 <div className="card panel-section dash-board-card">
                   <div className="card-head">
                     <h2>Forest Dash — global</h2>
                   </div>
-                  <DashLeaderboard rows={dashBoard} meName={me.name} />
+                  <Suspense fallback={<p className="muted">Loading Forest Dash scores…</p>}>
+                    <DashLeaderboard rows={dashBoard} meName={me.name} />
+                  </Suspense>
                 </div>
               )}
             </div>
@@ -1974,17 +1997,21 @@ export default function App() {
                 <LevelRing p={me} />
               </div>
               <div className="panel-section">
-                <Badges p={me} />
+                <Suspense fallback={<div className="card muted">Loading badges…</div>}>
+                  <Badges p={me} />
+                </Suspense>
               </div>
               <div className="panel-section">
-                <Calendar75
-                  cells={me.calendar}
-                  onPick={(iso) => {
-                    followToday.current = iso === todayISO();
-                    setDay(iso);
-                    setOpenPanel(null);
-                  }}
-                />
+                <Suspense fallback={<div className="card muted">Loading calendar…</div>}>
+                  <Calendar75
+                    cells={me.calendar}
+                    onPick={(iso) => {
+                      followToday.current = iso === todayISO();
+                      setDay(iso);
+                      setOpenPanel(null);
+                    }}
+                  />
+                </Suspense>
               </div>
             </div>
           )}
@@ -1999,12 +2026,22 @@ export default function App() {
                   <IconClose />
                 </button>
               </div>
-              <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
-              {meId != null && (
-                <Suspense fallback={<div className="card panel-section muted">Loading coach chat...</div>}>
+              <Suspense fallback={<div className="card panel-section muted">Loading your report…</div>}>
+                <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
+              </Suspense>
+              {meId != null && (coachChatOpen ? (
+                <Suspense fallback={<div className="card panel-section muted">Loading coach chat…</div>}>
                   <CoachChat key={meId} userId={meId} report={coach} />
                 </Suspense>
-              )}
+              ) : (
+                <div className="card panel-section coach-chat-opt-in">
+                  <div className="card-head"><h2>Ask the coach</h2></div>
+                  {"gpu" in navigator ? <>
+                    <p className="muted">Chat is optional. Its on-device AI model downloads when you send your first question and can use 1–2 GB.</p>
+                    <button className="btn wide" type="button" onClick={() => setCoachChatOpen(true)}>Open coach chat</button>
+                  </> : <p className="muted">Coach chat needs WebGPU. Use a recent Chrome or Edge browser to enable it.</p>}
+                </div>
+              ))}
             </div>
           )}
 
@@ -2086,10 +2123,12 @@ export default function App() {
                 <div className="card-head">
                   <h2>Your character</h2>
                 </div>
-                <CharacterTurntable
-                  current={myCharacter}
-                  onSelect={(c) => meId != null && setCharacterFor(meId, c)}
-                />
+                <Suspense fallback={<p className="muted">Loading characters…</p>}>
+                  <CharacterTurntable
+                    current={myCharacter}
+                    onSelect={(c) => meId != null && setCharacterFor(meId, c)}
+                  />
+                </Suspense>
               </div>
 
               <div className="card panel-section">

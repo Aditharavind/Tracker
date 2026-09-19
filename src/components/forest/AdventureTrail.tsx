@@ -94,7 +94,7 @@ export default function AdventureTrail({ character, save, worldIndex, dayNumber,
               <span className="adventure-level-badge" aria-hidden="true">{!level.playable ? <LockKeyhole size={12} /> : level.done ? <Check size={13} /> : level.boss ? <Skull size={13} /> : null}</span>
             </button>;
           })}
-          <img className="adventure-trail-character" src={`/assets/story/${character}-back.png`} alt={`${characterName} at mission ${current.stage + 1}`} draggable={false} style={{ left: `${(current.stone.x + (current.stone.x < TRAIL_ART.width / 2 ? 145 : -145)) / TRAIL_ART.width * 100}%`, top: `${(current.stone.y + 110) / TRAIL_ART.height * 100}%` } as CSSProperties} />
+          <img className="adventure-trail-character" src={`/assets/story/${character}-back.webp`} alt={`${characterName} at mission ${current.stage + 1}`} draggable={false} style={{ left: `${(current.stone.x + (current.stone.x < TRAIL_ART.width / 2 ? 145 : -145)) / TRAIL_ART.width * 100}%`, top: `${(current.stone.y + 110) / TRAIL_ART.height * 100}%` } as CSSProperties} />
         </div>
       </div>
       <button className="story-text-button adventure-icon-button adventure-trail-locate" onClick={() => locate(save.settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth")} aria-label={worldComplete ? "World exit" : "Current mission"} title={worldComplete ? "World exit" : "Current mission"}><LocateFixed size={19} /></button>

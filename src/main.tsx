@@ -1,7 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
-import "@fontsource/press-start-2p";
+// The interface is English-only. Loading every Cyrillic, Greek, and extended
+// font subset added several files to every PWA install without changing what
+// users see.
+import "@fontsource/press-start-2p/latin-400.css";
 import "./styles.css";
 import "./world-theme.css";
 

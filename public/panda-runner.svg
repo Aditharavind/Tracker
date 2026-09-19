@@ -154,9 +154,9 @@
   </g>
 
   <!-- coins above each platform (purely decorative here) -->
-  <image href="/assets/coin.png" x="23" y="113" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
-  <image href="/assets/coin.png" x="113" y="85" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
-  <image href="/assets/coin.png" x="203" y="57" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
+  <image href="/assets/coin.webp" x="23" y="113" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
+  <image href="/assets/coin.webp" x="113" y="85" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
+  <image href="/assets/coin.webp" x="203" y="57" width="54" height="54" preserveAspectRatio="xMidYMid meet" />
 
   <!-- panda rig: base-positioned on platform 1, animated up the staircase -->
   <g transform="translate(50, 150)">

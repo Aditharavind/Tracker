@@ -2,12 +2,12 @@ import { LEVELS_PER_WORLD } from "./content";
 import type { Save } from "./save";
 
 export const WORLD_PUZZLES = [
-  { src: "/assets/puzzles/world1_puzzle.png", title: "Whispering Forest", width: 600, height: 600 },
-  { src: "/assets/puzzles/world2_puzzle.png", title: "Snowy Peaks", width: 600, height: 900 },
-  { src: "/assets/puzzles/world_3_puzzle.png", title: "Desert Ruins", width: 600, height: 900 },
-  { src: "/assets/puzzles/world_4_puzzle.png", title: "Enchanted Ocean", width: 600, height: 900 },
-  { src: "/assets/puzzles/world_5_puzzle.png", title: "Celestial Sky", width: 600, height: 900 },
-  { src: "/assets/puzzles/world_6_puzzle.png", title: "Shadow Realm", width: 600, height: 900 },
+  { src: "/assets/puzzles/world1_puzzle.webp", title: "Whispering Forest", width: 600, height: 600 },
+  { src: "/assets/puzzles/world2_puzzle.webp", title: "Snowy Peaks", width: 600, height: 900 },
+  { src: "/assets/puzzles/world_3_puzzle.webp", title: "Desert Ruins", width: 600, height: 900 },
+  { src: "/assets/puzzles/world_4_puzzle.webp", title: "Enchanted Ocean", width: 600, height: 900 },
+  { src: "/assets/puzzles/world_5_puzzle.webp", title: "Celestial Sky", width: 600, height: 900 },
+  { src: "/assets/puzzles/world_6_puzzle.webp", title: "Shadow Realm", width: 600, height: 900 },
 ] as const;
 
 export type WorldPuzzle = {

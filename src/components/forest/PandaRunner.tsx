@@ -322,38 +322,50 @@ export default function PandaRunner({
   useEffect(() => {
     const load = (src: string) => {
       const im = new Image();
+      im.decoding = "async";
       im.src = src;
       return im;
     };
+    // Only fetch artwork for the world being played. This used to download
+    // every world's terrain and enemy set whenever Forest Dash opened.
+    imgs.current = {};
     imgs.current.bg = load(worldBackground(worldIndex));
     imgs.current.panda = load(CHARACTER_SPRITE[character]);
     imgs.current.run = load(CHARACTER_RUN_ATLAS.characters[character].src);
-    imgs.current.plantHead = load("/assets/zombie-plant-head.webp");
-    imgs.current.plantJaw = load("/assets/zombie-plant-jaw.webp");
     imgs.current.mine = load("/assets/landmine.webp");
-    imgs.current.grassLeft = load("/assets/grass-left.webp");
-    imgs.current.grassMid = load("/assets/grass-mid.webp");
-    imgs.current.grassRight = load("/assets/grass-right.webp");
-    imgs.current.cavesCrustLeft = load("/assets/world-2/caves-crust-left.webp");
-    imgs.current.cavesCrustMid = load("/assets/world-2/caves-crust-mid.webp");
-    imgs.current.cavesCrustRight = load("/assets/world-2/caves-crust-right.webp");
-    imgs.current.cavesRock = load("/assets/world-2/caves-rock.webp");
-    imgs.current.slime = load("/assets/world-2/crystal-slime.webp");
-    imgs.current.mountainsCrustLeft = load("/assets/world-4/mountains-crust-left.webp");
-    imgs.current.mountainsCrustMid = load("/assets/world-4/mountains-crust-mid.webp");
-    imgs.current.mountainsCrustRight = load("/assets/world-4/mountains-crust-right.webp");
-    imgs.current.mountainsRock = load("/assets/world-4/mountains-rock.webp");
-    imgs.current.beast = load("/assets/world-4/ice-beast.webp");
-    imgs.current.skyrealmCrustLeft = load("/assets/world-5/skyrealm-crust-left.webp");
-    imgs.current.skyrealmCrustMid = load("/assets/world-5/skyrealm-crust-mid.webp");
-    imgs.current.skyrealmCrustRight = load("/assets/world-5/skyrealm-crust-right.webp");
-    imgs.current.skyrealmRock = load("/assets/world-5/skyrealm-rock.webp");
-    imgs.current.sentinel = load("/assets/world-5/sky-sentinel.webp");
-    imgs.current.volcanoCrustLeft = load("/assets/world-6/volcano-crust-left.webp");
-    imgs.current.volcanoCrustMid = load("/assets/world-6/volcano-crust-mid.webp");
-    imgs.current.volcanoCrustRight = load("/assets/world-6/volcano-crust-right.webp");
-    imgs.current.volcanoRock = load("/assets/world-6/volcano-rock.webp");
-    imgs.current.golem = load("/assets/world-6/lava-golem.webp");
+    if (worldIndex === 0 || worldIndex === 2) {
+      imgs.current.plantHead = load("/assets/zombie-plant-head.webp");
+      imgs.current.plantJaw = load("/assets/zombie-plant-jaw.webp");
+    }
+    if (worldIndex === 0) {
+      imgs.current.grassLeft = load("/assets/grass-left.webp");
+      imgs.current.grassMid = load("/assets/grass-mid.webp");
+      imgs.current.grassRight = load("/assets/grass-right.webp");
+    } else if (worldIndex === 1) {
+      imgs.current.cavesCrustLeft = load("/assets/world-2/caves-crust-left.webp");
+      imgs.current.cavesCrustMid = load("/assets/world-2/caves-crust-mid.webp");
+      imgs.current.cavesCrustRight = load("/assets/world-2/caves-crust-right.webp");
+      imgs.current.cavesRock = load("/assets/world-2/caves-rock.webp");
+      imgs.current.slime = load("/assets/world-2/crystal-slime.webp");
+    } else if (worldIndex === 3) {
+      imgs.current.mountainsCrustLeft = load("/assets/world-4/mountains-crust-left.webp");
+      imgs.current.mountainsCrustMid = load("/assets/world-4/mountains-crust-mid.webp");
+      imgs.current.mountainsCrustRight = load("/assets/world-4/mountains-crust-right.webp");
+      imgs.current.mountainsRock = load("/assets/world-4/mountains-rock.webp");
+      imgs.current.beast = load("/assets/world-4/ice-beast.webp");
+    } else if (worldIndex === 4) {
+      imgs.current.skyrealmCrustLeft = load("/assets/world-5/skyrealm-crust-left.webp");
+      imgs.current.skyrealmCrustMid = load("/assets/world-5/skyrealm-crust-mid.webp");
+      imgs.current.skyrealmCrustRight = load("/assets/world-5/skyrealm-crust-right.webp");
+      imgs.current.skyrealmRock = load("/assets/world-5/skyrealm-rock.webp");
+      imgs.current.sentinel = load("/assets/world-5/sky-sentinel.webp");
+    } else if (worldIndex === 5) {
+      imgs.current.volcanoCrustLeft = load("/assets/world-6/volcano-crust-left.webp");
+      imgs.current.volcanoCrustMid = load("/assets/world-6/volcano-crust-mid.webp");
+      imgs.current.volcanoCrustRight = load("/assets/world-6/volcano-crust-right.webp");
+      imgs.current.volcanoRock = load("/assets/world-6/volcano-rock.webp");
+      imgs.current.golem = load("/assets/world-6/lava-golem.webp");
+    }
   }, [character, worldIndex]);
 
   const commitBest = useCallback(

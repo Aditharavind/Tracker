@@ -40,7 +40,7 @@ export default defineConfig({
         // Precache the shell only. Artwork is cached the first time its screen
         // uses it, instead of downloading several megabytes after every fresh
         // install whether the user visits those screens or not.
-        globPatterns: ["**/*.{js,css,html,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,woff2}"],
         globIgnores: [
           "**/model-viewer-*.js",
           "**/*.glb",
@@ -69,6 +69,28 @@ export default defineConfig({
           "**/Minigames-*.js",
           "**/WeekMap-*.js",
           "**/WeekMap-*.css",
+          // Route and panel chunks stay on demand too. The core App chunk is
+          // still available offline; each optional screen is cached after its
+          // first real visit instead of during every service-worker install.
+          "**/AdminPanel-*.js",
+          "**/SharedView-*.js",
+          "**/JoinLobby-*.js",
+          "**/Badges-*.js",
+          "**/Calendar75-*.js",
+          "**/CharacterSelect-*.js",
+          "**/CharacterTurntable-*.js",
+          "**/Coach-*.js",
+          "**/DashLeaderboard-*.js",
+          "**/DayCompleteOverlay-*.js",
+          "**/Rivals-*.js",
+          "**/StoryLauncher-*.js",
+          "**/StoryLauncher-*.css",
+          "**/WorldUnlockOverlay-*.js",
+          "**/CharacterModel-*.js",
+          "**/story-*.js",
+          "**/story-*.css",
+          "**/adventure-trail-*.js",
+          "**/adventure-trail-*.css",
         ],
         // Sized to admit the app shell. Deliberately lazy story/Phaser/model
         // assets are excluded by name above rather than slipping under this cap.
@@ -103,11 +125,11 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/assets\/(?:CoachChat|Minigames|WeekMap)-[^/]+\.(?:js|css)$/,
+            urlPattern: /\/assets\/(?:AdminPanel|Badges|Calendar75|CharacterModel|CharacterSelect|CharacterTurntable|Coach|CoachChat|DashLeaderboard|DayCompleteOverlay|JoinLobby|Minigames|Rivals|SharedView|StoryLauncher|WeekMap|WorldUnlockOverlay|adventure-trail|story)-[^/]+\.(?:js|css)$/,
             handler: "CacheFirst",
             options: {
               cacheName: "on-demand-ui",
-              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 * 60 },
             },
           },
           {
@@ -119,7 +141,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\.(?:png|webp|gif|jpg|jpeg)$/,
+            urlPattern: /\.(?:png|webp|gif|jpg|jpeg|svg)$/,
             handler: "CacheFirst",
             options: {
               cacheName: "visual-assets",

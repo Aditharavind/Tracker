@@ -664,7 +664,7 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   assert.equal(locked.status, 401);
 
   const wrong = await fetch(`${base}/admin/summary`, {
-    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:nope").toString("base64")}` },
+    headers: { Authorization: `Basic ${Buffer.from("Adithxtanu:nope").toString("base64")}` },
   });
   assert.equal(wrong.status, 401);
 
@@ -677,7 +677,7 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   });
 
   const ok = await fetch(`${base}/admin/summary?limit=2`, {
-    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+    headers: { Authorization: `Basic ${Buffer.from("Adithxtanu:Tanuxadith").toString("base64")}` },
   });
   assert.equal(ok.status, 200);
   assert.match(ok.headers.get("cache-control") ?? "", /private/);
@@ -696,7 +696,7 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   assert.equal(body.charts.signup_days.length, 7);
 
   const search = await fetch(`${base}/admin/summary?limit=10&q=Adith`, {
-    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+    headers: { Authorization: `Basic ${Buffer.from("Adithxtanu:Tanuxadith").toString("base64")}` },
   });
   assert.equal(search.status, 200);
   const searched = await search.json();
@@ -713,7 +713,7 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   assert.equal(typeof adithRow.task_count, "number");
 
   const secondPage = await fetch(`${base}/admin/summary?limit=2&offset=2`, {
-    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+    headers: { Authorization: `Basic ${Buffer.from("Adithxtanu:Tanuxadith").toString("base64")}` },
   });
   assert.equal(secondPage.status, 200);
   const pageTwo = await secondPage.json();
@@ -723,11 +723,11 @@ test("admin summary is protected and returns sanitized user stats", async () => 
   const later = await call("POST", "/users", { name: "Later Admin User", pin: "7788" });
   assert.equal(later.status, 201);
   const cached = await fetch(`${base}/admin/summary`, {
-    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+    headers: { Authorization: `Basic ${Buffer.from("Adithxtanu:Tanuxadith").toString("base64")}` },
   });
   assert.equal((await cached.json()).totals.total_users, body.totals.total_users, "ordinary paging reuses the short admin snapshot");
   const refreshed = await fetch(`${base}/admin/summary?refresh=1&offset=9999`, {
-    headers: { Authorization: `Basic ${Buffer.from("AdithxTanu:TanuxAdith").toString("base64")}` },
+    headers: { Authorization: `Basic ${Buffer.from("Adithxtanu:Tanuxadith").toString("base64")}` },
   });
   const refreshedBody = await refreshed.json();
   assert.equal(refreshedBody.totals.total_users, body.totals.total_users + 1, "Refresh bypasses the snapshot cache");

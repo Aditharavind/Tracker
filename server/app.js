@@ -13,9 +13,14 @@ import { bumpGroupVersion, cacheGet, cacheSet, groupVersion } from "./cache.js";
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 const PIN = /^\d{4,6}$/;
-const ADMIN_CREDENTIALS_CONFIGURED = Boolean(process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD);
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "AdithxTanu";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "TanuxAdith";
+// Env first, built-in pair second. `??` alone was not enough: a variable that
+// exists but is blank (an empty value in the Vercel dashboard, a bare `KEY=`
+// line in .env) reads as "" and would lock the panel out with no way back in,
+// so a blank/whitespace value counts as unset and falls through to the built-in.
+const envCredential = (value, fallback) =>
+  typeof value === "string" && value.trim() !== "" ? value : fallback;
+const ADMIN_USERNAME = envCredential(process.env.ADMIN_USERNAME, "Adithxtanu");
+const ADMIN_PASSWORD = envCredential(process.env.ADMIN_PASSWORD, "Tanuxadith");
 
 /** Today in UTC. The client sends its own local day for anything that matters. */
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -50,12 +55,12 @@ const safeTextEqual = (a, b) => {
 };
 
 function requireAdmin(req, res) {
-  // Local memory-mode development keeps the convenient defaults used by the
-  // test suite. A production deploy must explicitly supply both secrets;
-  // silently shipping source-code credentials would expose every admin row.
-  if (process.env.NODE_ENV === "production" && !ADMIN_CREDENTIALS_CONFIGURED) {
-    throw new HttpError(503, "admin credentials are not configured");
-  }
+  // The built-in pair above is accepted in production too, so the panel stays
+  // reachable when the deploy's env vars are missing or blank. That is a
+  // deliberate trade: the pair lives in this repo, so anyone who can read the
+  // source can sign in to a deploy that has not set ADMIN_USERNAME /
+  // ADMIN_PASSWORD. Setting both env vars overrides it and closes that door --
+  // do it on any deploy holding real user rows.
   const header = req.get("authorization") ?? "";
   if (!header.startsWith("Basic ")) {
     res.set("WWW-Authenticate", 'Basic realm="Admin Panda"');
