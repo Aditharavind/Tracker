@@ -5508,15 +5508,24 @@ h3 {
 }
 
 /* The looping lakeside GIF fills the viewport; reduced motion uses a still
-   from the same video. Keep the tree anchored on narrow screens and darken
-   the scene enough for the cream/gold controls to stay readable. */
+   from the same video. Darken the scene enough for the cream/gold controls to
+   stay readable.
+
+   The art is 16:9, so `cover` only crops on viewports that are not. Centre the
+   crop on both axes: a phone in portrait scales the frame ~2x by height and
+   throws away ~70% of the width, and anchoring that at `left` left nothing on
+   screen but the tree trunk -- the sun, lake and horizon were all cropped out,
+   which read as "the background isn't loading". Centred, the narrow crop keeps
+   the sun and lake; at 16:9 there is no overflow, so nothing moves. */
 .character-select-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-repeat: no-repeat;
   background-size: cover;
-  background-position: left top;
+  background-position: center center;
+  /* Upscaled ~2x on phones -- keep the pixels square rather than smeared. */
+  image-rendering: pixelated;
   background-image:
     linear-gradient(
       to bottom,
