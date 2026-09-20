@@ -6,7 +6,8 @@ import { usePrefersReducedMotion } from "./forest/ForestScene";
 
 // A single static frame -- no looping GIF/WEBP. The backdrop should read once
 // and stay put, not keep animating behind the character carousel.
-const SCENE_SRC = "/assets/character_selection/character_selection.jpg";
+const SCENE_SRC = "/assets/character_selection/character_selection-wide.jpg";
+const MOBILE_SCENE_SRC = "/assets/character_selection/character_selection.jpg";
 
 // A swipe has to travel at least this far (in px) before it counts as a
 // deliberate "next/previous character" gesture instead of an accidental
@@ -93,7 +94,10 @@ export default function CharacterSelect({
     >
       <div
         className="character-select-bg"
-        style={{ ["--character-select-scene" as string]: `url(${SCENE_SRC})` }}
+        style={{
+          ["--character-select-scene" as string]: `url(${SCENE_SRC})`,
+          ["--character-select-scene-mobile" as string]: `url(${MOBILE_SCENE_SRC})`,
+        }}
         aria-hidden="true"
       />
 

@@ -1,33 +1,11 @@
 import { useId, type CSSProperties } from "react";
 import { ArrowLeft, ArrowRight, Check, Puzzle, Sparkles } from "lucide-react";
 import { LEVELS_PER_WORLD } from "../../game/adventure/content";
-import { getWorldPuzzle } from "../../game/adventure/puzzles";
+import { getWorldPuzzle, piecePath } from "../../game/adventure/puzzles";
 import type { Save } from "../../game/adventure/save";
 import "../../adventure-puzzle.css";
 
 type Props = { save: Save; worldIndex: number; earnedLevelId?: number; onClose: () => void };
-
-// Every edge is symmetric. The adjacent piece traverses it in reverse with
-// the opposite tab, so all fifteen silhouettes fit without gaps or overlap.
-function edge(x: number, y: number, dx: number, dy: number, tab: number, depth: number) {
-  const length = Math.hypot(dx, dy);
-  const point = (along: number, out: number) => `${x + dx * along + dy / length * out * depth * tab},${y + dy * along - dx / length * out * depth * tab}`;
-  if (!tab) return `L${point(1, 0)}`;
-  return `L${point(.38, 0)} C${point(.46, 0)} ${point(.44, .35)} ${point(.42, .45)} C${point(.30, 1.15)} ${point(.70, 1.15)} ${point(.58, .45)} C${point(.56, .35)} ${point(.54, 0)} ${point(.62, 0)} L${point(1, 0)}`;
-}
-
-function piecePath(piece: number, width: number, height: number) {
-  const col = piece % 3; const row = Math.floor(piece / 3);
-  const w = width / 3; const h = height / 5; const x = col * w; const y = row * h;
-  const depth = Math.min(w, h) * .21;
-  const horizontal = (r: number, c: number) => (r + c) % 2 ? 1 : -1;
-  const vertical = (r: number, c: number) => (r + c) % 2 ? -1 : 1;
-  return `M${x},${y}`
-    + edge(x, y, w, 0, row === 0 ? 0 : -horizontal(row - 1, col), depth)
-    + edge(x + w, y, 0, h, col === 2 ? 0 : vertical(row, col), depth)
-    + edge(x + w, y + h, -w, 0, row === 4 ? 0 : horizontal(row, col), depth)
-    + edge(x, y + h, 0, -h, col === 0 ? 0 : -vertical(row, col - 1), depth) + "Z";
-}
 
 export default function AdventurePuzzle({ save, worldIndex, earnedLevelId, onClose }: Props) {
   const instance = useId().replace(/:/g, "");

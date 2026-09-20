@@ -1619,6 +1619,8 @@ export default function App() {
             coins={coinsEarned}
             streak={me.streak}
             character={myCharacter}
+            worldIndex={journey.worldIndex}
+            completedDays={journey.completedDays}
             onClose={closeDayComplete}
             onPlayRunner={() => {
               setDayCompleteOpen(false);

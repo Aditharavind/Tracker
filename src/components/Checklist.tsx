@@ -1,8 +1,16 @@
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { DayDetail, TaskItem } from "../types";
 import { prettyDate, todayISO } from "../api";
 import { getStage, type StageMeta } from "../game/stageSystem";
 import { dayProgressPercent } from "../game/progress";
+
+// Below this width the task list starts collapsed by default -- the
+// platformer-interface skill's mobile rule: "Many tasks -> collapse the
+// list... Never let the task UI obscure the platform path." The progress
+// bar/count above stay visible either way, so collapsing costs no
+// information, just floor space the forest scene gets back.
+const MOBILE_COLLAPSE_WIDTH = 720;
 
 function Check() {
   return (
@@ -43,6 +51,9 @@ export default function Checklist({
   locked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
+  const [tasksCollapsed, setTasksCollapsed] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= MOBILE_COLLAPSE_WIDTH
+  );
   const today = todayISO();
   const core = detail.tasks.filter((t) => t.is_core);
   const doneCore = core.filter((t) => t.done).length;
@@ -116,53 +127,71 @@ export default function Checklist({
         </p>
       )}
 
-      <p className="tasks-label">{locked ? "THAT DAY'S TASKS" : "TODAY'S TASKS"}</p>
-      <div className="tasks">
-        {detail.tasks.map((t) => (
-          <div key={t.id} className={`task${t.done ? " done" : ""}${locked ? " task-locked" : ""}`}>
-            <button
-              className="box"
-              onClick={() => !locked && onToggle(t)}
-              disabled={locked}
-              aria-label={t.done ? `uncheck ${t.title}` : `check ${t.title}`}
-              aria-pressed={t.done}
-              title={t.done ? `Uncheck "${t.title}"` : `Check "${t.title}"`}
-            >
-              <Check />
-            </button>
-            <span className="emoji">{t.emoji}</span>
-            <button
-              className="title"
-              onClick={() => !locked && onToggle(t)}
-              disabled={locked}
-              title={t.done ? `Uncheck "${t.title}"` : `Check "${t.title}"`}
-            >
-              {t.title}
-            </button>
-            {!t.is_core && <span className="tag">bonus</span>}
-            {t.locked && <span className="tag locked">locked</span>}
-            {!locked && !t.locked && (
-              <button className="kill" onClick={() => onRemove(t)} aria-label={`delete ${t.title}`} title={`Delete "${t.title}"`}>
-                &times;
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+      <button
+        type="button"
+        className="tasks-label tasks-toggle"
+        onClick={() => setTasksCollapsed((c) => !c)}
+        aria-expanded={!tasksCollapsed}
+        title={tasksCollapsed ? "Show today's tasks" : "Hide today's tasks"}
+      >
+        {locked ? "THAT DAY'S TASKS" : "TODAY'S TASKS"}
+        {tasksCollapsed ? (
+          <ChevronDown size={13} strokeWidth={2.4} aria-hidden="true" />
+        ) : (
+          <ChevronUp size={13} strokeWidth={2.4} aria-hidden="true" />
+        )}
+      </button>
 
-      {!hideAddRow && !locked && (
-        <div className="addrow">
-          <input
-            placeholder="add a bonus habit..."
-            value={draft}
-            maxLength={80}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-          />
-          <button className="btn" onClick={add} title="Add this task">
-            Add
-          </button>
-        </div>
+      {!tasksCollapsed && (
+        <>
+          <div className="tasks">
+            {detail.tasks.map((t) => (
+              <div key={t.id} className={`task${t.done ? " done" : ""}${locked ? " task-locked" : ""}`}>
+                <button
+                  className="box"
+                  onClick={() => !locked && onToggle(t)}
+                  disabled={locked}
+                  aria-label={t.done ? `uncheck ${t.title}` : `check ${t.title}`}
+                  aria-pressed={t.done}
+                  title={t.done ? `Uncheck "${t.title}"` : `Check "${t.title}"`}
+                >
+                  <Check />
+                </button>
+                <span className="emoji">{t.emoji}</span>
+                <button
+                  className="title"
+                  onClick={() => !locked && onToggle(t)}
+                  disabled={locked}
+                  title={t.done ? `Uncheck "${t.title}"` : `Check "${t.title}"`}
+                >
+                  {t.title}
+                </button>
+                {!t.is_core && <span className="tag">bonus</span>}
+                {t.locked && <span className="tag locked">locked</span>}
+                {!locked && !t.locked && (
+                  <button className="kill" onClick={() => onRemove(t)} aria-label={`delete ${t.title}`} title={`Delete "${t.title}"`}>
+                    &times;
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {!hideAddRow && !locked && (
+            <div className="addrow">
+              <input
+                placeholder="add a bonus habit..."
+                value={draft}
+                maxLength={80}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && add()}
+              />
+              <button className="btn" onClick={add} title="Add this task">
+                Add
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

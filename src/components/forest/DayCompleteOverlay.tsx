@@ -1,8 +1,10 @@
 import { useEffect, useMemo } from "react";
 import CharacterModel from "./CharacterModel";
 import { CoinIcon } from "./Coin";
+import DayPuzzlePiece from "./DayPuzzlePiece";
 import { usePrefersReducedMotion } from "./ForestScene";
 import type { CharacterId } from "../../game/characters";
+import { LEVELS_PER_WORLD } from "../../game/adventure/content";
 
 /**
  * The level-clear screen (skill §13): a classic platformer "stage complete"
@@ -27,6 +29,8 @@ export default function DayCompleteOverlay({
   coins,
   streak,
   character,
+  worldIndex,
+  completedDays,
   onClose,
   onPlayRunner,
 }: {
@@ -36,11 +40,19 @@ export default function DayCompleteOverlay({
   coins: number;
   streak: number;
   character: CharacterId;
+  /** Which of the 6 world puzzles this run's piece belongs to (see
+   * game/weekSystem.ts's journeyProgress) -- omit to skip the puzzle reveal. */
+  worldIndex?: number;
+  /** The journey's running consecutive-done-day count, i.e. how many pieces
+   * are collected across all worlds so far. */
+  completedDays?: number;
   onClose: () => void;
   onPlayRunner?: () => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const isFinale = dayNumber >= 75;
+  const earnedPiece = completedDays === undefined ? -1 : completedDays - 1 - (worldIndex ?? 0) * LEVELS_PER_WORLD;
+  const showPuzzle = worldIndex !== undefined && completedDays !== undefined && earnedPiece >= 0;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -117,6 +129,15 @@ export default function DayCompleteOverlay({
             <dd className="pixel-font">{streak}d</dd>
           </div>
         </dl>
+
+        {showPuzzle && (
+          <DayPuzzlePiece
+            worldIndex={worldIndex!}
+            completedDays={completedDays!}
+            earnedPiece={earnedPiece}
+            reducedMotion={reducedMotion}
+          />
+        )}
 
         <div className="daycomplete-actions">
           <button type="button" className="daycomplete-continue pixel-font" onClick={onClose} autoFocus>

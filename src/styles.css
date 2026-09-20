@@ -1045,10 +1045,10 @@ h3 {
   z-index: -2;
   background-image:
     linear-gradient(to bottom, rgba(5, 11, 7, 0.18), rgba(5, 11, 7, 0.72)),
-    url("/assets/character_selection/character_selection.jpg");
+    url("/assets/character_selection/character_selection-wide.jpg");
   background-repeat: no-repeat;
   background-position: center center;
-  background-size: contain;
+  background-size: cover;
   image-rendering: pixelated;
   background-color: #050b07;
 }
@@ -1250,7 +1250,7 @@ h3 {
     var(--loading-scene);
   background-repeat: no-repeat;
   background-position: center center;
-  background-size: contain;
+  background-size: cover;
   image-rendering: pixelated;
 }
 
@@ -1294,9 +1294,14 @@ h3 {
   height: 14px;
   padding: 3px;
   border-radius: 7px;
-  background: rgba(0, 0, 0, 0.52);
-  border: 2px solid rgba(240, 192, 74, 0.42);
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.28);
+  background:
+    linear-gradient(to bottom, rgba(28, 18, 5, 0.86), rgba(4, 8, 4, 0.9)),
+    #071107;
+  border: 2px solid #f2c75a;
+  box-shadow:
+    0 3px 0 #6f4810,
+    0 7px 14px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 238, 149, 0.55);
   overflow: hidden;
 }
 
@@ -1305,9 +1310,19 @@ h3 {
   width: 46%;
   height: 100%;
   border-radius: 4px;
-  background: linear-gradient(to right, #f07d3e, #ffe293, #70d46a);
-  box-shadow: 0 0 16px rgba(240, 192, 74, 0.52);
+  background:
+    linear-gradient(to bottom, rgba(255, 244, 122, 0.9) 0 18%, transparent 19%),
+    linear-gradient(to bottom, #b7ff55 0%, #48d01e 48%, #1e8d13 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 196, 0.78),
+    inset 0 -2px 0 rgba(10, 70, 8, 0.45),
+    0 0 12px rgba(105, 255, 52, 0.58);
   animation: arcade-loading-fill 1.25s ease-in-out infinite alternate;
+}
+
+.arcade-loading-bar.is-determinate span {
+  animation: none;
+  transition: width 0.18s ease-out;
 }
 
 .arcade-loading-track {
@@ -1371,6 +1386,34 @@ h3 {
 
   .arcade-loading-track {
     bottom: 7vh;
+  }
+}
+
+@media (max-width: 760px) {
+  .onboard::before {
+    background-image:
+      linear-gradient(to bottom, rgba(5, 11, 7, 0.18), rgba(5, 11, 7, 0.72)),
+      url("/assets/character_selection/character_selection.jpg");
+    background-size: contain;
+  }
+
+  .arcade-loading-bg {
+    background-image:
+      linear-gradient(to bottom, rgba(5, 11, 7, 0.18), rgba(5, 11, 7, 0.82)),
+      var(--loading-scene-mobile, var(--loading-scene));
+    background-size: contain;
+  }
+
+  .character-select-bg {
+    background-image:
+      linear-gradient(
+        to bottom,
+        rgba(5, 11, 7, 0.55) 0%,
+        rgba(5, 11, 7, 0.35) 45%,
+        rgba(5, 11, 7, 0.75) 100%
+      ),
+      var(--character-select-scene-mobile, var(--character-select-scene));
+    background-size: contain;
   }
 }
 
@@ -1930,6 +1973,29 @@ h3 {
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--dim);
+}
+
+/* Now a real <button> (see Checklist.tsx's collapse/expand toggle) --
+   strip the default button chrome back to how the plain <p> label read,
+   plus a chevron and a bigger hit target for the tap-to-collapse gesture. */
+.tasks-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.tasks-toggle:hover {
+  color: var(--text);
+}
+
+.tasks-toggle svg {
+  flex: none;
 }
 
 .progress-block {
@@ -5705,17 +5771,16 @@ h3 {
   }
 }
 
-/* A single static frame, shown whole -- `contain` (not `cover`) so the full
-   picture is always on screen with nothing cropped off on portrait/mobile
-   viewports, even though that means letterboxing (the dark .character-select
-   background behind it) on aspect ratios that don't match the art. Darkened
-   enough for the cream/gold controls to stay readable on top of it. */
+/* A single static frame: desktop uses the ultrawide extension with `cover`,
+   while mobile swaps back to the original frame with `contain` below. That
+   fills web viewports without squashing the art and keeps the phone
+   composition intact. */
 .character-select-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: cover;
   background-position: center center;
   image-rendering: pixelated;
   background-image:
