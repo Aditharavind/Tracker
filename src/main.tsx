@@ -7,6 +7,7 @@ import { registerSW } from "virtual:pwa-register";
 import "@fontsource/press-start-2p/latin-400.css";
 import "./styles.css";
 import "./world-theme.css";
+import LoadingPage from "./components/LoadingPage";
 
 const App = React.lazy(() => import("./App"));
 const SharedView = React.lazy(() => import("./components/SharedView"));
@@ -55,7 +56,7 @@ function Root() {
     ) : (
       <App />
     );
-  return <React.Suspense fallback={<div className="shell muted">loading...</div>}>{view}</React.Suspense>;
+  return <React.Suspense fallback={<LoadingPage label="Loading run" />}>{view}</React.Suspense>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

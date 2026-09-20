@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
-import { Sprite, type AvatarId } from "./Runner";
+import type { AvatarId } from "./Runner";
 import { CHARACTERS } from "../game/characters";
 import { api } from "../api";
 
 const COLORS = ["#e8734a", "#4a9ee8", "#5cbd7e", "#b76ae8", "#e8c14a"];
-const AVATARS: AvatarId[] = ["guy", "girl", "panda"];
 
 export default function Onboard({
   existing,
   onCreate,
   onSignIn,
-  avatar,
-  onAvatar,
+  avatar: _avatar,
+  onAvatar: _onAvatar,
   initialMode = "new",
 }: {
   existing: string[];
@@ -138,21 +137,6 @@ export default function Onboard({
               onClick={() => setColor(c)}
               aria-label={`pick ${c}`}
             />
-          ))}
-        </div>
-        )}
-        {mode === "new" && (
-        <div className="avatars" style={{ justifyContent: "center", margin: "0 auto 20px" }}>
-          {AVATARS.map((a) => (
-            <button
-              key={a}
-              className={`avatar-btn${a === avatar ? " on" : ""}`}
-              onClick={() => onAvatar(a)}
-              aria-label={`play as ${a}`}
-              aria-pressed={a === avatar}
-            >
-              <Sprite avatar={a} running={false} />
-            </button>
           ))}
         </div>
         )}

@@ -1018,7 +1018,7 @@ h3 {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 22px;
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -1039,42 +1039,28 @@ h3 {
 }
 
 .onboard::before {
-  /* The actual reference artwork, stretched to fill the screen -- same
-     asset and same treatment as .forest-bg in the game shell, so the
-     login page and the gameplay screen read as one continuous place
-     rather than two different backgrounds. `cover` fills edge-to-edge
-     with no distortion (crops rather than squashes); centered on the
-     bottom so the ground/flowers stay in frame on tall screens where the
-     top of the image would otherwise get pushed off. */
   content: "";
   position: absolute;
   inset: 0;
   z-index: -2;
   background-image:
-    radial-gradient(
-      ellipse at center,
-      rgba(0, 0, 0, 0) 45%,
-      rgba(0, 0, 0, 0.55) 100%
-    ),
-    url("/assets/forest-background.webp");
+    linear-gradient(to bottom, rgba(5, 11, 7, 0.18), rgba(5, 11, 7, 0.72)),
+    url("/assets/character_selection/character_selection.jpg");
   background-repeat: no-repeat;
-  background-position: center bottom;
-  background-size: cover;
+  background-position: center center;
+  background-size: contain;
+  image-rendering: pixelated;
+  background-color: #050b07;
 }
 
 .onboard::after {
-  /* Readability scrim only, on top of the real image -- the login card
-     sits directly over the busy artwork and needs a bit more contrast
-     behind it than the image's own vignette alone provides. */
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(
-    ellipse 70% 55% at 50% 42%,
-    rgba(4, 8, 5, 0.55),
-    transparent 72%
-  );
+  background:
+    radial-gradient(ellipse 54% 46% at 50% 47%, rgba(5, 11, 7, 0.1), rgba(5, 11, 7, 0.66) 72%),
+    linear-gradient(to bottom, rgba(5, 11, 7, 0.05), rgba(5, 11, 7, 0.42));
 }
 
 .onboard-firefly {
@@ -1172,8 +1158,16 @@ h3 {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 360px;
+  max-width: 368px;
   text-align: center;
+  padding: 18px 18px 20px;
+  background: rgba(5, 11, 7, 0.58);
+  border: 2px solid rgba(240, 192, 74, 0.36);
+  border-radius: 8px;
+  box-shadow:
+    0 10px 0 rgba(0, 0, 0, 0.22),
+    0 22px 44px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
 }
 
 .onboard h1 {
@@ -1191,9 +1185,10 @@ h3 {
 }
 
 .onboard p {
-  color: var(--dim);
+  color: var(--forest-cream, #f3e6c8);
   margin: 0 0 26px;
   font-size: 14px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.42);
 }
 
 /* Sign-up count. Deliberately echoes the DAY pill in the game HUD -- dark
@@ -1230,6 +1225,164 @@ h3 {
 
 .field:focus {
   border-color: var(--dimmer);
+}
+
+/* ------------------------------------------------------------- loading page */
+
+.arcade-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: hidden;
+  isolation: isolate;
+  background: #050b07;
+}
+
+.arcade-loading-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(to bottom, rgba(5, 11, 7, 0.18), rgba(5, 11, 7, 0.82)),
+    var(--loading-scene);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+.arcade-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 52% 38% at 50% 50%, rgba(240, 192, 74, 0.1), transparent 64%),
+    linear-gradient(to bottom, rgba(5, 11, 7, 0.05), rgba(5, 11, 7, 0.55));
+}
+
+.arcade-loading-copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(360px, 88vw);
+  margin-top: min(30vh, 220px);
+}
+
+.arcade-loading-logo {
+  width: clamp(160px, 46vw, 240px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 5px 0 rgba(0, 0, 0, 0.38));
+}
+
+.arcade-loading-title {
+  margin: 0;
+  font-size: clamp(9px, 2.8vw, 12px);
+  letter-spacing: 0.1em;
+  color: var(--forest-cream, #f3e6c8);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.arcade-loading-bar {
+  width: min(280px, 74vw);
+  height: 14px;
+  padding: 3px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.52);
+  border: 2px solid rgba(240, 192, 74, 0.42);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.arcade-loading-bar span {
+  display: block;
+  width: 46%;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(to right, #f07d3e, #ffe293, #70d46a);
+  box-shadow: 0 0 16px rgba(240, 192, 74, 0.52);
+  animation: arcade-loading-fill 1.25s ease-in-out infinite alternate;
+}
+
+.arcade-loading-track {
+  position: absolute;
+  left: 50%;
+  bottom: max(8vh, 56px);
+  z-index: 1;
+  width: min(520px, 86vw);
+  height: clamp(76px, 17vw, 118px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.arcade-loading-runner {
+  position: absolute;
+  bottom: 0;
+  width: clamp(56px, 13vw, 86px);
+  height: clamp(56px, 13vw, 86px);
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 5px 4px rgba(0, 0, 0, 0.55));
+  animation: arcade-loading-bob 0.72s ease-in-out infinite alternate;
+}
+
+.arcade-loading-runner-0 {
+  left: 18%;
+}
+
+.arcade-loading-runner-1 {
+  left: 42%;
+  animation-delay: 0.16s;
+}
+
+.arcade-loading-runner-2 {
+  left: 66%;
+  animation-delay: 0.32s;
+}
+
+@keyframes arcade-loading-fill {
+  from {
+    width: 28%;
+  }
+  to {
+    width: 96%;
+  }
+}
+
+@keyframes arcade-loading-bob {
+  from {
+    transform: translateY(0) rotate(-2deg);
+  }
+  to {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+@media (max-width: 520px) {
+  .arcade-loading-copy {
+    margin-top: 22vh;
+  }
+
+  .arcade-loading-track {
+    bottom: 7vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcade-loading-bar span,
+  .arcade-loading-runner {
+    animation: none;
+  }
+
+  .arcade-loading-bar span {
+    width: 72%;
+  }
 }
 
 .swatches {
@@ -5552,24 +5705,18 @@ h3 {
   }
 }
 
-/* The looping lakeside GIF fills the viewport; reduced motion uses a still
-   from the same video. Darken the scene enough for the cream/gold controls to
-   stay readable.
-
-   The art is 16:9, so `cover` only crops on viewports that are not. Centre the
-   crop on both axes: a phone in portrait scales the frame ~2x by height and
-   throws away ~70% of the width, and anchoring that at `left` left nothing on
-   screen but the tree trunk -- the sun, lake and horizon were all cropped out,
-   which read as "the background isn't loading". Centred, the narrow crop keeps
-   the sun and lake; at 16:9 there is no overflow, so nothing moves. */
+/* A single static frame, shown whole -- `contain` (not `cover`) so the full
+   picture is always on screen with nothing cropped off on portrait/mobile
+   viewports, even though that means letterboxing (the dark .character-select
+   background behind it) on aspect ratios that don't match the art. Darkened
+   enough for the cream/gold controls to stay readable on top of it. */
 .character-select-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-repeat: no-repeat;
-  background-size: cover;
+  background-size: contain;
   background-position: center center;
-  /* Upscaled ~2x on phones -- keep the pixels square rather than smeared. */
   image-rendering: pixelated;
   background-image:
     linear-gradient(

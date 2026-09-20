@@ -5,6 +5,7 @@ import * as outbox from "./outbox";
 import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
 import { LAST_USER_KEY } from "./constants";
 import Onboard from "./components/Onboard";
+import LoadingPage from "./components/LoadingPage";
 import Checklist from "./components/Checklist";
 import LevelRing from "./components/LevelRing";
 import type { AvatarId } from "./components/Runner";
@@ -613,25 +614,7 @@ function AlarmOverlay({
  * layout rules, so it can't drift out of sync with the real shell.
  */
 function Skeleton() {
-  return (
-    <div className="game-shell" aria-busy="true" aria-label="Loading">
-      <div className="game-shell-inner">
-        <header className="game-topbar">
-          <div className="skel" style={{ width: 38, height: 38, borderRadius: 9 }} />
-          <div className="skel" style={{ width: 180, height: 14, borderRadius: 6 }} />
-          <div className="skel" style={{ width: 60, height: 22, borderRadius: 6 }} />
-        </header>
-        <div className="stage-area">
-          <div className="day-card-float skel" style={{ height: "60%" }} />
-        </div>
-        <nav className="game-bottomnav">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="skel" style={{ width: 46, height: 34, borderRadius: 8 }} />
-          ))}
-        </nav>
-      </div>
-    </div>
-  );
+  return <LoadingPage label="Loading run" />;
 }
 
 export default function App() {
