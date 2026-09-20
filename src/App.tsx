@@ -26,17 +26,18 @@ const Coach = lazy(() => import("./components/Coach"));
 const CharacterSelect = lazy(() => import("./components/CharacterSelect"));
 const CharacterTurntable = lazy(() => import("./components/forest/CharacterTurntable"));
 const DayCompleteOverlay = lazy(() => import("./components/forest/DayCompleteOverlay"));
+const DayStartBanner = lazy(() => import("./components/forest/DayStartBanner"));
 const StoryLauncher = lazy(() => import("./components/forest/StoryLauncher"));
 const WorldUnlockOverlay = lazy(() => import("./components/forest/WorldUnlockOverlay"));
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCountdown from "./components/forest/DayCountdown";
 import { CoinIcon } from "./components/forest/Coin";
 import { getJourneyStage, type StageMeta } from "./game/stageSystem";
-import { ARC_COUNT, journeyProgress } from "./game/weekSystem";
+import { ARC_COUNT, journeyProgress, worldPuzzlePieces } from "./game/weekSystem";
 import { WORLDS } from "./game/adventure/content";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { isStandalone, useInstallPrompt } from "./installPrompt";
-import { CHARACTER_SPRITE, CHARACTERS, isCharacterId, type CharacterId } from "./game/characters";
+import { isCharacterId, type CharacterId } from "./game/characters";
 import FailureBanner from "./components/forest/FailureBanner";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
@@ -633,7 +634,6 @@ export default function App() {
   const [, setAvatars] = useState<Record<number, AvatarId>>(storedAvatars);
   const [pendingAvatar, setPendingAvatar] = useState<AvatarId>("guy");
   const [characters, setCharacters] = useState<Record<number, CharacterId>>(storedCharacters);
-  const [characterPanelOpen, setCharacterPanelOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
@@ -654,8 +654,12 @@ export default function App() {
   const [storyWorld, setStoryWorld] = useState<number | undefined>(undefined);
   const [storyStartsInAdventure, setStoryStartsInAdventure] = useState(false);
   // The world map is a stones-only readout of the current world's 15 days --
-  // no story or minigame launches from it, see WeekMap.tsx.
-  const [weekMapOpen, setWeekMapOpen] = useState(false);
+  // no story or minigame launches from it, see WeekMap.tsx. Now the app's
+  // landing page (defaults open): every fresh load shows the trail first,
+  // and tapping the current day's stone reveals the task/forest view
+  // underneath (see the day-start banner this triggers, below).
+  const [weekMapOpen, setWeekMapOpen] = useState(true);
+  const [dayStartBannerOpen, setDayStartBannerOpen] = useState(false);
   // ▶ MINIGAME opens a choice between the two minigames instead of launching
   // Forest Dash directly, now that the Story Adventure (with its day-15
   // boss) no longer has any other entry point in the main UI.
@@ -814,7 +818,6 @@ export default function App() {
       localStorage.setItem(CHARACTER_KEY, JSON.stringify(next));
       return next;
     });
-    setCharacterPanelOpen(false);
   };
 
   const flash = (msg: string) => {
@@ -1410,7 +1413,6 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setOpenPanel(null);
-      setCharacterPanelOpen(false);
       setShareUrl(null);
       setInviteUrl(null);
     };
@@ -1519,16 +1521,11 @@ export default function App() {
 
   // Mandatory first-run gate (skill §0): blocks the game shell entirely
   // until a character is chosen and persisted for this user. Fires once per
-  // user id, then never again -- selecting from the HUD later (see
-  // characterPanelOpen below) reuses the same component in "switch" mode
-  // instead of this blocking one.
+  // user id, then never again -- changing it later is Profile's "Your
+  // character" turntable instead of a HUD entry point into this component.
   if (!myCharacter) {
     return <Suspense fallback={<Skeleton />}><CharacterSelect mode="gate" onSelect={(c) => setCharacterFor(meId!, c)} /></Suspense>;
   }
-
-  // Display name for the topbar badge/aria-label -- CHARACTERS is the single
-  // source for these (Chibbi/Kiki/Mochi), never the raw CharacterId.
-  const myCharacterName = CHARACTERS.find((c) => c.id === myCharacter)?.name ?? myCharacter;
 
   const isToday = day === todayISO();
   const allTasksDone = detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
@@ -1600,16 +1597,6 @@ export default function App() {
           onCancel={() => setConfirmRestartOpen(false)}
         />
       )}
-      {characterPanelOpen && (
-        <Suspense fallback={null}>
-          <CharacterSelect
-            mode="switch"
-            current={myCharacter}
-            onSelect={(c) => setCharacterFor(meId!, c)}
-            onClose={() => setCharacterPanelOpen(false)}
-          />
-        </Suspense>
-      )}
       {dayCompleteOpen && (
         <Suspense fallback={null}>
           <DayCompleteOverlay
@@ -1620,7 +1607,9 @@ export default function App() {
             streak={me.streak}
             character={myCharacter}
             worldIndex={journey.worldIndex}
-            completedDays={journey.completedDays}
+            worldPieceIds={worldPuzzlePieces(me.calendar, journey.worldIndex)}
+            board={board}
+            meId={meId!}
             onClose={closeDayComplete}
             onPlayRunner={() => {
               setDayCompleteOpen(false);
@@ -1660,12 +1649,20 @@ export default function App() {
           />
         </Suspense>
       )}
+      {dayStartBannerOpen && (
+        <Suspense fallback={null}>
+          <DayStartBanner dayNumber={me.day_number} onDismiss={() => setDayStartBannerOpen(false)} />
+        </Suspense>
+      )}
       {weekMapOpen && myCharacter && (
         <Suspense fallback={<div className="weekmap-screen" aria-busy="true" />}>
           <WeekMap
             character={myCharacter}
             calendar={me.calendar}
-            onClose={() => setWeekMapOpen(false)}
+            onClose={() => {
+              setWeekMapOpen(false);
+              setDayStartBannerOpen(true);
+            }}
           />
         </Suspense>
       )}
@@ -1698,18 +1695,14 @@ export default function App() {
         <header className="game-topbar">
           {/* No hamburger -- PROFILE in the bottom nav already opens the same
               panel (togglePanel("profile")), so a second menu entry point
-              here was redundant. Layout is now: character select (left),
-              the day clock (centre), lives + coins (right). */}
-          <button
-            type="button"
-            className="topbar-character"
-            onClick={() => setCharacterPanelOpen(true)}
-            aria-label={`Character: ${myCharacterName}. Change character.`}
-            title={`Character: ${myCharacterName} — tap to change`}
-          >
-            <img src={CHARACTER_SPRITE[myCharacter]} alt="" aria-hidden="true" className="topbar-character-sprite" />
-            <span className="topbar-character-name pixel-font">{myCharacterName.toUpperCase()}</span>
-          </button>
+              here was redundant. Character switching is also Profile's job
+              now (the "Your character" turntable) -- this slot used to
+              duplicate it with its own 2D carousel picker, so it's a plain
+              world label instead. Layout is now: world label (left), the
+              day clock (centre), lives + coins (right). */}
+          <span className="topbar-world pixel-font">
+            WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
+          </span>
           <DayCountdown compact zoomable />
           {/* One flex item on the right (instead of four loose ones) so
               justify-content:space-between balances it against the single
@@ -1748,7 +1741,7 @@ export default function App() {
             >
               {muted ? <IconSoundOff /> : <IconSoundOn />}
             </button>
-            {openPanel === null && !characterPanelOpen && !runnerOpen && !storyOpen && !weekMapOpen && !minigamePickerOpen && (
+            {openPanel === null && !runnerOpen && !storyOpen && !weekMapOpen && !minigamePickerOpen && (
               <button
                 type="button"
                 className="dash-launch pixel-font"
@@ -1784,7 +1777,6 @@ export default function App() {
               detail.tasks.length > 0 &&
               detail.tasks.every((t) => t.done) &&
               openPanel === null &&
-              !characterPanelOpen &&
               !runnerOpen &&
               !storyOpen &&
               !weekMapOpen &&
@@ -1795,17 +1787,6 @@ export default function App() {
           />
           )}
 
-          <button
-            className="world-journey-chip"
-            onClick={() => openStory(true)}
-            aria-label={`World ${journey.worldIndex + 1}: ${WORLDS[journey.worldIndex].name}. ${journey.worldCompletedDays} of 15 days complete. Enter adventure missions.`}
-            title="Enter adventure missions"
-          >
-            <span>WORLD {journey.worldIndex + 1} / {ARC_COUNT}</span>
-            <strong>{WORLDS[journey.worldIndex].name}</strong>
-            <span>{journey.complete ? "75-day journey complete" : `${journey.worldCompletedDays} / 15 days complete`}</span>
-            <progress value={journey.worldCompletedDays} max={15} aria-label="Days completed in this world" />
-          </button>
 
           <div className="day-card-float">
             <button

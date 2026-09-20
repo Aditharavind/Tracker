@@ -63,3 +63,24 @@ export function unlockedDayCount(calendar: DayCell[]): number {
 export function currentWorldIndex(calendar: DayCell[]): number {
   return journeyProgress(calendar).worldIndex;
 }
+
+/**
+ * Which of a world's 15 day-slots (0-indexed) have ever been marked done,
+ * regardless of gaps from missed days elsewhere in the calendar.
+ *
+ * Deliberately different from journeyProgress's worldCompletedDays, which
+ * counts a *consecutive* streak from Day 1 -- that's the intended difficulty
+ * gate for unlocking the next world (missing a day should slow you down).
+ * A world puzzle piece is a reward for a day you already did, though, and
+ * CLAUDE.md's life/penalty rules never let a failure retroactively undo a
+ * prior completion -- so once a day's status is "done" its piece must stay
+ * revealed even if a *different* day in the same world later gets missed.
+ */
+export function worldPuzzlePieces(calendar: DayCell[], worldIndex: number): number[] {
+  const start = worldIndex * ARC_DAYS;
+  const pieces: number[] = [];
+  for (let i = 0; i < ARC_DAYS; i++) {
+    if (calendar[start + i]?.status === "done") pieces.push(i);
+  }
+  return pieces;
+}

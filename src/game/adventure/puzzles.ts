@@ -51,3 +51,13 @@ export function getWorldPuzzle(save: Pick<Save, "completed">, worldIndex: number
     .filter(piece => completed.has(firstLevel + piece));
   return { ...WORLD_PUZZLES[worldIndex], worldIndex, pieceIds, complete: pieceIds.length === LEVELS_PER_WORLD };
 }
+
+/** Same art/shape as getWorldPuzzle, for the *main* 75-day journey instead of
+ * the Adventure minigame's Save. `pieceIds` should come from
+ * weekSystem.ts's worldPuzzlePieces -- every day ever completed in this
+ * world, not a consecutive streak, so a missed day elsewhere never hides a
+ * piece already earned. */
+export function getMainJourneyPuzzle(pieceIds: number[], worldIndex: number): WorldPuzzle | null {
+  if (!Number.isInteger(worldIndex) || worldIndex < 0 || worldIndex >= WORLD_PUZZLES.length) return null;
+  return { ...WORLD_PUZZLES[worldIndex], worldIndex, pieceIds, complete: pieceIds.length === LEVELS_PER_WORLD };
+}

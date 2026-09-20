@@ -1,32 +1,53 @@
 import { useId, type CSSProperties } from "react";
 import { Puzzle, Sparkles } from "lucide-react";
 import { LEVELS_PER_WORLD } from "../../game/adventure/content";
-import { getWorldPuzzle, piecePath } from "../../game/adventure/puzzles";
+import { getMainJourneyPuzzle, piecePath } from "../../game/adventure/puzzles";
 import "../../adventure-puzzle.css";
+
+/**
+ * The face-down state a newly-earned piece starts in on the stage-clear
+ * screen -- a "?" tile instead of the actual board, so the reward reads as a
+ * mystery to tap open rather than something that just silently appeared.
+ * The caller swaps this out for the real <DayPuzzlePiece> on click; that
+ * component's own "is-new" snap-in animation is what makes the revealed
+ * piece look like it drops into the frame.
+ */
+export function MysteryPuzzlePiece({ onReveal }: { onReveal: () => void }) {
+  return (
+    <button type="button" className="daypuzzle-mystery" onClick={onReveal}>
+      <span className="daypuzzle-mystery-mark pixel-font" aria-hidden="true">?</span>
+      <span className="daypuzzle-mystery-label pixel-font">
+        A NEW PIECE AWAITS
+        <br />
+        TAP TO REVEAL
+      </span>
+    </button>
+  );
+}
 
 /**
  * The daily-task counterpart to AdventurePuzzle (the optional Adventure
  * minigame's full jigsaw screen): a compact reveal of the *main* 75-day
  * journey's world puzzle, shown on the stage-clear screen once today's
  * tasks are all done. Each of the 15 days in a world fills one piece --
- * `completedDays` is the journey's running consecutive-done-day count
- * (see game/weekSystem.ts's journeyProgress), which getWorldPuzzle already
- * knows how to turn into "pieces collected" for any world.
+ * `pieceIds` comes from game/weekSystem.ts's worldPuzzlePieces, which
+ * counts every day ever completed in this world (not a consecutive streak),
+ * so a missed day elsewhere never hides a piece already earned.
  */
 export default function DayPuzzlePiece({
   worldIndex,
-  completedDays,
+  pieceIds: earnedPieceIds,
   earnedPiece,
   reducedMotion,
 }: {
   worldIndex: number;
-  completedDays: number;
+  pieceIds: number[];
   /** The 0-indexed slot the day just cleared fills, e.g. day 3 of a world -> 2. */
   earnedPiece: number;
   reducedMotion?: boolean;
 }) {
   const instance = useId().replace(/:/g, "");
-  const puzzle = getWorldPuzzle({ completed: Array.from({ length: completedDays }, (_, i) => i) }, worldIndex);
+  const puzzle = getMainJourneyPuzzle(earnedPieceIds, worldIndex);
   if (!puzzle) return null;
 
   const { width, height, pieceIds, complete, title } = puzzle;

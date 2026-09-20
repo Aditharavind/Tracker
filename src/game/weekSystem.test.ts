@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARC_COUNT, arcDayRange, currentWorldIndex, isArcConsistent, journeyProgress, STORY_ARC_LIMIT, unlockedArcCount, unlockedDayCount } from "./weekSystem";
+import { ARC_COUNT, arcDayRange, currentWorldIndex, isArcConsistent, journeyProgress, STORY_ARC_LIMIT, unlockedArcCount, unlockedDayCount, worldPuzzlePieces } from "./weekSystem";
 import type { DayCell } from "../types";
 
 const cell = (status: DayCell["status"]): DayCell => ({ day: "", index: 0, status, done: status === "done" ? 1 : 0, total: 1 });
@@ -105,5 +105,27 @@ describe("journeyProgress", () => {
       worldIndex: 4, completedDays: 75, worldCompletedDays: 15, complete: true, nextWorldIndex: null,
     });
     expect(unlockedDayCount(calendarWith(75))).toBe(75);
+  });
+});
+
+describe("worldPuzzlePieces", () => {
+  it("collects every done day in the world, not just a leading streak", () => {
+    const calendar = calendarWith(15);
+    expect(worldPuzzlePieces(calendar, 0)).toEqual(Array.from({ length: 15 }, (_, i) => i));
+  });
+
+  it("a missed day elsewhere in the world never hides a piece already earned", () => {
+    const calendar = calendarWith(15);
+    calendar[3] = cell("missed");
+    // Day 4 (index 3) no longer counts, but every other day this world
+    // completed still does -- this is the guarantee CLAUDE.md's life/penalty
+    // rules require: a failure costs a life, it must never undo a piece.
+    expect(worldPuzzlePieces(calendar, 0)).toEqual([0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+  });
+
+  it("only looks at the requested world's own 15-day slice", () => {
+    const calendar = calendarWith(20);
+    expect(worldPuzzlePieces(calendar, 1)).toEqual([0, 1, 2, 3, 4]);
+    expect(worldPuzzlePieces(calendar, 2)).toEqual([]);
   });
 });

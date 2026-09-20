@@ -681,11 +681,11 @@
 @media (max-width: 560px) {
   .world-theme .game-topbar {
     display: grid;
-    grid-template-columns: 36px minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 8px;
     padding: 10px 12px;
   }
-  .world-theme .topbar-character { width: 36px; height: 36px; padding: 3px; justify-content: center; }
+  .world-theme .topbar-world { font-size: 8px; }
   .world-theme .day-clock-compact { width: clamp(100px, 32vw, 145px); justify-self: center; }
   .world-theme .day-clock-compact .day-clock-time { font-size: clamp(8px, 2.6vw, 11px); }
   .world-theme .day-clock-compact .day-clock-label { font-size: 4px; }

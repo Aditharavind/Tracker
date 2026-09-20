@@ -97,6 +97,56 @@
   color: #d8c290;
 }
 
+/* The face-down "?" tile a fresh piece starts as (MysteryPuzzlePiece) --
+   same wood-frame footprint as .daypuzzle-art so swapping it for the real
+   board on tap doesn't jump the layout. */
+.daypuzzle-mystery {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(170px, 55vw);
+  aspect-ratio: 2 / 3;
+  margin: 4px 0 2px;
+  border: 2px solid #c18a47;
+  border-radius: 12px;
+  background: repeating-linear-gradient(4deg, transparent 0 4px, #1d100c30 5px 6px, transparent 7px 13px), linear-gradient(110deg, #4a2f6b, #241238 40%, #3a1f57 75%, #1c0e2b);
+  box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #b98af177, inset 0 -3px 0 #14091faa;
+  cursor: pointer;
+  animation: daypuzzle-mystery-glow 2.2s ease-in-out infinite;
+}
+
+.daypuzzle-mystery:hover,
+.daypuzzle-mystery:focus-visible {
+  filter: brightness(1.12);
+}
+
+.daypuzzle-mystery-mark {
+  font-size: 34px;
+  color: #ffe7a6;
+  text-shadow: 0 0 14px #d9a8ff, 0 3px 0 #000a;
+}
+
+.daypuzzle-mystery-label {
+  font-size: 8px;
+  line-height: 1.7;
+  letter-spacing: 0.08em;
+  color: #d8c9f2;
+  text-align: center;
+}
+
+@keyframes daypuzzle-mystery-glow {
+  0%, 100% { box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #b98af177, inset 0 -3px 0 #14091faa; }
+  50% { box-shadow: 0 15px 40px #0008, 0 4px 0 #351d13, inset 0 2px 0 #d9b8ffcc, inset 0 -3px 0 #14091faa, 0 0 22px 2px #7c4fd166; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daypuzzle-mystery {
+    animation: none;
+  }
+}
+
 .daypuzzle.reduced-motion *,
 .daypuzzle.reduced-motion *::after {
   animation: none !important;
