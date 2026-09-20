@@ -28,10 +28,13 @@ const FINALE_LINES = [
   "Not a different panda. The one seventy-five days of showing up was quietly building.",
 ];
 
-// How long the piece's own "is-new" snap-in animation (adventure-puzzle.css)
-// takes to settle -- the puzzle step's Continue button waits this long after
-// a reveal so it doesn't appear mid-animation.
-const PIECE_SETTLE_MS = 1300;
+// How long the mystery tile's card-flip takes (daypuzzle-mystery-flip in
+// adventure-puzzle.css) before the real board takes its place.
+const FLIP_MS = 420;
+// How long the frame-pop + delayed piece-snap (also adventure-puzzle.css)
+// take to fully settle after the flip hands off to them -- the puzzle
+// step's Continue button waits this long so it doesn't appear mid-animation.
+const PIECE_SETTLE_MS = FLIP_MS + 1600;
 
 export default function DayCompleteOverlay({
   dayNumber,
@@ -72,8 +75,29 @@ export default function DayCompleteOverlay({
   const showPuzzle = worldIndex !== undefined && worldPieceIds !== undefined && earnedPiece >= 0 && earnedPiece < ARC_DAYS;
 
   const [step, setStep] = useState<"puzzle" | "congrats">(showPuzzle ? "puzzle" : "congrats");
+  const [pieceFlipping, setPieceFlipping] = useState(false);
   const [pieceRevealed, setPieceRevealed] = useState(false);
   const [pieceSettled, setPieceSettled] = useState(false);
+
+  // Tapping the mystery tile turns it over (CSS card-flip) before the real
+  // board takes its place -- reduced motion skips straight to revealed.
+  const revealPiece = () => {
+    if (pieceFlipping || pieceRevealed) return;
+    if (reducedMotion) {
+      setPieceRevealed(true);
+      return;
+    }
+    setPieceFlipping(true);
+  };
+
+  useEffect(() => {
+    if (!pieceFlipping) return;
+    const t = window.setTimeout(() => {
+      setPieceFlipping(false);
+      setPieceRevealed(true);
+    }, FLIP_MS);
+    return () => window.clearTimeout(t);
+  }, [pieceFlipping]);
 
   useEffect(() => {
     if (!pieceRevealed) return;
@@ -186,7 +210,7 @@ export default function DayCompleteOverlay({
                   reducedMotion={reducedMotion}
                 />
               ) : (
-                <MysteryPuzzlePiece onReveal={() => setPieceRevealed(true)} />
+                <MysteryPuzzlePiece onReveal={revealPiece} flipping={pieceFlipping} />
               ))}
 
             <div className="daycomplete-actions">

@@ -99,7 +99,8 @@
 
 /* The face-down "?" tile a fresh piece starts as (MysteryPuzzlePiece) --
    same wood-frame footprint as .daypuzzle-art so swapping it for the real
-   board on tap doesn't jump the layout. */
+   board on tap doesn't jump the layout. Soft gold glow, matching the rest
+   of the game's reward colour instead of a one-off purple. */
 .daypuzzle-mystery {
   display: flex;
   flex-direction: column;
@@ -111,10 +112,12 @@
   margin: 4px 0 2px;
   border: 2px solid #c18a47;
   border-radius: 12px;
-  background: repeating-linear-gradient(4deg, transparent 0 4px, #1d100c30 5px 6px, transparent 7px 13px), linear-gradient(110deg, #4a2f6b, #241238 40%, #3a1f57 75%, #1c0e2b);
-  box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #b98af177, inset 0 -3px 0 #14091faa;
+  background: repeating-linear-gradient(4deg, transparent 0 4px, #1d100c30 5px 6px, transparent 7px 13px), linear-gradient(110deg, #5a4420, #2c2210 40%, #4a3819 75%, #201808);
+  box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #f0c04a55, inset 0 -3px 0 #14091faa;
   cursor: pointer;
   animation: daypuzzle-mystery-glow 2.2s ease-in-out infinite;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
 }
 
 .daypuzzle-mystery:hover,
@@ -122,23 +125,59 @@
   filter: brightness(1.12);
 }
 
+.daypuzzle-mystery:disabled {
+  cursor: default;
+}
+
+/* The "turn" -- a quick card-flip away from the mystery tile, timed to hand
+   off to DayPuzzlePiece's own frame-pop + piece-snap as soon as it ends
+   (see DayCompleteOverlay's FLIP_MS, which matches this duration). */
+.daypuzzle-mystery.is-flipping {
+  animation: daypuzzle-mystery-flip 0.42s cubic-bezier(0.4, 0, 0.7, 1) forwards;
+}
+
 .daypuzzle-mystery-mark {
   font-size: 34px;
   color: #ffe7a6;
-  text-shadow: 0 0 14px #d9a8ff, 0 3px 0 #000a;
+  text-shadow: 0 0 14px var(--forest-gold, #f0c04a), 0 3px 0 #000a;
 }
 
 .daypuzzle-mystery-label {
   font-size: 8px;
   line-height: 1.7;
   letter-spacing: 0.08em;
-  color: #d8c9f2;
+  color: #f3e6c8;
   text-align: center;
 }
 
 @keyframes daypuzzle-mystery-glow {
-  0%, 100% { box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #b98af177, inset 0 -3px 0 #14091faa; }
-  50% { box-shadow: 0 15px 40px #0008, 0 4px 0 #351d13, inset 0 2px 0 #d9b8ffcc, inset 0 -3px 0 #14091faa, 0 0 22px 2px #7c4fd166; }
+  0%, 100% { box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #f0c04a55, inset 0 -3px 0 #14091faa; }
+  50% { box-shadow: 0 15px 40px #0008, 0 4px 0 #351d13, inset 0 2px 0 #f0c04acc, inset 0 -3px 0 #14091faa, 0 0 24px 3px #f0c04a66; }
+}
+
+@keyframes daypuzzle-mystery-flip {
+  0% { transform: rotateY(0) scale(1); opacity: 1; }
+  70% { transform: rotateY(85deg) scale(0.92); opacity: 1; }
+  100% { transform: rotateY(100deg) scale(0.85); opacity: 0; }
+}
+
+/* The board's own entrance, right after the mystery tile flips away -- the
+   wood frame "pops up" first, then (via the piece's own animation-delay
+   below) the new piece flies in and affixes to its slot second, not both
+   at once. */
+.daypuzzle .adventure-puzzle-frame {
+  animation: daypuzzle-frame-pop 0.32s cubic-bezier(0.22, 0.9, 0.3, 1.25) both;
+}
+
+.daypuzzle .adventure-puzzle-piece.is-new {
+  animation-delay: 0.26s;
+}
+
+@keyframes daypuzzle-frame-pop {
+  from {
+    transform: scale(0.72) rotate(-2deg);
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

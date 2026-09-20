@@ -8,13 +8,26 @@ import "../../adventure-puzzle.css";
  * The face-down state a newly-earned piece starts in on the stage-clear
  * screen -- a "?" tile instead of the actual board, so the reward reads as a
  * mystery to tap open rather than something that just silently appeared.
- * The caller swaps this out for the real <DayPuzzlePiece> on click; that
- * component's own "is-new" snap-in animation is what makes the revealed
- * piece look like it drops into the frame.
+ * Tapping it turns the tile over (`flipping`, a CSS card-flip in
+ * adventure-puzzle.css); the caller swaps this out for the real
+ * <DayPuzzlePiece> once that finishes, whose own frame-pop + delayed
+ * "is-new" snap-in is what makes the revealed piece look like it flies to
+ * its slot and affixes there second, after the frame itself pops up.
  */
-export function MysteryPuzzlePiece({ onReveal }: { onReveal: () => void }) {
+export function MysteryPuzzlePiece({
+  onReveal,
+  flipping,
+}: {
+  onReveal: () => void;
+  flipping?: boolean;
+}) {
   return (
-    <button type="button" className="daypuzzle-mystery" onClick={onReveal}>
+    <button
+      type="button"
+      className={`daypuzzle-mystery${flipping ? " is-flipping" : ""}`}
+      onClick={onReveal}
+      disabled={flipping}
+    >
       <span className="daypuzzle-mystery-mark pixel-font" aria-hidden="true">?</span>
       <span className="daypuzzle-mystery-label pixel-font">
         A NEW PIECE AWAITS

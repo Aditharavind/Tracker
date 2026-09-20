@@ -6400,6 +6400,9 @@ h3 {
     0 18px 50px rgba(0, 0, 0, 0.6),
     inset 0 0 0 1px rgba(0, 0, 0, 0.5);
   color: var(--forest-cream, #f3e6c8);
+  /* Gives the mystery piece's card-flip (adventure-puzzle.css) real depth
+     instead of a flat squash. */
+  perspective: 900px;
 }
 
 .daycomplete-kicker {

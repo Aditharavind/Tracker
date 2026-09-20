@@ -760,8 +760,9 @@ export default function App() {
   const closeDayComplete = () => {
     setDayCompleteOpen(false);
     dayCompleteDismissed.current = day;
-    // Day's done -- surface the standings so you see where the day landed you.
-    setOpenPanel("leaderboard");
+    // The overlay's own "congrats" step already shows rank + standings now --
+    // auto-opening the Leaderboard drawer on top of that was a third,
+    // redundant screen (rank/standings twice, plus an invite prompt).
   };
 
   // Only saved daily goals unlock environments. Scope the announcement to
