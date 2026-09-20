@@ -24,20 +24,21 @@ const Rivals = lazy(() => import("./components/Rivals"));
 const DashLeaderboard = lazy(() => import("./components/DashLeaderboard"));
 const Coach = lazy(() => import("./components/Coach"));
 const CharacterSelect = lazy(() => import("./components/CharacterSelect"));
-const CharacterTurntable = lazy(() => import("./components/forest/CharacterTurntable"));
 const DayCompleteOverlay = lazy(() => import("./components/forest/DayCompleteOverlay"));
 const DayStartBanner = lazy(() => import("./components/forest/DayStartBanner"));
+const WorldsScreen = lazy(() => import("./components/WorldsScreen"));
 const StoryLauncher = lazy(() => import("./components/forest/StoryLauncher"));
 const WorldUnlockOverlay = lazy(() => import("./components/forest/WorldUnlockOverlay"));
 import LivesHUD from "./components/forest/LivesHUD";
 import DayCountdown from "./components/forest/DayCountdown";
 import { CoinIcon } from "./components/forest/Coin";
 import { getJourneyStage, type StageMeta } from "./game/stageSystem";
-import { ARC_COUNT, journeyProgress, worldPuzzlePieces } from "./game/weekSystem";
+import { journeyProgress, worldPuzzlePieces } from "./game/weekSystem";
 import { WORLDS } from "./game/adventure/content";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { isStandalone, useInstallPrompt } from "./installPrompt";
-import { isCharacterId, type CharacterId } from "./game/characters";
+import { CHARACTERS, isCharacterId, type CharacterId } from "./game/characters";
+import CharacterCarousel from "./components/CharacterCarousel";
 import FailureBanner from "./components/forest/FailureBanner";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
@@ -59,6 +60,10 @@ import PandaPeekPrompt from "./components/PandaPeekPrompt";
 const LAST_USER = LAST_USER_KEY;
 const AVATAR_KEY = "75hard.avatar";
 const CHARACTER_KEY = "75hard.character";
+// Same artwork as the first-run character-select gate (CharacterSelect.tsx)
+// -- Profile's "choose your character" hero reuses it so re-picking a
+// character reads as the same screen, not a second, differently-dressed one.
+const PROFILE_CHARACTER_SCENE = "/assets/character_selection/character_selection-wide.jpg";
 const SNOOZE_KEY = "75hard.snooze";
 // Set on sign-out. Without it the same-IP suggestion in the bootstrap effect
 // below signs you straight back in on the next load, which makes signing out
@@ -660,6 +665,7 @@ export default function App() {
   // underneath (see the day-start banner this triggers, below).
   const [weekMapOpen, setWeekMapOpen] = useState(true);
   const [dayStartBannerOpen, setDayStartBannerOpen] = useState(false);
+  const [worldsScreenOpen, setWorldsScreenOpen] = useState(false);
   // ▶ MINIGAME opens a choice between the two minigames instead of launching
   // Forest Dash directly, now that the Story Adventure (with its day-15
   // boss) no longer has any other entry point in the main UI.
@@ -1654,6 +1660,11 @@ export default function App() {
           <DayStartBanner dayNumber={me.day_number} onDismiss={() => setDayStartBannerOpen(false)} />
         </Suspense>
       )}
+      {worldsScreenOpen && (
+        <Suspense fallback={<div className="worlds-screen" aria-busy="true" />}>
+          <WorldsScreen calendar={me.calendar} onClose={() => setWorldsScreenOpen(false)} />
+        </Suspense>
+      )}
       {weekMapOpen && myCharacter && (
         <Suspense fallback={<div className="weekmap-screen" aria-busy="true" />}>
           <WeekMap
@@ -1696,13 +1707,19 @@ export default function App() {
           {/* No hamburger -- PROFILE in the bottom nav already opens the same
               panel (togglePanel("profile")), so a second menu entry point
               here was redundant. Character switching is also Profile's job
-              now (the "Your character" turntable) -- this slot used to
+              now (its own "Choose your character" hero) -- this slot used to
               duplicate it with its own 2D carousel picker, so it's a plain
-              world label instead. Layout is now: world label (left), the
-              day clock (centre), lives + coins (right). */}
-          <span className="topbar-world pixel-font">
+              world label instead, tapping into the worlds grid. Layout is
+              now: world label (left), the day clock (centre), lives + coins
+              (right). */}
+          <button
+            type="button"
+            className="topbar-world pixel-font"
+            onClick={() => setWorldsScreenOpen(true)}
+            title="See all worlds"
+          >
             WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
-          </span>
+          </button>
           <DayCountdown compact zoomable />
           {/* One flex item on the right (instead of four loose ones) so
               justify-content:space-between balances it against the single
@@ -2085,16 +2102,24 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="card panel-section">
-                <div className="card-head">
-                  <h2>Your character</h2>
-                </div>
-                <Suspense fallback={<p className="muted">Loading characters…</p>}>
-                  <CharacterTurntable
-                    current={myCharacter}
-                    onSelect={(c) => meId != null && setCharacterFor(meId, c)}
-                  />
-                </Suspense>
+              <div
+                className="profile-character-hero"
+                style={{ ["--character-select-scene" as string]: `url(${PROFILE_CHARACTER_SCENE})` }}
+              >
+                <h1 className="pixel-font character-select-title character-select-title-huge">
+                  CHOOSE YOUR
+                  <br />
+                  CHARACTER
+                </h1>
+                <CharacterCarousel
+                  index={Math.max(0, CHARACTERS.findIndex((c) => c.id === myCharacter))}
+                  onStep={(delta) => {
+                    if (meId == null) return;
+                    const i = Math.max(0, CHARACTERS.findIndex((c) => c.id === myCharacter));
+                    const next = CHARACTERS[(i + delta + CHARACTERS.length) % CHARACTERS.length];
+                    setCharacterFor(meId, next.id);
+                  }}
+                />
               </div>
 
               <div className="card panel-section">

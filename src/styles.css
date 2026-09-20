@@ -4490,19 +4490,28 @@ h3 {
   gap: 12px;
 }
 
-/* Replaces the old topbar character-switch button -- that's Profile's "Your
-   character" turntable job now, so this slot is a plain world label, same
-   gold pixel type as .topbar-coins-count. */
+/* Replaces the old topbar character-switch button -- that's Profile's
+   "Choose your character" hero now, so this slot is a tappable world label
+   (opens WorldsScreen's 5-world grid) instead, same gold pixel type as
+   .topbar-coins-count but bigger, since it now reads as a real heading. */
 .topbar-world {
   flex: none;
-  max-width: 42vw;
+  max-width: 46vw;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  letter-spacing: 0.08em;
   color: var(--forest-gold, #f0c04a);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+}
+
+.topbar-world:hover {
+  filter: brightness(1.15);
 }
 
 .topbar-coins {
@@ -4543,8 +4552,8 @@ h3 {
 
 @media (max-width: 560px) {
   .topbar-world {
-    max-width: 34vw;
-    font-size: 8px;
+    max-width: 38vw;
+    font-size: 11px;
   }
   .game-topbar {
     padding-left: 16px;
@@ -5778,6 +5787,37 @@ h3 {
     var(--character-select-scene);
 }
 
+/* Profile's "choose your character" hero -- the same background art as the
+   full-screen gate/switch modal above, but bounded inside the Profile
+   drawer's own scroll flow instead of covering the viewport. Bleeds to the
+   drawer's 16px padding (.panel-drawer) so it reads as a banner rather than
+   a card floating inside one. Everything else in Profile (alarm, players,
+   install, etc.) follows in normal document flow below it -- scrolling the
+   drawer moves past this hero into those sections, no sticky positioning. */
+.profile-character-hero {
+  position: relative;
+  margin: -16px -16px 18px;
+  padding: 28px 16px 22px;
+  overflow: hidden;
+  text-align: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(5, 11, 7, 0.5) 0%,
+      rgba(5, 11, 7, 0.28) 45%,
+      rgba(5, 11, 7, 0.82) 100%
+    ),
+    var(--character-select-scene);
+}
+
+.profile-character-hero .character-select-title-huge {
+  font-size: clamp(18px, 5.5vw, 28px);
+}
+
 /* No boxed card any more -- the heading, platform and name sit directly on
    the forest backdrop (see .character-select-bg),
    full-bleed like the rest of the game's HUD instead of a floating dialog. */
@@ -6547,6 +6587,21 @@ h3 {
   height: 20px;
   border-radius: 50%;
   border: 2px solid rgba(255, 245, 205, 0.5);
+}
+
+/* The prominent "streak" callout on the stage-clear screen -- bigger and
+   louder than the TASKS/COINS/STREAK stat row below it, since a long streak
+   is the thing most worth bragging about in the moment. */
+.daycomplete-streak-huge {
+  margin: 4px 0 16px;
+  font-size: clamp(22px, 8vw, 34px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  color: #ffb238;
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.6),
+    0 0 18px rgba(255, 140, 20, 0.6);
 }
 
 .daycomplete-score {

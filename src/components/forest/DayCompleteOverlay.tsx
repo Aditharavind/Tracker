@@ -154,6 +154,12 @@ export default function DayCompleteOverlay({
               <div className="daycomplete-podium" />
             </div>
 
+            {streak > 0 && (
+              <p className="daycomplete-streak-huge pixel-font">
+                🔥 {streak} DAY STREAK
+              </p>
+            )}
+
             <dl className="daycomplete-score">
               <div>
                 <dt className="pixel-font">TASKS</dt>

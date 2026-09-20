@@ -1,18 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { CHARACTERS, type CharacterId } from "../game/characters";
-import { CharBlink } from "./forest/Panda";
 import { usePrefersReducedMotion } from "./forest/ForestScene";
+import CharacterCarousel from "./CharacterCarousel";
 
 // A single static frame -- no looping GIF/WEBP. The backdrop should read once
 // and stay put, not keep animating behind the character carousel.
 const SCENE_SRC = "/assets/character_selection/character_selection-wide.jpg";
 const MOBILE_SCENE_SRC = "/assets/character_selection/character_selection.jpg";
-
-// A swipe has to travel at least this far (in px) before it counts as a
-// deliberate "next/previous character" gesture instead of an accidental
-// touch-scroll wobble.
-const SWIPE_THRESHOLD = 40;
 
 /**
  * Two entry points, one component (skill §9):
@@ -42,7 +36,6 @@ export default function CharacterSelect({
   const [index, setIndex] = useState(startIndex);
   const [confirming, setConfirming] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
-  const touchStartX = useRef<number | null>(null);
   const picked = CHARACTERS[index];
 
   useEffect(() => {
@@ -56,18 +49,6 @@ export default function CharacterSelect({
 
   const step = (delta: 1 | -1) => {
     setIndex((i) => (i + delta + CHARACTERS.length) % CHARACTERS.length);
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const delta = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (delta <= -SWIPE_THRESHOLD) step(1);
-    else if (delta >= SWIPE_THRESHOLD) step(-1);
   };
 
   const confirm = () => {
@@ -113,53 +94,7 @@ export default function CharacterSelect({
         CHARACTER
       </h1>
 
-      <div className="character-carousel">
-        <button
-          type="button"
-          className="carousel-arrow carousel-arrow-left"
-          onClick={() => step(-1)}
-          aria-label="Previous character"
-          title="Previous character"
-        >
-          <ChevronLeft size={26} strokeWidth={3} aria-hidden="true" />
-        </button>
-
-        <div
-          className="carousel-stage"
-          role="listbox"
-          aria-label="Characters"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-        >
-          <div className="carousel-platform">
-            <span className="carousel-sprite-art">
-              <img src={picked.sprite} alt="" aria-hidden="true" className="character-card-sprite" />
-              <CharBlink character={picked.id} />
-            </span>
-          </div>
-          {!reducedMotion && (
-            <div className="carousel-swipe-hint" aria-hidden="true">
-              <ChevronLeft size={14} strokeWidth={3} />
-              <span className="pixel-font">SWIPE</span>
-              <ChevronRight size={14} strokeWidth={3} />
-            </div>
-          )}
-        </div>
-
-        <button
-          type="button"
-          className="carousel-arrow carousel-arrow-right"
-          onClick={() => step(1)}
-          aria-label="Next character"
-          title="Next character"
-        >
-          <ChevronRight size={26} strokeWidth={3} aria-hidden="true" />
-        </button>
-      </div>
-
-      <p className="carousel-name pixel-font" role="option" aria-selected="true">
-        {picked.name.toUpperCase()}
-      </p>
+      <CharacterCarousel index={index} onStep={step} reducedMotion={reducedMotion} />
 
       <button
         type="button"
