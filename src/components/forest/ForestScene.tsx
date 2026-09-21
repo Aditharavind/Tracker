@@ -223,7 +223,7 @@ export default function ForestScene({
   // platform onto the lane) -> "run" (dashing to the exit) -> "done" (arrived,
   // celebrating). Cosmetic only; the day is already complete in state before
   // any of this plays.
-  const [victoryPhase, setVictoryPhase] = useState<"none" | "drop" | "run" | "done">(
+  const [victoryPhase, setVictoryPhase] = useState<"none" | "drop" | "run" | "puzzle" | "done">(
     reachedGoal ? "done" : "none"
   );
   const clearedFired = useRef(false);
@@ -258,6 +258,7 @@ export default function ForestScene({
   const atStartRest = safeVisualIndex === 0;
   let displayPoint = runInPhase === "parked" && atStartRest ? SIGN_POINT : pandaPoint;
   if (victoryPhase === "drop") displayPoint = { x: lastPlatform.x, y: 0 };
+  else if (victoryPhase === "puzzle") displayPoint = { x: puzzleCardPoint.x, y: 0 };
   else if (victoryPhase === "run" || victoryPhase === "done") displayPoint = exitPoint;
 
   // Follow-cam (skill §6): slide the whole level sideways so the active
@@ -360,8 +361,11 @@ export default function ForestScene({
     puzzleTouchFired.current = true;
     if (reducedMotion) {
       setPuzzleRevealed(true);
+      setPuzzleSettled(true);
       return;
     }
+    setVictoryPhase("puzzle");
+    setAnim("idle");
     setPuzzleZoomed(true);
   };
 
@@ -386,7 +390,17 @@ export default function ForestScene({
   const continuePuzzle = () => {
     if (!puzzleSettled) return;
     setPuzzleZoomed(false);
-    fireCleared();
+    if (reducedMotion) {
+      fireCleared();
+      return;
+    }
+    setVictoryPhase("run");
+    setAnim("running");
+    queue(() => {
+      setVictoryPhase("done");
+      setAnim("celebrating");
+      fireCleared();
+    }, 2150);
   };
 
   // Final hop has landed on the last platform. Drop to the lane, dash to the
@@ -400,7 +414,7 @@ export default function ForestScene({
       setVictoryPhase("done");
       setAnim("celebrating");
       touchPuzzle();
-      queue(fireCleared, 300);
+      if (!showPuzzleCard) queue(fireCleared, 300);
       return;
     }
     setVictoryPhase("drop");
@@ -410,13 +424,16 @@ export default function ForestScene({
       setVictoryPhase("run");
       setAnim("running");
     }, 560);
-    queue(touchPuzzle, 560 + PUZZLE_TOUCH_DELAY_MS);
-    // Longer run now -- the bush is a clear stretch of ground past the goal.
-    queue(() => {
-      setVictoryPhase("done");
-      setAnim("celebrating");
-      if (!showPuzzleCard) fireCleared();
-    }, 560 + 2100);
+    if (showPuzzleCard) {
+      queue(touchPuzzle, 560 + PUZZLE_TOUCH_DELAY_MS);
+    } else {
+      // Longer run now -- the bush is a clear stretch of ground past the goal.
+      queue(() => {
+        setVictoryPhase("done");
+        setAnim("celebrating");
+        fireCleared();
+      }, 560 + 2100);
+    }
   };
 
   // Initial run-in: idle -> short run -> idle, per CLAUDE.md section 9.

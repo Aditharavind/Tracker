@@ -3652,6 +3652,7 @@ h3 {
 }
 
 .panda-anchor[data-victory="run"],
+.panda-anchor[data-victory="puzzle"],
 .panda-anchor[data-victory="done"] {
   transition:
     left var(--victory-run-ms, 2.05s) cubic-bezier(0.25, 0.02, 0.35, 1),
@@ -3689,6 +3690,7 @@ h3 {
 
 .victory-lane-drop,
 .victory-lane-run,
+.victory-lane-puzzle,
 .victory-lane-done {
   opacity: 1;
   transform: translateY(0);
@@ -5069,7 +5071,7 @@ h3 {
   padding: 16px;
   color: var(--text);
   background-color: var(--bg);
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -5086,7 +5088,7 @@ h3 {
    restarting the pattern -- not a flat colour box any more. */
 .panel-drawer .card {
   background-color: var(--panel);
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -6586,7 +6588,7 @@ h3 {
   padding: 26px 22px 22px;
   text-align: center;
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   border: 3px solid #8a5a2b;
@@ -7683,7 +7685,7 @@ h3 {
 
 .world-theme :is(.daycomplete-card, .daystart-card, .confirm-modal, .pin-card, .share-card, .runner-card, .minigame-card) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   color: #4a3420;
@@ -7691,7 +7693,7 @@ h3 {
 
 .world-theme .panel-drawer :is(.card, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   color: #4a3420;
@@ -7760,8 +7762,10 @@ h3 {
 .world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue) {
   color: #fff8ec;
   background:
-    repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.18) 0 2px, transparent 2px 13px),
-    linear-gradient(180deg, #b78149 0%, #845128 54%, #5f3719 100%);
+    linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
+    url("../frontend/assets/background_tile.png") center / 220px auto,
+    repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.2) 0 2px, transparent 2px 13px),
+    linear-gradient(180deg, #9a612f 0%, #6e3d19 54%, #45240e 100%);
   border-color: #3d2411;
   box-shadow: 0 4px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.35);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
