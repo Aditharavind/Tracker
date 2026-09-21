@@ -7727,3 +7727,50 @@ h3 {
     bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
+
+.world-theme :is(.daycomplete-card, .daystart-card) {
+  color: #4a2f18;
+}
+
+.world-theme :is(.daycomplete-kicker, .daystart-kicker, .daycomplete-rank) {
+  color: #8a4f1f;
+}
+
+.world-theme :is(.daycomplete-title, .daystart-title, .daycomplete-streak-huge) {
+  color: #3d2411;
+  text-shadow: 0 1px 0 rgba(255, 244, 216, 0.72);
+}
+
+.world-theme :is(.daycomplete-tip, .daystart-tip, .daycomplete-play-note, .daycomplete-finale-text p) {
+  color: #5a3a1d;
+}
+
+.world-theme .daycomplete-score > div,
+.world-theme .daycomplete-standings li,
+.world-theme .daystart-tip {
+  background: rgba(118, 70, 28, 0.12);
+  border-color: rgba(118, 70, 28, 0.34);
+}
+
+.world-theme .daycomplete-score :is(dt, dd),
+.world-theme .daycomplete-standings :is(span, .daycomplete-standings-day) {
+  color: #4a2f18;
+}
+
+.world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue) {
+  color: #fff8ec;
+  background:
+    repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.18) 0 2px, transparent 2px 13px),
+    linear-gradient(180deg, #b78149 0%, #845128 54%, #5f3719 100%);
+  border-color: #3d2411;
+  box-shadow: 0 4px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.35);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+}
+
+.world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue):hover {
+  filter: brightness(1.08);
+}
+
+.world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue):active {
+  box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
+}

@@ -1663,7 +1663,7 @@ export default function App() {
       )}
       {dayStartBannerOpen && (
         <Suspense fallback={null}>
-          <DayStartBanner dayNumber={me.day_number} onDismiss={() => setDayStartBannerOpen(false)} />
+          {!allTasksDone && <DayStartBanner dayNumber={me.day_number} onDismiss={() => setDayStartBannerOpen(false)} />}
         </Suspense>
       )}
       {worldsScreenOpen && (
@@ -1678,7 +1678,7 @@ export default function App() {
             calendar={me.calendar}
             onClose={() => {
               setWeekMapOpen(false);
-              setDayStartBannerOpen(true);
+              setDayStartBannerOpen(!allTasksDone);
             }}
           />
         </Suspense>
