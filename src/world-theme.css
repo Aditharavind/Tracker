@@ -667,3 +667,33 @@
   .world-theme .forest-photo { transition: none; }
   .world-theme .forest-fireflies { animation: none; }
 }
+
+.world-theme[data-panel-open="true"] .stage-area {
+  --topbar-reserve: 0px;
+  padding-top: 0;
+}
+
+.world-theme[data-panel-open="true"] .panel-drawer {
+  top: 0;
+}
+
+.world-theme :is(.daycomplete-card, .daystart-card, .confirm-modal, .pin-card, .share-card, .runner-card, .minigame-card) {
+  background-color: #f8ecd8;
+  background-image: url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  color: #4a3420;
+}
+
+.world-theme .panel-drawer :is(.card, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in) {
+  background-color: #f8ecd8;
+  background-image: url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  color: #4a3420;
+  border-color: rgba(138, 90, 43, 0.36);
+}
+
+.world-theme .panel-drawer :is(.card, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in) :is(h1, h2, h3, p, span, label, dt, dd, li) {
+  color: inherit;
+}

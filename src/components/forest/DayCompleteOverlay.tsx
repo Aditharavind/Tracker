@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import CharacterModel from "./CharacterModel";
 import { CoinIcon } from "./Coin";
 import { usePrefersReducedMotion } from "./ForestScene";
@@ -10,12 +10,9 @@ import type { Progress } from "../../types";
  * composition, not a generic success modal. Shown once the day's tasks are all
  * ticked, AFTER the victory-lane dash (including the floating world-puzzle
  * piece's own reveal -- see ForestScene's showPuzzleCard) has already played
- * out in the scene. Two steps here, neither of them the puzzle:
- *  1. "stats" -- today's score and streak.
- *  2. "congrats" -- a congratulations header and the household standings,
- *     with the player's own rank called out.
- * It is celebratory only: day advancement is still date-driven by the
- * tracker, nothing here mutates challenge state.
+ * out in the scene. One card: score, streak, and the household standings with
+ * the player's own rank called out. It is celebratory only: day advancement
+ * is still date-driven by the tracker, nothing here mutates challenge state.
  */
 // The 75-day payoff, shown in place of the usual "stage clear" copy on the
 // final day only -- the whole run has been leading here, so it gets its own
@@ -44,7 +41,7 @@ export default function DayCompleteOverlay({
   coins: number;
   streak: number;
   character: CharacterId;
-  /** The household's standings, for the congratulations step's rank/list. */
+  /** The household's standings, for the rank/list at the bottom of the card. */
   board: Progress[];
   meId: number;
   onClose: () => void;
@@ -53,20 +50,13 @@ export default function DayCompleteOverlay({
   const reducedMotion = usePrefersReducedMotion();
   const isFinale = dayNumber >= 75;
 
-  const [step, setStep] = useState<"stats" | "congrats">("stats");
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" && e.key !== "Enter") return;
-      if (step === "stats") {
-        setStep("congrats");
-        return;
-      }
-      onClose();
+      if (e.key === "Escape" || e.key === "Enter") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, step]);
+  }, [onClose]);
 
   const confetti = useMemo(
     () =>
@@ -108,103 +98,81 @@ export default function DayCompleteOverlay({
       </div>
 
       <div className={`daycomplete-card${isFinale ? " daycomplete-finale" : ""}`}>
-        {step === "stats" ? (
-          <>
-            <p className="daycomplete-kicker pixel-font">STAGE CLEAR</p>
-            <h1 className="daycomplete-title pixel-font">
-              DAY {String(dayNumber).padStart(2, "0")} COMPLETE
-            </h1>
+        <p className="daycomplete-kicker pixel-font">{isFinale ? "75 DAYS COMPLETE" : "STAGE CLEAR"}</p>
+        <h1 className="daycomplete-title pixel-font">
+          {isFinale ? "WELCOME HOME" : `DAY ${String(dayNumber).padStart(2, "0")} COMPLETE`}
+        </h1>
 
-            <div className="daycomplete-stage" aria-hidden="true">
-              <div className="daycomplete-dancer">
-                <CharacterModel character={character} anim="Dance" className="daycomplete-model" />
-              </div>
-              <div className="daycomplete-podium" />
-            </div>
+        <div className="daycomplete-stage" aria-hidden="true">
+          <div className="daycomplete-dancer">
+            <CharacterModel character={character} anim="Dance" className="daycomplete-model" />
+          </div>
+          <div className="daycomplete-podium" />
+        </div>
 
-            {streak > 0 && (
-              <p className="daycomplete-streak-huge pixel-font">
-                🔥 {streak} DAY STREAK
-              </p>
-            )}
+        {isFinale && (
+          <div className="daycomplete-finale-text">
+            {FINALE_LINES.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        )}
 
-            <dl className="daycomplete-score">
-              <div>
-                <dt className="pixel-font">TASKS</dt>
-                <dd className="pixel-font">
-                  {tasksCompleted} / {totalTasks}
-                </dd>
-              </div>
-              <div>
-                <dt className="pixel-font">COINS</dt>
-                <dd className="pixel-font coin-readout"><CoinIcon size={17} /> ×{String(coins).padStart(2, "0")}</dd>
-              </div>
-              <div>
-                <dt className="pixel-font">STREAK</dt>
-                <dd className="pixel-font">{streak}d</dd>
-              </div>
-            </dl>
+        {streak > 0 && (
+          <p className="daycomplete-streak-huge pixel-font">
+            🔥 {streak} DAY STREAK
+          </p>
+        )}
 
-            <div className="daycomplete-actions">
-              <button
-                type="button"
-                className="daycomplete-continue pixel-font"
-                onClick={() => setStep("congrats")}
-                autoFocus
-              >
-                CONTINUE →
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="daycomplete-kicker pixel-font">{isFinale ? "75 DAYS COMPLETE" : "CONGRATULATIONS"}</p>
-            <h1 className="daycomplete-title pixel-font">
-              {isFinale ? "WELCOME HOME" : `DAY ${String(dayNumber).padStart(2, "0")} BANKED`}
-            </h1>
+        <dl className="daycomplete-score">
+          <div>
+            <dt className="pixel-font">TASKS</dt>
+            <dd className="pixel-font">
+              {tasksCompleted} / {totalTasks}
+            </dd>
+          </div>
+          <div>
+            <dt className="pixel-font">COINS</dt>
+            <dd className="pixel-font coin-readout"><CoinIcon size={17} /> ×{String(coins).padStart(2, "0")}</dd>
+          </div>
+          <div>
+            <dt className="pixel-font">STREAK</dt>
+            <dd className="pixel-font">{streak}d</dd>
+          </div>
+        </dl>
 
-            {isFinale && (
-              <div className="daycomplete-finale-text">
-                {FINALE_LINES.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-            )}
+        {board.length > 1 && myRank > 0 && (
+          <p className="daycomplete-rank pixel-font">
+            YOU'RE RANKED #{myRank} OF {board.length}
+          </p>
+        )}
 
-            {board.length > 1 && myRank > 0 && (
-              <p className="daycomplete-rank pixel-font">
-                YOU'RE RANKED #{myRank} OF {board.length}
-              </p>
-            )}
+        <ol className="daycomplete-standings">
+          {ranked.map((p, i) => (
+            <li key={p.user_id} className={p.user_id === meId ? "is-you" : ""}>
+              <span className="pixel-font">#{i + 1}</span>
+              <span className="daycomplete-standings-name">{p.name}</span>
+              <span className="daycomplete-standings-day pixel-font">DAY {p.day_number}</span>
+            </li>
+          ))}
+        </ol>
 
-            <ol className="daycomplete-standings">
-              {ranked.map((p, i) => (
-                <li key={p.user_id} className={p.user_id === meId ? "is-you" : ""}>
-                  <span className="pixel-font">#{i + 1}</span>
-                  <span className="daycomplete-standings-name">{p.name}</span>
-                  <span className="daycomplete-standings-day pixel-font">DAY {p.day_number}</span>
-                </li>
-              ))}
-            </ol>
-
-            <div className="daycomplete-actions">
-              <button type="button" className="daycomplete-continue pixel-font" onClick={onClose} autoFocus>
-                CONTINUE →
-              </button>
-              {onPlayRunner && (
-                <button
-                  type="button"
-                  className="daycomplete-play pixel-font"
-                  onClick={onPlayRunner}
-                >
-                  ▶ MINIGAMES
-                </button>
-              )}
-            </div>
-            {onPlayRunner && (
-              <p className="daycomplete-play-note">Optional bonus minigame — doesn&apos;t affect your challenge.</p>
-            )}
-          </>
+        <div className="daycomplete-actions">
+          <button type="button" className="daycomplete-continue pixel-font" onClick={onClose} autoFocus>
+            CONTINUE →
+          </button>
+          {onPlayRunner && (
+            <button
+              type="button"
+              className="daycomplete-play pixel-font"
+              onClick={onPlayRunner}
+            >
+              ▶ MINIGAMES
+            </button>
+          )}
+        </div>
+        {onPlayRunner && (
+          <p className="daycomplete-play-note">Optional bonus minigame — doesn&apos;t affect your challenge.</p>
         )}
       </div>
     </div>

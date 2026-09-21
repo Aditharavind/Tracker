@@ -72,6 +72,18 @@
   font-size: 14px;
 }
 
+.puzzle-reveal-overlay .daypuzzle .adventure-puzzle-frame {
+  animation-duration: 0.42s;
+}
+
+.puzzle-reveal-overlay .daypuzzle .adventure-puzzle-piece.is-new {
+  animation-delay: 0.44s;
+}
+
+.puzzle-reveal-overlay .daypuzzle .adventure-puzzle-piece.is-new .adventure-puzzle-seam {
+  animation-delay: 1.44s;
+}
+
 /* Appears once the placed piece has settled (ForestScene's puzzleSettled) --
    same gold pixel button as DayCompleteOverlay's Continue, so the two read
    as one continuous flow rather than two different UI languages. */

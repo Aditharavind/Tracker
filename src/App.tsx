@@ -1568,7 +1568,12 @@ export default function App() {
   };
 
   return (
-    <div className="game-shell world-theme" data-world={journey.worldIndex} style={{ ["--u" as string]: me.color }}>
+    <div
+      className="game-shell world-theme"
+      data-world={journey.worldIndex}
+      data-panel-open={openPanel !== null || undefined}
+      style={{ ["--u" as string]: me.color }}
+    >
       {waving && <SnoozePanda minutes={SNOOZE_MIN} />}
       {alarmActive && lockedTask && (
         <AlarmOverlay
@@ -1704,6 +1709,14 @@ export default function App() {
       )}
 
       <div className="game-shell-inner">
+        {/* The whole topbar -- world label, day clock, lives, coins, mute,
+            minigame launch -- is the "dashboard/home" HUD. It floats with no
+            background of its own (see .game-topbar), so with a panel drawer
+            open behind it (Profile, Stats, Leaderboard...) it used to just
+            keep sitting there as a transparent bar on top of that panel's
+            own content. Not rendered at all once any panel is open; it's
+            back the moment you return to the dashboard. */}
+        {openPanel === null && (
         <header className="game-topbar">
           {/* No hamburger -- PROFILE in the bottom nav already opens the same
               panel (togglePanel("profile")), so a second menu entry point
@@ -1713,29 +1726,19 @@ export default function App() {
               world label instead, tapping into the worlds grid. Layout is
               now: world label (left), the day clock (centre), lives + coins
               (right). */}
-          {/* The rest of the topbar -- world label, lives, coins, mute,
-              minigame launch -- is the "dashboard/home" HUD. It floats with
-              no background of its own (see .game-topbar), so with a panel
-              drawer open behind it (Profile, Stats, Leaderboard...) it used
-              to just keep sitting there as a transparent bar on top of that
-              panel's own content. Hidden once any panel is open; only the
-              day clock stays, since that's useful context anywhere. */}
-          {openPanel === null && (
-            <button
-              type="button"
-              className="topbar-world pixel-font"
-              onClick={() => setWorldsScreenOpen(true)}
-              title="See all worlds"
-            >
-              WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
-            </button>
-          )}
+          <button
+            type="button"
+            className="topbar-world pixel-font"
+            onClick={() => setWorldsScreenOpen(true)}
+            title="See all worlds"
+          >
+            WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
+          </button>
           <DayCountdown compact zoomable />
           {/* One flex item on the right (instead of four loose ones) so
               justify-content:space-between balances it against the single
               character chip on the left, holding the clock closer to true
               centre than six unevenly-sized siblings would. */}
-          {openPanel === null && (
           <div className="topbar-right">
             <div
               className={`topbar-lives${livesOpen ? " open" : ""}`}
@@ -1782,8 +1785,8 @@ export default function App() {
               </button>
             )}
           </div>
-          )}
         </header>
+        )}
 
         <div className="stage-area">
           {usePhaserEngine && journey.worldIndex === 0 ? (
