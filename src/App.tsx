@@ -1713,19 +1713,29 @@ export default function App() {
               world label instead, tapping into the worlds grid. Layout is
               now: world label (left), the day clock (centre), lives + coins
               (right). */}
-          <button
-            type="button"
-            className="topbar-world pixel-font"
-            onClick={() => setWorldsScreenOpen(true)}
-            title="See all worlds"
-          >
-            WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
-          </button>
+          {/* The rest of the topbar -- world label, lives, coins, mute,
+              minigame launch -- is the "dashboard/home" HUD. It floats with
+              no background of its own (see .game-topbar), so with a panel
+              drawer open behind it (Profile, Stats, Leaderboard...) it used
+              to just keep sitting there as a transparent bar on top of that
+              panel's own content. Hidden once any panel is open; only the
+              day clock stays, since that's useful context anywhere. */}
+          {openPanel === null && (
+            <button
+              type="button"
+              className="topbar-world pixel-font"
+              onClick={() => setWorldsScreenOpen(true)}
+              title="See all worlds"
+            >
+              WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
+            </button>
+          )}
           <DayCountdown compact zoomable />
           {/* One flex item on the right (instead of four loose ones) so
               justify-content:space-between balances it against the single
               character chip on the left, holding the clock closer to true
               centre than six unevenly-sized siblings would. */}
+          {openPanel === null && (
           <div className="topbar-right">
             <div
               className={`topbar-lives${livesOpen ? " open" : ""}`}
@@ -1761,7 +1771,7 @@ export default function App() {
             >
               {muted ? <IconSoundOff /> : <IconSoundOn />}
             </button>
-            {openPanel === null && !runnerOpen && !storyOpen && !weekMapOpen && !minigamePickerOpen && (
+            {!runnerOpen && !storyOpen && !weekMapOpen && !minigamePickerOpen && (
               <button
                 type="button"
                 className="dash-launch pixel-font"
@@ -1772,6 +1782,7 @@ export default function App() {
               </button>
             )}
           </div>
+          )}
         </header>
 
         <div className="stage-area">
