@@ -163,6 +163,22 @@ test("a long dead gap costs a reset every three missed days, not just one", () =
   assert.equal(p.best_streak, 5);
 });
 
+test("a long gap never banks setback debt against days that haven't happened", () => {
+  // The shape that broke in production: start, go dark for ~3 weeks, then come
+  // back and string clean days together. Each 3-miss cycle costs a 7-day
+  // setback, and seven of those overshoot today by weeks. If that overshoot is
+  // carried, runStart sits in the future and day_number is pinned at 1 while
+  // the streak beside it climbs -- the user sees "Day 1" and "3d streak" at
+  // once, and can't reach Day 2 for another fortnight.
+  const c = [];
+  for (let i = 3; i > 0; i -= 1) c.push(...tick(ago(i))); // clean last 3 days
+  const p = run(24, c);
+  assert.ok(diffDays(p.run_start, TODAY) <= 0, "run start can never be in the future");
+  assert.equal(p.day_number, 4, "the setback bottoms out, so the comeback days count");
+  assert.equal(p.streak, 3, "the 3 clean days since the comeback; today is untouched");
+  assert.ok(p.day_number >= p.streak, "you can never be further into a streak than into the run");
+});
+
 test("one or two missed days in a row don't reset the run at all", () => {
   const c = [];
   for (let i = 10; i > 0; i -= 1) c.push(...(i <= 2 ? [] : tick(ago(i))));
