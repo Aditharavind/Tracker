@@ -136,10 +136,17 @@ export function compute({ user, tasks, completions }, today) {
         // A week's setback, not a full reset back to Day 1 -- losing every
         // life pushes the run's own start forward 7 days (so day_number
         // drops by a week) and refills the buffer for the next attempt.
-        // Compounds correctly across multiple penalties in one long gap:
-        // each one adds another 7 days on top of wherever runStart already is.
+        // Compounds across multiple penalties in one long gap, but the
+        // setback bottoms out at Day 1 of the very next day: the failed day
+        // closes the old attempt, the new one opens the morning after.
+        // Without that clamp the overshoot is banked as debt against days
+        // that haven't happened yet -- runStart ends up weeks in the future
+        // and day_number stays pinned at 1 long after the user is back and
+        // ticking, while the streak beside it climbs.
         resets += 1;
-        runStart = addDays(runStart, PENALTY_DAYS);
+        const setback = addDays(runStart, PENALTY_DAYS);
+        const bottom = addDays(day, 1);
+        runStart = diffDays(setback, bottom) > 0 ? bottom : setback;
         livesLost = 0;
       }
     }
