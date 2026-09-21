@@ -1,0 +1,110 @@
+/* The fullscreen zoom-in the floating mystery piece takes over as, once the
+   panda touches it on the victory lane (see ForestScene/PuzzleRevealOverlay).
+   Sits above the game shell (.daycomplete is 120; this resolves before that
+   ever opens, so it doesn't need to compete with it, just clear the HUD). */
+.puzzle-reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px;
+  background: rgba(5, 11, 7, 0.9);
+  animation: puzzle-reveal-backdrop-in 0.32s ease-out both;
+}
+
+@keyframes puzzle-reveal-backdrop-in {
+  from {
+    background: rgba(5, 11, 7, 0);
+  }
+}
+
+.puzzle-reveal-stage {
+  animation: puzzle-reveal-stage-in 0.4s cubic-bezier(0.2, 0.75, 0.25, 1.15) both;
+}
+
+@keyframes puzzle-reveal-stage-in {
+  from {
+    transform: scale(0.35);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* The modal-sized card (170px, from adventure-puzzle.css's .daypuzzle-art
+   and .daypuzzle-mystery) is too small to be the star of a fullscreen
+   moment -- blown up here to whichever of 70vw/70vh the piece's own aspect
+   ratio fits inside, so it reads clearly (and never overflows) on any
+   viewport shape. --puzzle-aspect is DayPuzzlePiece's own width/height
+   ratio; the mystery tile has no piece yet, so it uses its fixed 2/3. */
+.puzzle-reveal-overlay .puzzle-reveal-stage .daypuzzle-art.adventure-puzzle-art {
+  width: min(70vw, calc(70vh * var(--puzzle-aspect, 1)));
+}
+
+.puzzle-reveal-overlay .puzzle-reveal-stage .daypuzzle-mystery {
+  width: min(70vw, 46.7vh);
+}
+
+/* The title/count labels (adventure-puzzle.css) are sized for the 170px
+   modal card -- scaled up to match so they don't look like a stray caption
+   under a screen-filling board. */
+.puzzle-reveal-overlay .daypuzzle-title {
+  font-size: 13px;
+}
+
+.puzzle-reveal-overlay .daypuzzle-count {
+  font-size: 14px;
+}
+
+.puzzle-reveal-overlay .daypuzzle-mystery-mark {
+  font-size: 15vh;
+}
+
+.puzzle-reveal-overlay .daypuzzle-mystery-label {
+  font-size: 14px;
+}
+
+/* Appears once the placed piece has settled (ForestScene's puzzleSettled) --
+   same gold pixel button as DayCompleteOverlay's Continue, so the two read
+   as one continuous flow rather than two different UI languages. */
+.puzzle-reveal-continue {
+  flex: none;
+  padding: 12px 30px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: #201603;
+  background: linear-gradient(180deg, #ffd76a, #e7ad2c);
+  border: 2px solid #6b3d10;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #6b3d10;
+  cursor: pointer;
+  animation: puzzle-reveal-continue-in 0.3s ease-out both;
+}
+
+.puzzle-reveal-continue:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #6b3d10;
+}
+
+@keyframes puzzle-reveal-continue-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .puzzle-reveal-overlay,
+  .puzzle-reveal-stage,
+  .puzzle-reveal-continue {
+    animation: none;
+  }
+}

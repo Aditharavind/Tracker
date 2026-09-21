@@ -1,12 +1,16 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { DayDetail } from "../../types";
 import { generatePlatforms, goalPoint, startPoint, type Point } from "../../game/platformGenerator";
 import { getStage, type StageMeta } from "../../game/stageSystem";
 import { pandaPlatformIndex } from "../../game/progress";
+import { ARC_DAYS } from "../../game/weekSystem";
 import Panda, { type PandaAnim } from "./Panda";
 import Platform from "./Platform";
 import Coin from "./Coin";
 import GoalFlag from "./GoalFlag";
+import DayPuzzlePiece, { MysteryPuzzlePiece } from "./DayPuzzlePiece";
+import PuzzleRevealOverlay from "./PuzzleRevealOverlay";
 import StartSign from "./StartSign";
 import VictorySign from "./VictorySign";
 import ZombiePlant from "./ZombiePlant";
@@ -18,6 +22,19 @@ import { DEFAULT_CHARACTER, type CharacterId } from "../../game/characters";
 import { playCompanionGiggle, playJump } from "../../sound";
 
 const COMPANION_IDLE_MS = 45_000;
+
+// The floating world-puzzle piece waiting on the victory lane (see
+// showPuzzleCard below). The panda "touches" it automatically partway
+// through the victory dash -- no tap needed to trigger that -- which zooms
+// it fullscreen (PuzzleRevealOverlay); tapping THAT enlarged card is what
+// actually flips it, then DayPuzzlePiece's own frame-pop + delayed
+// snap-into-place take it from there.
+const PUZZLE_TOUCH_DELAY_MS = 500;
+const PUZZLE_FLIP_MS = 420;
+// Time from a flip to the frame's pop-in and the piece's delayed
+// snap-into-place (adventure-puzzle.css) fully settling -- Continue appears
+// in PuzzleRevealOverlay once this elapses.
+const PUZZLE_SETTLE_MS = PUZZLE_FLIP_MS + 1600;
 
 /**
  * Width of the forest viewport, in px. Platform spacing is defined as a
@@ -82,6 +99,8 @@ export default function ForestScene({
   character = DEFAULT_CHARACTER,
   onDayCleared,
   returnToStart,
+  puzzleWorldIndex,
+  puzzlePieceIds,
 }: {
   detail: DayDetail;
   dayNumber: number;
@@ -96,6 +115,13 @@ export default function ForestScene({
    * is ticked.
    */
   onDayCleared?: () => void;
+  /** Which of the 6 world puzzles today's piece belongs to (see
+   * game/weekSystem.ts's journeyProgress) -- omit to skip the floating
+   * puzzle piece on the victory lane entirely. */
+  puzzleWorldIndex?: number;
+  /** Every day-slot (0-14) ever completed in this world -- see
+   * game/weekSystem.ts's worldPuzzlePieces. */
+  puzzlePieceIds?: number[];
   /**
    * True once today's tasks are all done AND every overlay/panel App renders
    * on top of the scene (victory board, leaderboard, habits, coach, story
@@ -164,6 +190,17 @@ export default function ForestScene({
   const exitPoint: Point = { x: goal.x + 0.34 * spread, y: 0 };
   const pathPoints = [start, ...platforms, goal];
 
+  // The floating mystery puzzle piece, sitting on the ground between the
+  // last stair and the goal flag -- the panda "touches" it partway through
+  // the victory dash (see startVictory below), automatically, no tap.
+  const puzzleEarnedPiece = puzzleWorldIndex === undefined ? -1 : dayNumber - 1 - puzzleWorldIndex * ARC_DAYS;
+  const showPuzzleCard =
+    puzzleWorldIndex !== undefined &&
+    puzzlePieceIds !== undefined &&
+    puzzleEarnedPiece >= 0 &&
+    puzzleEarnedPiece < ARC_DAYS;
+  const puzzleCardPoint: Point = { x: (lastPlatform.x + goal.x) / 2, y: 0 };
+
   const [anim, setAnim] = useState<PandaAnim>("idle");
   const [companionSleeping, setCompanionSleeping] = useState(false);
   const [companionDelighted, setCompanionDelighted] = useState(false);
@@ -183,6 +220,14 @@ export default function ForestScene({
     reachedGoal ? "done" : "none"
   );
   const clearedFired = useRef(false);
+  // Puzzle-piece reveal state -- mirrors victoryPhase's own initial-state
+  // pattern: a page load landing on an already-finished day shows the piece
+  // already placed, no zoom/flip to replay.
+  const [puzzleZoomed, setPuzzleZoomed] = useState(false);
+  const [puzzleRevealed, setPuzzleRevealed] = useState(reachedGoal);
+  const [puzzleFlipping, setPuzzleFlipping] = useState(false);
+  const [puzzleSettled, setPuzzleSettled] = useState(reachedGoal);
+  const puzzleTouchFired = useRef(reachedGoal);
   // The panda's *visual* position on the staircase -- deliberately decoupled
   // from pandaIndex (the real, state-derived position). pandaIndex can jump
   // by more than one step in a single update (several tasks completed at
@@ -298,12 +343,56 @@ export default function ForestScene({
     onDayCleared?.();
   };
 
+  // The panda touches the floating mystery piece partway through the
+  // victory dash -- automatically, no tap -- which zooms it fullscreen
+  // (PuzzleRevealOverlay). Reduced motion skips the cutscene entirely: the
+  // piece is simply placed, and the run proceeds to fireCleared on its
+  // normal schedule.
+  const touchPuzzle = () => {
+    if (puzzleTouchFired.current || !showPuzzleCard) return;
+    puzzleTouchFired.current = true;
+    if (reducedMotion) {
+      setPuzzleRevealed(true);
+      return;
+    }
+    setPuzzleZoomed(true);
+  };
+
+  // Tapping the enlarged card in PuzzleRevealOverlay is what actually flips
+  // it; DayPuzzlePiece's own frame-pop + delayed snap-into-place take it
+  // from there. The placed piece then just stays there -- a Continue button
+  // appears once it settles, and the player advances at their own pace
+  // rather than the overlay dismissing itself on a timer.
+  const flipPuzzle = () => {
+    if (puzzleFlipping || puzzleRevealed) return;
+    setPuzzleFlipping(true);
+    queue(() => {
+      setPuzzleFlipping(false);
+      setPuzzleRevealed(true);
+      queue(() => setPuzzleSettled(true), PUZZLE_SETTLE_MS - PUZZLE_FLIP_MS);
+    }, PUZZLE_FLIP_MS);
+  };
+
+  // Continue button in PuzzleRevealOverlay, enabled once the piece has
+  // settled -- dismisses the overlay and hands off to the normal
+  // "stage clear" board.
+  const continuePuzzle = () => {
+    if (!puzzleSettled) return;
+    setPuzzleZoomed(false);
+    fireCleared();
+  };
+
   // Final hop has landed on the last platform. Drop to the lane, dash to the
   // exit, then tell App the day is cleared (which opens the victory board).
+  // When there's a fresh world-puzzle piece, fireCleared instead waits for
+  // the player to tap through PuzzleRevealOverlay (flipPuzzle calls it) --
+  // that reveal is its own moment on the lane, not squeezed inside the
+  // board, and it can't run on a fixed timer once it needs a tap.
   const startVictory = () => {
     if (reducedMotion) {
       setVictoryPhase("done");
       setAnim("celebrating");
+      touchPuzzle();
       queue(fireCleared, 300);
       return;
     }
@@ -314,11 +403,12 @@ export default function ForestScene({
       setVictoryPhase("run");
       setAnim("running");
     }, 560);
+    queue(touchPuzzle, 560 + PUZZLE_TOUCH_DELAY_MS);
     // Longer run now -- the bush is a clear stretch of ground past the goal.
     queue(() => {
       setVictoryPhase("done");
       setAnim("celebrating");
-      fireCleared();
+      if (!showPuzzleCard) fireCleared();
     }, 560 + 2100);
   };
 
@@ -378,6 +468,11 @@ export default function ForestScene({
       // is; snap rather than animate a climb-down. Any victory run is off.
       setVictoryPhase("none");
       clearedFired.current = false;
+      puzzleTouchFired.current = false;
+      setPuzzleZoomed(false);
+      setPuzzleRevealed(false);
+      setPuzzleFlipping(false);
+      setPuzzleSettled(false);
       setVisualIndex(pandaIndex);
       setAnim("idle");
       return;
@@ -435,6 +530,11 @@ export default function ForestScene({
     clearQueue();
     setVictoryPhase("none");
     clearedFired.current = false;
+    puzzleTouchFired.current = false;
+    setPuzzleZoomed(false);
+    setPuzzleRevealed(false);
+    setPuzzleFlipping(false);
+    setPuzzleSettled(false);
     if (reducedMotion) {
       setAnim("idle");
       return;
@@ -564,6 +664,55 @@ export default function ForestScene({
             }}
           />
         )}
+
+        {/* The floating world-puzzle piece, sitting between the last stair
+            and the goal flag -- the panda touches it automatically partway
+            through the victory dash (see startVictory), no tap. Purely
+            decorative: it never determines task/day completion, only
+            reflects it (CLAUDE.md §9/§22). */}
+        {reachedGoal && showPuzzleCard && (
+          <div
+            className="forest-puzzle-card"
+            aria-hidden="true"
+            style={{ left: `${pct(puzzleCardPoint).left}%`, bottom: `${pct(puzzleCardPoint).bottom}%` }}
+          >
+            <div className="forest-puzzle-card-scale">
+              {puzzleRevealed ? (
+                <DayPuzzlePiece
+                  worldIndex={puzzleWorldIndex!}
+                  pieceIds={puzzlePieceIds!}
+                  earnedPiece={puzzleEarnedPiece}
+                  reducedMotion={reducedMotion}
+                />
+              ) : (
+                <MysteryPuzzlePiece onReveal={() => {}} flipping={puzzleFlipping} />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* The fullscreen zoom-in the card above hands off to once touched --
+            see touchPuzzle/flipPuzzle. Portalled to <body>: .forest-path (an
+            ancestor here) has its own transform for the follow-cam pan, which
+            would otherwise become this fixed-position overlay's containing
+            block -- trapping it inside the scrolling world instead of
+            covering the real viewport, and panning it along with the camera. */}
+        {puzzleZoomed &&
+          showPuzzleCard &&
+          createPortal(
+            <PuzzleRevealOverlay
+              worldIndex={puzzleWorldIndex!}
+              pieceIds={puzzlePieceIds!}
+              earnedPiece={puzzleEarnedPiece}
+              revealed={puzzleRevealed}
+              flipping={puzzleFlipping}
+              settled={puzzleSettled}
+              onReveal={flipPuzzle}
+              onContinue={continuePuzzle}
+              reducedMotion={reducedMotion}
+            />,
+            document.body
+          )}
 
         <GoalFlag
           left={pct(goal).left}

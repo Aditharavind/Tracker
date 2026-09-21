@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import CharacterModel from "./CharacterModel";
 import { CoinIcon } from "./Coin";
-import DayPuzzlePiece, { MysteryPuzzlePiece } from "./DayPuzzlePiece";
 import { usePrefersReducedMotion } from "./ForestScene";
 import type { CharacterId } from "../../game/characters";
 import type { Progress } from "../../types";
-import { ARC_DAYS } from "../../game/weekSystem";
 
 /**
  * The level-clear screen (skill §13): a classic platformer "stage complete"
  * composition, not a generic success modal. Shown once the day's tasks are all
- * ticked. Two steps, not one screen:
- *  1. "puzzle" -- today's score, and (if this world has a fresh piece) a
- *     face-down mystery tile the player taps to reveal, which then snaps
- *     into the puzzle frame.
+ * ticked, AFTER the victory-lane dash (including the floating world-puzzle
+ * piece's own reveal -- see ForestScene's showPuzzleCard) has already played
+ * out in the scene. Two steps here, neither of them the puzzle:
+ *  1. "stats" -- today's score and streak.
  *  2. "congrats" -- a congratulations header and the household standings,
  *     with the player's own rank called out.
  * It is celebratory only: day advancement is still date-driven by the
@@ -28,14 +26,6 @@ const FINALE_LINES = [
   "Not a different panda. The one seventy-five days of showing up was quietly building.",
 ];
 
-// How long the mystery tile's card-flip takes (daypuzzle-mystery-flip in
-// adventure-puzzle.css) before the real board takes its place.
-const FLIP_MS = 420;
-// How long the frame-pop + delayed piece-snap (also adventure-puzzle.css)
-// take to fully settle after the flip hands off to them -- the puzzle
-// step's Continue button waits this long so it doesn't appear mid-animation.
-const PIECE_SETTLE_MS = FLIP_MS + 1600;
-
 export default function DayCompleteOverlay({
   dayNumber,
   tasksCompleted,
@@ -43,8 +33,6 @@ export default function DayCompleteOverlay({
   coins,
   streak,
   character,
-  worldIndex,
-  worldPieceIds,
   board,
   meId,
   onClose,
@@ -56,13 +44,6 @@ export default function DayCompleteOverlay({
   coins: number;
   streak: number;
   character: CharacterId;
-  /** Which of the 6 world puzzles this run's piece belongs to (see
-   * game/weekSystem.ts's journeyProgress) -- omit to skip the puzzle reveal. */
-  worldIndex?: number;
-  /** Every day-slot (0-14) ever completed in this world -- see
-   * game/weekSystem.ts's worldPuzzlePieces. Not a consecutive streak, so a
-   * missed day elsewhere never hides a piece already earned. */
-  worldPieceIds?: number[];
   /** The household's standings, for the congratulations step's rank/list. */
   board: Progress[];
   meId: number;
@@ -71,56 +52,21 @@ export default function DayCompleteOverlay({
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const isFinale = dayNumber >= 75;
-  const earnedPiece = worldIndex === undefined ? -1 : dayNumber - 1 - worldIndex * ARC_DAYS;
-  const showPuzzle = worldIndex !== undefined && worldPieceIds !== undefined && earnedPiece >= 0 && earnedPiece < ARC_DAYS;
 
-  const [step, setStep] = useState<"puzzle" | "congrats">(showPuzzle ? "puzzle" : "congrats");
-  const [pieceFlipping, setPieceFlipping] = useState(false);
-  const [pieceRevealed, setPieceRevealed] = useState(false);
-  const [pieceSettled, setPieceSettled] = useState(false);
-
-  // Tapping the mystery tile turns it over (CSS card-flip) before the real
-  // board takes its place -- reduced motion skips straight to revealed.
-  const revealPiece = () => {
-    if (pieceFlipping || pieceRevealed) return;
-    if (reducedMotion) {
-      setPieceRevealed(true);
-      return;
-    }
-    setPieceFlipping(true);
-  };
-
-  useEffect(() => {
-    if (!pieceFlipping) return;
-    const t = window.setTimeout(() => {
-      setPieceFlipping(false);
-      setPieceRevealed(true);
-    }, FLIP_MS);
-    return () => window.clearTimeout(t);
-  }, [pieceFlipping]);
-
-  useEffect(() => {
-    if (!pieceRevealed) return;
-    if (reducedMotion) {
-      setPieceSettled(true);
-      return;
-    }
-    const t = window.setTimeout(() => setPieceSettled(true), PIECE_SETTLE_MS);
-    return () => window.clearTimeout(t);
-  }, [pieceRevealed, reducedMotion]);
+  const [step, setStep] = useState<"stats" | "congrats">("stats");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" && e.key !== "Enter") return;
-      if (step === "puzzle") {
-        if (!showPuzzle || pieceSettled) setStep("congrats");
+      if (step === "stats") {
+        setStep("congrats");
         return;
       }
       onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, step, showPuzzle, pieceSettled]);
+  }, [onClose, step]);
 
   const confetti = useMemo(
     () =>
@@ -145,8 +91,6 @@ export default function DayCompleteOverlay({
   );
   const myRank = ranked.findIndex((p) => p.user_id === meId) + 1;
 
-  const canAdvancePastPuzzle = !showPuzzle || pieceSettled;
-
   return (
     <div className="daycomplete" role="dialog" aria-modal="true" aria-label={`Day ${dayNumber} complete`}>
       <div className="daycomplete-confetti" aria-hidden="true">
@@ -164,7 +108,7 @@ export default function DayCompleteOverlay({
       </div>
 
       <div className={`daycomplete-card${isFinale ? " daycomplete-finale" : ""}`}>
-        {step === "puzzle" ? (
+        {step === "stats" ? (
           <>
             <p className="daycomplete-kicker pixel-font">STAGE CLEAR</p>
             <h1 className="daycomplete-title pixel-font">
@@ -201,24 +145,11 @@ export default function DayCompleteOverlay({
               </div>
             </dl>
 
-            {showPuzzle &&
-              (pieceRevealed ? (
-                <DayPuzzlePiece
-                  worldIndex={worldIndex!}
-                  pieceIds={worldPieceIds!}
-                  earnedPiece={earnedPiece}
-                  reducedMotion={reducedMotion}
-                />
-              ) : (
-                <MysteryPuzzlePiece onReveal={revealPiece} flipping={pieceFlipping} />
-              ))}
-
             <div className="daycomplete-actions">
               <button
                 type="button"
                 className="daycomplete-continue pixel-font"
                 onClick={() => setStep("congrats")}
-                disabled={!canAdvancePastPuzzle}
                 autoFocus
               >
                 CONTINUE →

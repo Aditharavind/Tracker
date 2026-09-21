@@ -1536,6 +1536,8 @@ export default function App() {
 
   const isToday = day === todayISO();
   const allTasksDone = detail.tasks.length > 0 && detail.tasks.every((t) => t.done);
+  const tasksCompletedToday = detail.tasks.filter((t) => t.done).length;
+  const totalTasksToday = detail.tasks.length;
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
   const overallProgressPct = Math.round((bankedDays / 75) * 100);
   // Derived, never stored -- a pure readout of already-persisted task
@@ -1613,8 +1615,6 @@ export default function App() {
             coins={coinsEarned}
             streak={me.streak}
             character={myCharacter}
-            worldIndex={journey.worldIndex}
-            worldPieceIds={worldPuzzlePieces(me.calendar, journey.worldIndex)}
             board={board}
             meId={meId!}
             onClose={closeDayComplete}
@@ -1735,6 +1735,8 @@ export default function App() {
                 lives={me.lives}
                 initialLives={me.initial_lives}
                 resets={me.resets}
+                completedToday={tasksCompletedToday}
+                totalToday={totalTasksToday}
                 expanded={livesOpen}
                 onToggle={() => setLivesOpen((v) => !v)}
               />
@@ -1791,6 +1793,8 @@ export default function App() {
             resets={me.resets}
             character={myCharacter}
             onDayCleared={day === todayISO() ? handleDayCleared : undefined}
+            puzzleWorldIndex={day === todayISO() ? journey.worldIndex : undefined}
+            puzzlePieceIds={day === todayISO() ? worldPuzzlePieces(me.calendar, journey.worldIndex) : undefined}
             returnToStart={
               detail.tasks.length > 0 &&
               detail.tasks.every((t) => t.done) &&

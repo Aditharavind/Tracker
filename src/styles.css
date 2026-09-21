@@ -2060,26 +2060,50 @@ h3 {
   gap: 3px;
 }
 
-/* Three heart-shaped vessels. Each has a dim outline (::before) and a red
-   "water" layer (.heart-water) whose height is driven by --fill -- so as
-   tasks are ticked the liquid rises through heart 1, then 2, then 3. */
+/* Three pixel heart vessels. The red liquid height is driven by --fill, so
+   today's tasks revive the meter from empty to three full hearts. */
 .heart {
-  width: 15px;
-  height: 14px;
+  width: 18px;
+  height: 16px;
   position: relative;
   display: inline-block;
   overflow: hidden;
-  clip-path: path(
-    "M7.5 13.4 C2.1 9.6 0 6.75 0 4.18 C0 1.82 1.82 0 4.07 0 C5.46 0 6.64 0.75 7.5 2.04 C8.36 0.75 9.54 0 10.93 0 C13.18 0 15 1.82 15 4.18 C15 6.75 12.9 9.6 7.5 13.4 Z"
+  clip-path: polygon(
+    16.666% 0,
+    33.333% 0,
+    33.333% 12.5%,
+    50% 12.5%,
+    50% 0,
+    83.333% 0,
+    83.333% 12.5%,
+    100% 12.5%,
+    100% 50%,
+    83.333% 50%,
+    83.333% 68.75%,
+    66.666% 68.75%,
+    66.666% 87.5%,
+    50% 87.5%,
+    50% 100%,
+    33.333% 100%,
+    33.333% 87.5%,
+    16.666% 87.5%,
+    16.666% 68.75%,
+    0 68.75%,
+    0 12.5%,
+    16.666% 12.5%
   );
+  image-rendering: pixelated;
 }
 
 .heart::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--bad) 16%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bad) 45%, transparent);
+  background: #2a1116;
+  box-shadow:
+    inset 0 0 0 2px #ff6b7a88,
+    inset 0 -3px 0 #120609,
+    0 1px 0 #0009;
 }
 
 .heart-water {
@@ -2088,8 +2112,13 @@ h3 {
   right: 0;
   bottom: 0;
   height: var(--fill, 0%);
-  background: linear-gradient(180deg, #ff5b6a, var(--bad) 60%, #c22 100%);
-  transition: height 0.55s cubic-bezier(0.3, 0.9, 0.4, 1);
+  background:
+    linear-gradient(180deg, #ff7b85 0 14%, #ff1f35 14% 62%, #d90016 62% 100%);
+  box-shadow:
+    inset 0 2px 0 #ffc0c6,
+    inset 2px 0 0 #ff5262,
+    inset -2px 0 0 #aa0012;
+  transition: height 0.72s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* A little surface shimmer on the water line -- inset just inside the
@@ -2102,22 +2131,22 @@ h3 {
 .heart-water::after {
   content: "";
   position: absolute;
-  left: -20%;
-  right: -20%;
+  left: -25%;
+  right: -25%;
   top: 0;
-  height: 3px;
-  background: rgba(255, 220, 224, 0.85);
-  border-radius: 50%;
-  animation: heart-wave 1.6s ease-in-out infinite;
+  height: 2px;
+  background: #ffd9dd;
+  box-shadow: 6px 2px 0 #ff5a68, 13px 0 0 #ffd9dd;
+  animation: heart-wave 1.15s steps(3, end) infinite;
 }
 
 @keyframes heart-wave {
   0%,
   100% {
-    transform: translateX(-8%) scaleY(0.7);
+    transform: translateX(-8%);
   }
   50% {
-    transform: translateX(8%) scaleY(1.2);
+    transform: translateX(8%);
   }
 }
 
@@ -2160,6 +2189,10 @@ h3 {
   animation: heart-crack 0.6s ease-out;
 }
 
+.heart.refill {
+  animation: heart-refill 0.65s steps(2, end);
+}
+
 @keyframes heart-crack {
   0% {
     transform: scale(1) rotate(0deg);
@@ -2178,6 +2211,24 @@ h3 {
   }
   100% {
     transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes heart-refill {
+  0% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  35% {
+    transform: translateY(-2px) scale(1.18);
+    filter: brightness(1.45) saturate(1.4);
+  }
+  70% {
+    transform: translateY(1px) scale(0.94);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
   }
 }
 
@@ -3584,7 +3635,7 @@ h3 {
 .panda-anchor[data-victory="run"],
 .panda-anchor[data-victory="done"] {
   transition:
-    left 2.05s cubic-bezier(0.25, 0.02, 0.35, 1),
+    left var(--victory-run-ms, 2.05s) cubic-bezier(0.25, 0.02, 0.35, 1),
     bottom 0.4s ease,
     transform 0.6s ease,
     opacity 0.45s ease 1.5s;
@@ -3622,6 +3673,24 @@ h3 {
 .victory-lane-done {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* The floating world-puzzle piece on the victory lane (ForestScene) -- same
+   anchor pattern as Coin (left/bottom % + translate), with an inner wrapper
+   that scales DayPuzzlePiece/MysteryPuzzlePiece down from their modal-card
+   size to platform scale, so the whole subtree (art, fonts, frame) shrinks
+   proportionally instead of needing a second set of sizing rules. Decorative
+   only -- pointer-events off, since the reveal is timer-driven, not tapped. */
+.forest-puzzle-card {
+  position: absolute;
+  z-index: 9;
+  transform: translate(-50%, 50%);
+  pointer-events: none;
+}
+
+.forest-puzzle-card-scale {
+  transform: scale(0.4);
+  transform-origin: center bottom;
 }
 
 /* Exit set piece -- sits ABOVE the panda anchor (z 12) so the character runs

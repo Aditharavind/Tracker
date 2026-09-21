@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Top-HUD lives: three heart containers, each either full (a life still in
- * the buffer) or empty (spent on a missed day) -- the real 3-lives system
- * (server/engine.js), not a stand-in for today's own task progress (that
- * has its own bar in the Day card, deliberately separate -- lives are a
- * multi-day failure buffer, not a per-task counter, so they don't fill up
- * as today's checklist does). Losing all 3 costs a week (day_number moves
- * back 7 days), not the whole run -- the hearts shatter for that moment,
- * then refill for the fresh buffer. The persisted `lives`/`resets` data is
- * the source of truth; nothing is read back from the icons.
+ * Top-HUD revive meter: three pixel heart vessels start visually empty each
+ * day and refill from today's completed task count. The persisted `lives`
+ * value still drives missed-day/failure reactions and the explanatory label;
+ * the red liquid is a task-progress animation, not a source of truth.
  *
  * A single ordinary life loss (lives drops by one, short of the full
  * 3-lives reset above) gets its own smaller reaction: `justBrokeIndex`
@@ -22,21 +17,28 @@ export default function LivesHUD({
   lives,
   initialLives,
   resets,
+  completedToday,
+  totalToday,
   expanded,
   onToggle,
 }: {
   lives: number;
   initialLives: number;
   resets: number;
+  completedToday: number;
+  totalToday: number;
   expanded?: boolean;
   onToggle?: () => void;
 }) {
   const prevResets = useRef(resets);
   const prevLives = useRef(lives);
+  const prevCompleted = useRef(completedToday);
   const [broken, setBroken] = useState(false);
   const [justBrokeIndex, setJustBrokeIndex] = useState<number | null>(null);
+  const [justFilledIndex, setJustFilledIndex] = useState<number | null>(null);
   const brokenTimer = useRef<number | undefined>(undefined);
   const crackTimer = useRef<number | undefined>(undefined);
+  const fillTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (resets > prevResets.current) {
@@ -61,7 +63,29 @@ export default function LivesHUD({
   }, [resets, lives]);
 
   const safeInitial = Math.max(1, initialLives);
-  const hearts = Array.from({ length: safeInitial }, (_, i) => (broken ? 0 : i < lives ? 1 : 0));
+  const safeTotalToday = Math.max(0, totalToday);
+  const safeCompletedToday = Math.max(0, Math.min(completedToday, safeTotalToday || completedToday));
+  const fillUnits = safeTotalToday > 0 ? (safeCompletedToday / safeTotalToday) * safeInitial : 0;
+  const hearts = Array.from({ length: safeInitial }, (_, i) =>
+    broken ? 0 : Math.max(0, Math.min(1, fillUnits - i))
+  );
+
+  useEffect(() => {
+    if (completedToday > prevCompleted.current && totalToday > 0) {
+      const nextFillUnits = (Math.min(completedToday, totalToday) / totalToday) * safeInitial;
+      const index = Math.max(0, Math.min(safeInitial - 1, Math.ceil(nextFillUnits) - 1));
+      setJustFilledIndex(index);
+      window.clearTimeout(fillTimer.current);
+      fillTimer.current = window.setTimeout(() => setJustFilledIndex(null), 700);
+    }
+    prevCompleted.current = completedToday;
+    return () => window.clearTimeout(fillTimer.current);
+  }, [completedToday, totalToday, safeInitial]);
+
+  const taskFillLabel =
+    safeTotalToday > 0
+      ? `${safeCompletedToday} of ${safeTotalToday} tasks completed; revive meter ${Math.round((fillUnits / safeInitial) * 100)}% full.`
+      : "No tasks available for the revive meter yet.";
 
   return (
     <button
@@ -69,13 +93,13 @@ export default function LivesHUD({
       className={`lives-block${broken ? " broken" : ""}`}
       aria-expanded={!!expanded}
       onClick={onToggle}
-      aria-label={`Lives: ${broken ? 0 : lives} of ${safeInitial} remaining. Show what happens if you miss a task.`}
+      aria-label={`Lives: ${broken ? 0 : lives} of ${safeInitial} remaining. ${taskFillLabel} Show what happens if you miss a task.`}
     >
       <div className="lives">
         {hearts.map((fill, i) => (
           <span
             key={i}
-            className={`heart${broken ? " break" : ""}${justBrokeIndex === i ? " crack" : ""}`}
+            className={`heart${broken ? " break" : ""}${justBrokeIndex === i ? " crack" : ""}${justFilledIndex === i ? " refill" : ""}`}
             style={{ ["--fill" as string]: `${Math.round(fill * 100)}%` }}
             aria-hidden="true"
           >

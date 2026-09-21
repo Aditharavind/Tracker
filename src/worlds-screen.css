@@ -59,32 +59,33 @@
 .worlds-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 14px;
-  max-width: 900px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
   margin: 0 auto;
   width: 100%;
 }
 
 .world-card {
   position: relative;
-  aspect-ratio: 4 / 3;
+  min-height: min(60vh, 420px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  padding: 12px 10px;
+  justify-content: center;
+  text-align: center;
+  padding: 26px 20px;
   overflow: hidden;
-  border-radius: 14px;
-  border: 2px solid rgba(210, 177, 103, 0.4);
-  background: linear-gradient(to bottom, rgba(5, 11, 7, 0.25) 0%, rgba(5, 11, 7, 0.85) 100%), var(--world-background, #14241a) center / cover;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  border-radius: 22px;
+  border: 3px solid rgba(210, 177, 103, 0.4);
+  background: linear-gradient(to bottom, rgba(5, 11, 7, 0.2) 0%, rgba(5, 11, 7, 0.88) 100%), var(--world-background, #14241a) center / cover;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .world-card:hover:not(:disabled) {
-  transform: translateY(-3px);
+  transform: translateY(-4px) scale(1.01);
   border-color: var(--forest-gold, #f0c04a);
 }
 
@@ -95,23 +96,24 @@
 }
 
 .world-card-name {
-  font-size: 10px;
-  line-height: 1.6;
+  font-size: clamp(16px, 3vw, 22px);
+  line-height: 1.7;
   letter-spacing: 0.06em;
   color: var(--forest-gold, #f0c04a);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .world-card-mark {
-  font-size: 30px;
-  margin: 0 0 6px;
+  font-size: clamp(48px, 10vw, 72px);
+  margin: 0 0 12px;
   color: rgba(243, 230, 200, 0.55);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .world-card-hook {
-  font-size: 10px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 24ch;
   color: rgba(243, 230, 200, 0.65);
 }
 
@@ -181,8 +183,12 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .worlds-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+  }
+
+  .world-card {
+    min-height: 72vh;
   }
 }
