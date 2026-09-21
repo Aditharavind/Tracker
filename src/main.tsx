@@ -8,7 +8,7 @@ import "@fontsource/press-start-2p/latin-400.css";
 import "./styles.css";
 import "./world-theme.css";
 import LoadingPage from "./components/LoadingPage";
-import loadingScene from "../frontend/assets/loading.png";
+import loadingScene from "../frontend/assets/loading.webp";
 
 const loadApp = () => import("./App");
 const loadSharedView = () => import("./components/SharedView");
@@ -24,7 +24,7 @@ const params = new URLSearchParams(location.search);
 const shareToken = params.get("share");
 const joinToken = params.get("join");
 const isAdminRoute = location.pathname === "/adminpanda";
-const BOOT_MIN_MS = 1600;
+const BOOT_MIN_MS = 350;
 const BOOT_ASSETS = [
   loadingScene,
   "/assets/character_selection/character_selection-wide.jpg",

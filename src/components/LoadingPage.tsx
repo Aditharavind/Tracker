@@ -1,5 +1,5 @@
 import { CHARACTERS } from "../game/characters";
-import loadingScene from "../../frontend/assets/loading.png";
+import loadingScene from "../../frontend/assets/loading.webp";
 
 export default function LoadingPage({
   label = "Loading run",
@@ -32,8 +32,16 @@ export default function LoadingPage({
       <div className="arcade-loading-copy">
         <img src="/assets/logo.webp" alt="OnTrack" className="arcade-loading-logo" />
         <p className="pixel-font arcade-loading-title">{label.toUpperCase()}</p>
-        <div className={`arcade-loading-bar${boundedProgress == null ? "" : " is-determinate"}`} aria-hidden="true">
+        <div
+          className={`arcade-loading-bar${boundedProgress == null ? "" : " is-determinate"}`}
+          role={boundedProgress == null ? undefined : "progressbar"}
+          aria-valuemin={boundedProgress == null ? undefined : 0}
+          aria-valuemax={boundedProgress == null ? undefined : 100}
+          aria-valuenow={boundedProgress == null ? undefined : boundedProgress}
+          aria-label={boundedProgress == null ? undefined : `${label}: ${boundedProgress}% loaded`}
+        >
           <span style={boundedProgress == null ? undefined : { width: `${boundedProgress}%` }} />
+          {boundedProgress != null && <strong className="pixel-font">{boundedProgress}%</strong>}
         </div>
       </div>
     </div>
