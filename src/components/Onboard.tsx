@@ -31,7 +31,7 @@ export default function Onboard({
   initialMode?: "new" | "back";
 }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState(COLORS[existing.length % COLORS.length]);
+  const color = COLORS[existing.length % COLORS.length];
   const [pin, setPin] = useState("");
   const [wakeEnabled, setWakeEnabled] = useState(false);
   const [wakeTime, setWakeTime] = useState("06:00");
@@ -127,19 +127,6 @@ export default function Onboard({
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
-        {mode === "new" && (
-        <div className="swatches">
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              className={c === color ? "on" : ""}
-              style={{ background: c }}
-              onClick={() => setColor(c)}
-              aria-label={`pick ${c}`}
-            />
-          ))}
-        </div>
-        )}
         {mode === "new" && (
         <label className="wake-toggle">
           <input type="checkbox" checked={wakeEnabled} onChange={(e) => setWakeEnabled(e.target.checked)} />

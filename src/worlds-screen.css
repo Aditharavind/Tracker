@@ -11,8 +11,13 @@
   flex-direction: column;
   overflow-y: auto;
   padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-  background: radial-gradient(ellipse at 50% 20%, #16301d 0%, #0a1710 55%, #050b07 100%);
-  color: var(--forest-cream, #f3e6c8);
+  background-color: #0a1710;
+  background-image: url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: #4a3420;
   animation: worlds-screen-in 0.18s ease-out;
 }
 
@@ -30,15 +35,15 @@
   margin-bottom: 22px;
 }
 
-.worlds-screen-head h1 {
+.worlds-screen-head .section-title {
   margin: 0;
   font-size: clamp(18px, 5vw, 26px);
   letter-spacing: 0.1em;
-  color: var(--forest-gold, #f0c04a);
-  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6);
+  color: #4a3420;
+  text-shadow: 0 1px 0 rgba(255, 248, 230, 0.6);
 }
 
-.worlds-screen-close {
+.worlds-screen-head .panel-close {
   flex: none;
   width: 36px;
   height: 36px;
@@ -47,13 +52,13 @@
   place-items: center;
   font-size: 22px;
   line-height: 1;
-  color: var(--forest-cream, #f3e6c8);
-  background: rgba(0, 0, 0, 0.3);
-  border: 1.5px solid rgba(210, 177, 103, 0.35);
+  color: #4a3420;
+  background: color-mix(in srgb, #f8ecd8 72%, transparent);
+  border: 1.5px solid rgba(138, 90, 43, 0.42);
 }
 
-.worlds-screen-close:hover {
-  background: rgba(255, 255, 255, 0.14);
+.worlds-screen-head .panel-close:hover {
+  background: color-mix(in srgb, #c9a876 42%, #f8ecd8);
 }
 
 .worlds-grid {
@@ -76,45 +81,89 @@
   text-align: center;
   padding: 26px 20px;
   overflow: hidden;
-  border-radius: 22px;
-  border: 3px solid rgba(210, 177, 103, 0.4);
-  background: linear-gradient(to bottom, rgba(5, 11, 7, 0.2) 0%, rgba(5, 11, 7, 0.88) 100%), var(--world-background, #14241a) center / cover;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  border: 2px solid #c18a47;
+  background:
+    repeating-linear-gradient(4deg, transparent 0 4px, #1d100c30 5px 6px, transparent 7px 13px),
+    linear-gradient(110deg, #ad6a32, #62331c 23%, #a56530 48%, #5b301b 75%, #99562a);
+  box-shadow:
+    0 15px 36px #0008,
+    0 4px 0 #351d13,
+    inset 0 2px 0 #f1ba7177,
+    inset 0 -3px 0 #24170daa;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
+.world-card::before {
+  content: "";
+  position: absolute;
+  inset: clamp(12px, 2.1vw, 23px);
+  border: 2px solid #21170f;
+  border-radius: 5px;
+  background: var(--world-background, #14241a) center / cover;
+  box-shadow: 0 0 0 1px #f0be5866, 0 2px 6px #000b;
+}
+
+.world-card::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid #e6b77455;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
 .world-card:hover:not(:disabled) {
   transform: translateY(-4px) scale(1.01);
-  border-color: var(--forest-gold, #f0c04a);
+  border-color: #f0be58;
 }
 
 .world-card:disabled {
   cursor: default;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.75)), #101812;
-  border-color: rgba(210, 177, 103, 0.18);
+  filter: saturate(0.72);
+}
+
+.world-card:disabled::before {
+  background:
+    repeating-linear-gradient(4deg, transparent 0 4px, #1d100c30 5px 6px, transparent 7px 13px),
+    linear-gradient(110deg, #5a4420, #2c2210 40%, #4a3819 75%, #201808);
 }
 
 .world-card-name {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  padding: 10px 12px;
+  border: 2px solid #8a5a2b;
+  border-radius: 8px;
   font-size: clamp(16px, 3vw, 22px);
   line-height: 1.7;
   letter-spacing: 0.06em;
-  color: var(--forest-gold, #f0c04a);
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+  color: #3d2814;
+  background:
+    linear-gradient(180deg, rgba(255, 248, 221, 0.94), rgba(239, 213, 164, 0.94)),
+    url("../frontend/assets/background_tile.webp") center / 180px auto;
+  box-shadow: 0 4px 0 #4a2d12, 0 12px 22px rgba(0, 0, 0, 0.36);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .world-card-mark {
+  position: relative;
+  z-index: 1;
   font-size: clamp(48px, 10vw, 72px);
   margin: 0 0 12px;
-  color: rgba(243, 230, 200, 0.55);
+  color: #d8b977;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .world-card-hook {
+  position: relative;
+  z-index: 1;
   font-size: 13px;
   line-height: 1.6;
   max-width: 24ch;
-  color: rgba(243, 230, 200, 0.65);
+  color: #d8c290;
 }
 
 /* ---- comic-style world story, opened from an unlocked card ------------- */
@@ -126,7 +175,12 @@
   display: flex;
   flex-direction: column;
   color: var(--forest-cream, #f3e6c8);
-  background: #0a1710;
+  background-color: #0a1710;
+  background-image: url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   animation: worlds-screen-in 0.18s ease-out;
 }
 
@@ -147,7 +201,14 @@
 .world-comic-caption {
   flex: none;
   padding: 18px max(20px, env(safe-area-inset-right)) 22px max(20px, env(safe-area-inset-left));
-  background: #0a1710;
+  background-color: #0a1710;
+  background-image:
+    linear-gradient(rgba(10, 23, 16, 0.15), rgba(10, 23, 16, 0.15)),
+    url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   border-top: 2px solid rgba(210, 177, 103, 0.3);
 }
 

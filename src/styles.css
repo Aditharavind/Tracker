@@ -423,6 +423,11 @@ h3 {
 }
 
 .task {
+  --task-idle-bg: #fff8ec;
+  --task-selected-bg: #d8bd8d;
+  --task-ink: #3d2814;
+  --task-check-border: #c9a876;
+  --task-check-tick: #3d2411;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -432,6 +437,8 @@ h3 {
      padding instead of two unrelated numbers -- the "like a button" look. */
   padding: 12px;
   border-radius: 12px;
+  background: var(--task-idle-bg);
+  color: var(--task-ink);
   text-align: left;
   transition:
     background 0.13s,
@@ -447,10 +454,7 @@ h3 {
 }
 
 .task:hover {
-  /* A light wash of the same accent orange the "done" pill uses, instead of
-     the neutral grey .raised every other hover in the app gets -- pending
-     tasks preview the colour they'll turn once checked off. */
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  background: color-mix(in srgb, var(--task-selected-bg) 36%, var(--task-idle-bg));
 }
 
 /* Completed = the row itself becomes a coloured "button", not the checkbox
@@ -461,20 +465,22 @@ h3 {
    dark-on-accent ink the tags/checkbox below borrowed from --on-accent,
    which would be unreadable on a dark background. */
 .task.done {
-  background: color-mix(in srgb, var(--good) 32%, #0b1a10);
-  color: #eef5ea;
-  --done-ink: #eef5ea;
+  background: var(--task-selected-bg);
+  color: var(--task-ink);
+  --done-ink: var(--task-ink);
 }
 
 .task.done:hover {
-  background: color-mix(in srgb, var(--good) 40%, #0b1a10);
+  background: color-mix(in srgb, var(--task-selected-bg) 88%, #8a5a2b);
 }
 
 .box {
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  border: 1.5px solid var(--line);
+  border: 1.5px solid var(--task-check-border);
+  background: color-mix(in srgb, var(--task-check-border) 16%, #fff8ec);
+  color: var(--task-check-tick);
   flex: none;
   display: grid;
   place-items: center;
@@ -494,7 +500,7 @@ h3 {
 }
 
 .task:hover .box {
-  border-color: var(--dimmer);
+  border-color: #8a5a2b;
 }
 
 /* Reversed from the checkbox-turns-orange original: the ROW is now the
@@ -502,9 +508,9 @@ h3 {
    "on-accent" chip -- it still visibly changes state, just without
    competing with the row for the same orange. */
 .task.done .box {
-  background: var(--done-ink);
-  border-color: var(--done-ink);
-  color: color-mix(in srgb, var(--good) 55%, #0b1a10);
+  background: #fff8ec;
+  border-color: #fff8ec;
+  color: var(--task-check-tick);
 }
 
 .box svg {
@@ -592,7 +598,7 @@ h3 {
 }
 
 .task.done .kill {
-  color: color-mix(in srgb, var(--on-accent) 55%, transparent);
+  color: color-mix(in srgb, var(--task-ink) 62%, transparent);
 }
 
 .task.done .kill:hover {
@@ -4722,6 +4728,15 @@ h3 {
 /* ---- floating Day card ------------------------------------------------ */
 
 .day-card-float {
+  --panel: #f8ecd8;
+  --raised: #fbf2e2;
+  --line: #c9a876;
+  --line-soft: #ddc39a;
+  --text: #4a3420;
+  --dim: #7a5c3e;
+  --dimmer: #8a6a45;
+  --accent: #8a5a2b;
+  --good: #4a7c3a;
   position: absolute;
   top: 38px;
   left: 32px;
@@ -4735,7 +4750,12 @@ h3 {
   /* Opaque: the level scrolls and parallaxes behind it now, and a
      translucent card let the moving world bleed through and fight the task
      text for legibility. Solid panel, pixel-art double border. */
-  background: #0b1712;
+  background-color: var(--panel);
+  background-image: url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   border: 2px solid rgba(210, 177, 103, 0.5);
   border-radius: 14px;
   box-shadow:
@@ -4805,7 +4825,7 @@ h3 {
   width: 20px;
   height: 20px;
   padding: 0;
-  color: #f2ffe6;
+  color: var(--dim);
 }
 
 /* "Settings" (add/edit/remove tasks) sits just left of "Tick/untick all" --
@@ -4880,14 +4900,33 @@ h3 {
 
 .day-card-float .daycard {
   margin: 0;
-  background: transparent;
+  background-color: transparent;
+  background-image: url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   border: none;
   border-radius: 12px;
-  color: var(--forest-cream, #f3e6c8);
+  color: var(--text);
 }
 
-.day-card-float .task:hover {
-  background: rgba(255, 255, 255, 0.08);
+.day-card-float .task:not(.done) {
+  color: #4a3420;
+}
+
+.day-card-float .task:not(.done) .title,
+.day-card-float .task:not(.done) .tag {
+  color: #4a3420;
+}
+
+.day-card-float .task:not(.done):hover {
+  background: color-mix(in srgb, #d8bd8d 36%, #fff8ec);
+}
+
+.day-card-float .progress-block {
+  border-top-color: color-mix(in srgb, var(--line) 58%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--line) 50%, transparent);
 }
 
 .day-card-float .card-head {
@@ -5056,13 +5095,17 @@ h3 {
    Same image, same fixed/cover sizing as .panel-drawer itself, so a card
    reads as a window onto the one continuous background rather than
    restarting the pattern -- not a flat colour box any more. */
-.panel-drawer .card {
+.panel-drawer :is(.card, .daycard, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in, .dash-board-card) {
   background-color: var(--panel);
   background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
   background-repeat: no-repeat;
+}
+
+.panel-drawer .panel-section:not(.card) {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line-soft));
 }
 
 @keyframes drawer-in {
@@ -5072,12 +5115,35 @@ h3 {
   }
 }
 
+.section-header,
 .panel-drawer-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.section-header-copy {
+  min-width: 0;
+}
+
+.section-eyebrow,
+.section-subtitle {
+  margin: 0;
+  color: var(--dim);
+}
+
+.section-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.section-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* Profile drawer header. It used to be sticky, which left a translucent strip
@@ -5095,6 +5161,7 @@ h3 {
    own --text (already the brown token, see .panel-drawer) instead of the
    gold used for headings on dark backgrounds elsewhere. Gold-on-cream here
    was unreadable. */
+.section-title,
 .panel-drawer-head h2 {
   margin: 0;
   font-size: var(--section-header-size);
@@ -5102,6 +5169,14 @@ h3 {
   text-transform: uppercase;
   color: var(--text);
   text-shadow: 0 1px 0 rgba(255, 248, 230, 0.6);
+}
+
+.section-header-secondary .section-title {
+  font-size: clamp(15px, 3.5vw, 22px);
+}
+
+.section-header-sub .section-title {
+  font-size: clamp(12px, 2.8vw, 16px);
 }
 
 .world-story-copy h1,
@@ -5132,12 +5207,19 @@ h3 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 4px;
-  border-bottom: 1px solid var(--line-soft);
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, #c9a876 58%, var(--line-soft));
+  border-radius: 10px;
+  background: color-mix(in srgb, #c9a876 52%, var(--panel));
+  color: var(--text);
+}
+
+.habit-row + .habit-row {
+  margin-top: 4px;
 }
 
 .habit-row:last-child {
-  border-bottom: none;
+  border-bottom-color: color-mix(in srgb, #c9a876 58%, var(--line-soft));
 }
 
 /* Habit coach -- persona + what's slipping + a plan. Every line is built from
@@ -6049,7 +6131,7 @@ h3 {
     margin: 0;
     padding: 26px 20px 22px;
     padding-right: 128px;
-    background: rgba(18, 42, 36, 0.72);
+    background: color-mix(in srgb, #f8ecd8 82%, transparent);
   }
 
   .day-card-float .day-heading {
@@ -6064,7 +6146,7 @@ h3 {
 
   .day-card-float .day-sub {
     margin-top: 10px;
-    color: rgba(243, 230, 200, 0.68);
+    color: var(--dim);
     font-size: 14px;
   }
 
@@ -6085,8 +6167,8 @@ h3 {
   .day-card-float .progress-bar {
     height: 10px;
     border-radius: 999px;
-    background: rgba(210, 242, 219, 0.13);
-    border-color: rgba(210, 242, 219, 0.24);
+    background: var(--line-soft);
+    border-color: var(--line);
   }
 
   .day-card-float .progress-fill {
@@ -6100,7 +6182,7 @@ h3 {
     top: -31px;
     bottom: auto;
     margin: 0;
-    color: rgba(243, 230, 200, 0.62);
+    color: var(--dimmer);
     font-size: 13px;
     white-space: nowrap;
   }
@@ -6112,9 +6194,9 @@ h3 {
   .day-card-float .tasks-label {
     margin: 0;
     padding: 18px 20px 10px;
-    border-top: 1px solid rgba(210, 242, 219, 0.1);
-    background: rgba(7, 25, 21, 0.72);
-    color: rgba(243, 230, 200, 0.58);
+    border-top: 1px solid color-mix(in srgb, var(--line) 46%, transparent);
+    background: color-mix(in srgb, #f8ecd8 78%, transparent);
+    color: var(--dim);
     font-size: 12px;
   }
 
@@ -6122,27 +6204,39 @@ h3 {
     gap: 10px;
     margin: 0;
     padding: 0 20px 20px;
-    background: rgba(7, 25, 21, 0.72);
+    background: color-mix(in srgb, #f8ecd8 78%, transparent);
   }
 
   .day-card-float .task {
     min-height: 60px;
     padding: 12px 12px 12px 16px;
-    border: 1px solid rgba(210, 242, 219, 0.1);
+    border: 1px solid color-mix(in srgb, #c9a876 58%, var(--line-soft));
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.045);
+    background: #fff8ec;
+    color: #4a3420;
+  }
+
+  .day-card-float .task.done {
+    background: #d8bd8d;
+    color: var(--done-ink);
   }
 
   .day-card-float .task:not(:last-child):not(.done) {
-    border-bottom-color: rgba(210, 242, 219, 0.1);
+    border-bottom-color: color-mix(in srgb, #c9a876 58%, var(--line-soft));
   }
 
   .day-card-float .box {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    border-color: rgba(210, 242, 219, 0.45);
-    background: rgba(4, 17, 14, 0.26);
+    border-color: color-mix(in srgb, #8a5a2b 46%, var(--line));
+    background: color-mix(in srgb, #f8ecd8 66%, #c9a876);
+  }
+
+  .day-card-float .task.done .box {
+    background: #fff8ec;
+    border-color: #fff8ec;
+    color: #3d2411;
   }
 
   .day-card-float .task .emoji {
@@ -6151,14 +6245,18 @@ h3 {
   }
 
   .day-card-float .task .title {
-    color: #f7f6ec;
+    color: #4a3420;
     font-size: 16px;
+  }
+
+  .day-card-float .task.done .title {
+    color: var(--done-ink);
   }
 
   .day-card-float .task::after {
     content: ">";
     flex: none;
-    color: rgba(243, 230, 200, 0.55);
+    color: var(--dim);
     font-size: 26px;
     line-height: 1;
   }
@@ -6280,9 +6378,11 @@ h3 {
   position: relative;
   margin: -16px -16px 18px;
   padding: 28px 16px 22px;
+  min-height: calc(95dvh - 76px);
   overflow: hidden;
   text-align: center;
   display: grid;
+  align-content: center;
   justify-items: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -8336,3 +8436,15 @@ h3 {
   box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
 }
 
+/* Final drawer-surface pass: later component rules use `background` shorthands
+   for stats, coach blocks and task rows, which can accidentally erase the
+   shared parchment tile. Keep this scoped to drawers so the game scene and
+   home dashboard stay on their own artwork. */
+.panel-drawer :is(.card, .daycard, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in, .dash-board-card, .habit-row) {
+  background-color: var(--panel);
+  background-image: url("../frontend/assets/background_tile.webp");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}

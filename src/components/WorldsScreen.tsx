@@ -2,6 +2,7 @@ import { useState } from "react";
 import { WORLDS } from "../game/adventure/content";
 import { ARC_COUNT, ARC_DAYS, journeyProgress } from "../game/weekSystem";
 import type { DayCell } from "../types";
+import SectionHeader from "./SectionHeader";
 import "../worlds-screen.css";
 
 /**
@@ -31,12 +32,13 @@ export default function WorldsScreen({
 
   return (
     <div className="worlds-screen" role="dialog" aria-modal="true" aria-labelledby="worlds-screen-title">
-      <header className="worlds-screen-head">
+      <SectionHeader title="Worlds" id="worlds-screen-title" level={1} className="worlds-screen-head" onClose={onClose} />
+      {/*
         <h1 id="worlds-screen-title" className="pixel-font">WORLDS</h1>
         <button type="button" className="worlds-screen-close" onClick={onClose} aria-label="Close" title="Close">
           ×
         </button>
-      </header>
+      */}
 
       <div className="worlds-grid" role="list">
         {Array.from({ length: cardCount }, (_, i) => {

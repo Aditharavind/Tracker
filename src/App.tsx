@@ -8,6 +8,7 @@ import Onboard from "./components/Onboard";
 import LoadingPage from "./components/LoadingPage";
 import Checklist from "./components/Checklist";
 import LevelRing from "./components/LevelRing";
+import SectionHeader from "./components/SectionHeader";
 import type { AvatarId } from "./components/Runner";
 import ForestScene from "./components/forest/ForestScene";
 // The Phaser migration's first slice (see src/game/'s PhaserGame.ts) -- only
@@ -1915,12 +1916,7 @@ export default function App() {
 
           {openPanel === "leaderboard" && (
             <div className="panel-drawer">
-              <div className="panel-drawer-head">
-                <h2>Leaderboard</h2>
-                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
-                  <IconClose />
-                </button>
-              </div>
+              <SectionHeader title="Leaderboard" className="panel-drawer-head" onClose={() => setOpenPanel(null)} />
               {users.length < 4 && (
                 <button
                   type="button"
@@ -1955,12 +1951,7 @@ export default function App() {
 
           {openPanel === "stats" && (
             <div className="panel-drawer">
-              <div className="panel-drawer-head">
-                <h2>Stats</h2>
-                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
-                  <IconClose />
-                </button>
-              </div>
+              <SectionHeader title="Stats" className="panel-drawer-head" onClose={() => setOpenPanel(null)} />
               <div className="profile-stat-grid">
                 <div className="profile-stat">
                   <div className="n num">{me.day_number}/75</div>
@@ -2024,12 +2015,7 @@ export default function App() {
 
           {openPanel === "coach" && (
             <div className="panel-drawer">
-              <div className="panel-drawer-head">
-                <h2>Coach</h2>
-                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
-                  <IconClose />
-                </button>
-              </div>
+              <SectionHeader title="Coach" className="panel-drawer-head" onClose={() => setOpenPanel(null)} />
               <Suspense fallback={<div className="card panel-section muted">Loading your report…</div>}>
                 <Coach report={coach} onRefresh={refreshCoach} refreshing={coachLoading} />
               </Suspense>
@@ -2051,12 +2037,7 @@ export default function App() {
 
           {openPanel === "habits" && (
             <div className="panel-drawer">
-              <div className="panel-drawer-head">
-                <h2>Habits</h2>
-                <button className="panel-close" aria-label="Close" title="Close" onClick={() => setOpenPanel(null)}>
-                  <IconClose />
-                </button>
-              </div>
+              <SectionHeader title="Habits" className="panel-drawer-head" onClose={() => setOpenPanel(null)} />
               <div className="card panel-section">
                 <div className="card-head">
                   <h2>Manage tasks</h2>
@@ -2116,12 +2097,7 @@ export default function App() {
 
           {openPanel === "profile" && (
             <div className="panel-drawer">
-              <div className="panel-drawer-head panel-drawer-head-sticky">
-                <h2>Profile</h2>
-                <button className="panel-close" aria-label="Close profile" title="Close" onClick={() => setOpenPanel(null)}>
-                  <IconClose />
-                </button>
-              </div>
+              <SectionHeader title="Profile" className="panel-drawer-head panel-drawer-head-sticky" onClose={() => setOpenPanel(null)} closeLabel="Close profile" />
 
               <div
                 className="profile-character-hero"
