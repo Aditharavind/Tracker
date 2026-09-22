@@ -6938,6 +6938,16 @@ h3 {
 .daycomplete-card {
   position: relative;
   --daycomplete-inset: 18px;
+  /* One light-brown tone for every small-caps label on the card (STAGE CLEAR,
+     TASKS/COINS/STREAK, YOU'RE RANKED, the standings rank numbers) and one dark
+     brown for the values worth reading first, so the card has two type colors
+     rather than the five it drifted into. Both are declared here so the
+     world-theme parchment override only has to restate two values. */
+  --dc-subhead: #8a5a2b;
+  --dc-ink: #3d2411;
+  /* The streak headline hangs off the title block rather than starting flush
+     with the card edge -- see .daycomplete-streak-huge. */
+  --daycomplete-indent: 14px;
   width: min(420px, 92vw);
   padding: 26px 22px 22px;
   text-align: left;
@@ -6956,17 +6966,23 @@ h3 {
   perspective: 900px;
 }
 
+/* The stage-clear banner is the one centered block on an otherwise
+   left-aligned card (skill S13 -- a platformer level-clear composition, not a
+   modal header). Kicker and title are centered together so they read as one
+   plate above the dancer, which is itself centered. */
 .daycomplete-kicker {
   margin: 0 var(--daycomplete-inset) 6px;
   font-size: 10px;
   letter-spacing: 0.22em;
-  color: #8a5a2b;
+  text-align: center;
+  color: var(--dc-subhead);
 }
 
 .daycomplete-title {
   margin: 0 var(--daycomplete-inset) 14px;
   font-size: clamp(14px, 4.8vw, 20px);
   line-height: 1.25;
+  text-align: center;
   color: #3d2814;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
   white-space: nowrap;
@@ -7255,7 +7271,13 @@ h3 {
    louder than the TASKS/COINS/STREAK stat row below it, since a long streak
    is the thing most worth bragging about in the moment. */
 .daycomplete-streak-huge {
-  margin: 2px var(--daycomplete-inset) 14px;
+  /* Indented one step past the card inset and given real air above it: the
+     streak is a sub-line of the day's result, not a peer of the centered
+     banner, and at a flush 2px margin it collided with the podium above and
+     the stat row below. The 14px bottom margin matches the title's, so the
+     three stacked blocks keep one vertical rhythm. */
+  margin: 12px var(--daycomplete-inset) 14px;
+  padding-left: var(--daycomplete-indent);
   font-size: clamp(12px, 4.4vw, 19px);
   font-weight: 700;
   line-height: 1.2;
@@ -7286,7 +7308,7 @@ h3 {
   margin: 0 0 4px;
   font-size: 8px;
   letter-spacing: 0.12em;
-  color: #7a5c3e;
+  color: var(--dc-subhead);
 }
 
 .daycomplete-score dd {
@@ -7295,41 +7317,75 @@ h3 {
   color: #3d2814;
 }
 
+/* Carved from the same plank as .start-sign and .goal-board -- the two ends
+   of the run and the button that closes the day now read as one carpenter's
+   set, instead of the lone candy-green control the card used to end on.
+   Layers, top to bottom: face lighting, two knots, vertical grain ticks, and
+   the plank's own stain gradient. --dc-plank-edge is the cut-edge color every
+   state's 3D lip is drawn in. */
 .daycomplete-continue {
+  --dc-plank-edge: #3a2810;
   padding: 11px 22px;
   font-size: 12px;
   letter-spacing: 0.1em;
-  color: #10240f;
-  text-shadow: 0 1px 0 rgba(255, 255, 210, 0.45);
+  color: #f6e6b8;
+  text-shadow:
+    0 1px 0 rgba(255, 224, 160, 0.2),
+    0 -1px 1px rgba(0, 0, 0, 0.65);
   background:
-    linear-gradient(180deg, rgba(255, 255, 200, 0.34), transparent 32%),
-    linear-gradient(180deg, #a9ef64 0%, #62bd3d 56%, #32752a 100%);
-  border: 2px solid #245c20;
-  border-radius: 10px;
-  box-shadow: 0 4px 0 #245c20, inset 0 1px 0 rgba(255, 255, 220, 0.45);
+    linear-gradient(180deg, rgba(255, 230, 170, 0.22), transparent 38%),
+    radial-gradient(ellipse at 22% 46%, rgba(58, 34, 12, 0.42) 0 7%, transparent 8%),
+    radial-gradient(ellipse at 78% 60%, rgba(58, 34, 12, 0.3) 0 5%, transparent 6%),
+    repeating-linear-gradient(90deg, rgba(48, 30, 12, 0.22) 0 2px, transparent 2px 14px),
+    linear-gradient(180deg, #8a5f28 0%, #7a5220 22%, #6b4a1e 50%, #5c3f19 78%, #4c3315 100%);
+  border: 2px solid var(--dc-plank-edge);
+  border-radius: 6px;
+  box-shadow:
+    0 4px 0 var(--dc-plank-edge),
+    inset 0 1px 0 rgba(255, 224, 160, 0.25),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.4);
   cursor: pointer;
+  transition: filter 0.12s ease;
 }
 
-.daycomplete-continue:active {
+/* Lit like the plank caught the sun, not tinted a different color -- a hue
+   shift here would break it away from the start sign it matches. */
+.daycomplete-continue:hover:not(:disabled),
+.daycomplete-continue:focus-visible:not(:disabled) {
+  filter: brightness(1.12) saturate(1.05);
+}
+
+/* Pressed: the board sinks onto its lip, so the 4px edge becomes 2px and the
+   inner shadow deepens rather than the whole button just sliding down. */
+.daycomplete-continue:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: 0 2px 0 #245c20;
+  filter: brightness(0.97);
+  box-shadow:
+    0 2px 0 var(--dc-plank-edge),
+    inset 0 1px 0 rgba(255, 224, 160, 0.18),
+    inset 0 -1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* Disabled while a mystery piece's reveal/snap animation is still settling
    (see DayCompleteOverlay's canAdvancePastPuzzle) -- greyed out rather than
-   hidden, so its eventual arrival doesn't shift the layout. */
+   hidden, so its eventual arrival doesn't shift the layout. Desaturated to
+   weathered grey-brown instead of just faded, so it reads as "not yet" rather
+   than as a rendering glitch on the parchment. */
 .daycomplete-continue:disabled {
-  opacity: 0.4;
+  opacity: 0.55;
+  filter: grayscale(0.55) brightness(0.92);
   cursor: default;
-  box-shadow: 0 4px 0 #3d2814;
   transform: none;
+  box-shadow:
+    0 4px 0 rgba(58, 40, 16, 0.55),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.3);
 }
 
 .daycomplete-rank {
   margin: 0 var(--daycomplete-inset) 12px;
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: #8a5a2b;
+  color: var(--dc-subhead);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
@@ -7364,7 +7420,7 @@ h3 {
 .daycomplete-standings li > span:first-child {
   flex: none;
   width: 24px;
-  color: #8a5a2b;
+  color: var(--dc-subhead);
   font-size: 10px;
 }
 
@@ -7377,10 +7433,14 @@ h3 {
   text-align: left;
 }
 
+/* The one dark-brown item in the standings row. Everything around it (the
+   rank number, the labels above) is the light --dc-subhead tone, so the day a
+   rival has reached stays the thing the eye lands on without needing a
+   different hue from the card's two-color scheme. */
 .daycomplete-standings-day {
   flex: none;
   font-size: 9px;
-  color: #7a5c3e;
+  color: var(--dc-ink);
 }
 
 .daycomplete-actions {
@@ -7430,6 +7490,9 @@ h3 {
 @media (max-width: 420px) {
   .daycomplete-card {
     --daycomplete-inset: 10px;
+    /* Scales with the inset, so the streak keeps the same "one step in"
+       relationship on a phone instead of eating half the narrower card. */
+    --daycomplete-indent: 8px;
   }
 
   .daycomplete-continue,
@@ -8238,11 +8301,6 @@ h3 {
   border-color: rgba(118, 70, 28, 0.34);
 }
 
-.world-theme .daycomplete-score :is(dt, dd),
-.world-theme .daycomplete-standings :is(span, .daycomplete-standings-day) {
-  color: #4a2f18;
-}
-
 .world-theme :is(.daystart-start, .puzzle-reveal-continue) {
   color: #fff8ec;
   background:
@@ -8253,16 +8311,6 @@ h3 {
   border-color: #3d2411;
   box-shadow: 0 4px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.35);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
-}
-
-.world-theme .daycomplete-continue {
-  color: #10240f;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 200, 0.34), transparent 32%),
-    linear-gradient(180deg, #a9ef64 0%, #62bd3d 56%, #32752a 100%);
-  border-color: #245c20;
-  box-shadow: 0 4px 0 #245c20, inset 0 1px 0 rgba(255, 255, 220, 0.45);
-  text-shadow: 0 1px 0 rgba(255, 255, 210, 0.45);
 }
 
 .world-theme .daycomplete-play {
@@ -8277,7 +8325,9 @@ h3 {
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
 }
 
-.world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue):hover {
+/* .daycomplete-continue excluded -- it owns its own hover (and must not
+   brighten while disabled); see its block above. */
+.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue):hover {
   filter: brightness(1.08);
 }
 
@@ -8285,6 +8335,3 @@ h3 {
   box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
 }
 
-.world-theme .daycomplete-continue:active {
-  box-shadow: 0 2px 0 #245c20;
-}

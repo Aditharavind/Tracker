@@ -744,10 +744,16 @@
 
 .world-theme :is(.daycomplete-card, .daystart-card) {
   color: #4a2f18;
+  /* Retune the two type colors the card is built from (see .daycomplete-card)
+     rather than repainting each element: every small-caps label follows
+     --dc-subhead and every headline value follows --dc-ink, so the parchment
+     variant stays consistent by construction. Both clear 5:1 on #f8ecd8. */
+  --dc-subhead: #8a5a2b;
+  --dc-ink: #3d2411;
 }
 
 .world-theme :is(.daycomplete-kicker, .daystart-kicker, .daycomplete-rank) {
-  color: #8a4f1f;
+  color: var(--dc-subhead, #8a5a2b);
 }
 
 .world-theme :is(.daycomplete-title, .daystart-title, .daycomplete-streak-huge) {
@@ -766,12 +772,31 @@
   border-color: rgba(118, 70, 28, 0.34);
 }
 
-.world-theme .daycomplete-score :is(dt, dd),
-.world-theme .daycomplete-standings :is(span, .daycomplete-standings-day) {
+/* dt and dd used to share one dark tone, which is what made TASKS/COINS/STREAK
+   shout as loudly as their own values. Labels drop to the light brown; the
+   values and the standings' DAY n keep the dark ink. */
+.world-theme .daycomplete-score dt {
+  color: var(--dc-subhead, #8a5a2b);
+}
+
+.world-theme .daycomplete-score dd,
+.world-theme .daycomplete-standings-day {
+  color: var(--dc-ink, #3d2411);
+}
+
+.world-theme .daycomplete-standings li > span:first-child {
+  color: var(--dc-subhead, #8a5a2b);
+}
+
+.world-theme .daycomplete-standings-name {
   color: #4a2f18;
 }
 
-.world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue) {
+/* .daycomplete-continue is deliberately NOT in this list: it carries its own
+   start-sign plank treatment (styles.css) including hover/active/disabled, and
+   restating a second, slightly different wood here is what let the two drift.
+   These three keep the lighter generic plank. */
+.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue) {
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
@@ -783,10 +808,42 @@
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
 }
 
-.world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue):hover {
+.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue):hover {
   filter: brightness(1.08);
 }
 
-.world-theme :is(.daycomplete-continue, .daycomplete-play, .daystart-start, .puzzle-reveal-continue):active {
+/* MINIGAMES sits directly beside CONTINUE, so it has to be cut from the same
+   plank -- same grain pitch, same knots, same cut-edge -- just a paler stain
+   and a flatter face. That reads as primary/secondary carpentry instead of two
+   different materials, which is how it looked once CONTINUE gained the real
+   start-sign wood. */
+.world-theme .daycomplete-play {
+  color: #f6e6b8;
+  background:
+    linear-gradient(180deg, rgba(255, 230, 170, 0.18), transparent 38%),
+    radial-gradient(ellipse at 22% 46%, rgba(58, 34, 12, 0.26) 0 7%, transparent 8%),
+    radial-gradient(ellipse at 78% 60%, rgba(58, 34, 12, 0.18) 0 5%, transparent 6%),
+    repeating-linear-gradient(90deg, rgba(48, 30, 12, 0.16) 0 2px, transparent 2px 14px),
+    linear-gradient(180deg, #a87c42 0%, #976c36 34%, #865d2c 68%, #6f4a21 100%);
+  border: 2px solid #3a2810;
+  border-radius: 6px;
+  box-shadow:
+    0 4px 0 #3a2810,
+    inset 0 1px 0 rgba(255, 224, 160, 0.22),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.3);
+  text-shadow:
+    0 1px 0 rgba(255, 224, 160, 0.16),
+    0 -1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.world-theme .daycomplete-play:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 2px 0 #3a2810,
+    inset 0 1px 0 rgba(255, 224, 160, 0.16),
+    inset 0 -1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue):active {
   box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
 }
