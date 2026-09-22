@@ -16,8 +16,15 @@ export const PERFECT_DAY_XP = 40;
 // A missed day costs one life; the day number itself keeps advancing. Losing
 // all three no longer sends the run all the way back to Day 1 -- it costs a
 // small setback instead (PENALTY_DAYS), and the buffer refills for the next attempt.
+//
+// PENALTY_DAYS must stay >= INITIAL_LIVES. Below that the setback is smaller
+// than the stretch of missed days that earned it, so an idle run *gains* day
+// numbers: at 3 lives and a 2-day penalty the counter climbed one day for every
+// three days of doing nothing, and accounts with zero perfect days ever reached
+// Day 14. Equal to it, a fully blown buffer costs exactly the days it consumed,
+// so a dead stretch freezes the day number instead of inflating it.
 export const INITIAL_LIVES = 3;
-export const PENALTY_DAYS = 2;
+export const PENALTY_DAYS = 3;
 
 export const DAY_BADGES = [
   [3, "Ignition", "Three days deep. The hard part is behind you."],
@@ -134,8 +141,9 @@ export function compute({ user, tasks, completions }, today) {
       livesLost += 1;
       if (livesLost >= INITIAL_LIVES) {
         // A small setback, not a full reset back to Day 1 -- losing every
-        // life pushes the run's own start forward a couple days (so day_number
-        // drops without wiping the climb) and refills the buffer for the next attempt.
+        // life pushes the run's own start forward by the days that buffer
+        // covered (so day_number drops without wiping the climb) and refills
+        // the buffer for the next attempt.
         // Compounds across multiple penalties in one long gap, but the
         // setback bottoms out at Day 1 of the very next day: the failed day
         // closes the old attempt, the new one opens the morning after.

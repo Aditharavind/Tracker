@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { addDays, compute, diffDays, levelFor } from "../server/engine.js";
+import { addDays, compute, diffDays, INITIAL_LIVES, levelFor } from "../server/engine.js";
 import { CORE_TASKS } from "../server/core-tasks.js";
 
 const TODAY = "2026-07-29";
@@ -75,15 +75,15 @@ test("a partial day breaks the streak and costs one life, not the run", () => {
   assert.equal(p.best_streak, 5); // the 5-day run after the miss
 });
 
-test("the third missed day costs two days, not the whole run", () => {
+test("the third missed day costs three days, not the whole run", () => {
   const c = [];
   for (let i = 10; i > 3; i -= 1) c.push(...tick(ago(i))); // ago(10)..ago(4) perfect
   // ago(3), ago(2), ago(1) all blank -- the third one exhausts the buffer.
   const p = run(10, c);
   assert.equal(p.resets, 1);
   assert.equal(p.lives, 3, "a fresh buffer for the new attempt");
-  assert.equal(p.run_start, ago(8), "runStart moves 2 days forward, not all the way to today");
-  assert.equal(p.day_number, 9, "day 10 minus the 2-day penalty, not back to day 1");
+  assert.equal(p.run_start, ago(7), "runStart moves 3 days forward, not all the way to today");
+  assert.equal(p.day_number, 8, "day 10 minus the 3-day penalty, not back to day 1");
   assert.equal(p.best_streak, 7, "the original 7-day run is still on the books");
 });
 
@@ -97,21 +97,21 @@ test("two separate setbacks in one history compound additively", () => {
   const p = run(20, c);
   assert.equal(p.resets, 2);
   assert.equal(p.lives, 3);
-  assert.equal(p.run_start, ago(16), "two 2-day setbacks from ago(20): ago(18), then ago(16)");
-  assert.equal(p.day_number, 17);
+  assert.equal(p.run_start, ago(14), "two 3-day setbacks from ago(20): ago(17), then ago(14)");
+  assert.equal(p.day_number, 15);
   assert.equal(p.streak, 4, "the 4 clean days since the second setback");
   assert.equal(p.best_streak, 6, "the original 6-day run is still the lifetime best");
 });
 
-test("a setback early in the run only drops two days", () => {
+test("a setback early in the run only drops three days", () => {
   const c = [];
   for (let i = 5; i >= 4; i -= 1) c.push(...tick(ago(i))); // 2 perfect days
   // ago(3), ago(2), ago(1): 3 misses, exhausting the buffer only 5 days in.
   const p = run(5, c);
   assert.equal(p.resets, 1);
   assert.equal(p.lives, 3);
-  assert.equal(p.run_start, ago(3));
-  assert.equal(p.day_number, 4);
+  assert.equal(p.run_start, ago(2));
+  assert.equal(p.day_number, 3);
   assert.equal(p.best_streak, 2);
 });
 
@@ -158,13 +158,16 @@ test("a long dead gap costs a reset every three missed days, not just one", () =
   assert.equal(p.resets, 5);
   assert.equal(p.lives, 3, "each reset refills the buffer for the next attempt");
   assert.equal(p.streak, 0);
-  assert.equal(p.day_number, 11, "five 2-day setbacks drop the 20-day run by 10 days");
+  // The whole point of a penalty that matches the buffer: 15 dead days cost
+  // exactly the 15 days they burned, so the counter sits where it stood on the
+  // first dead morning instead of creeping up while nothing is ticked.
+  assert.equal(p.day_number, 6, "five 3-day setbacks freeze the run at the day the gap began");
   assert.equal(p.best_streak, 5);
 });
 
 test("a long gap never banks setback debt against days that haven't happened", () => {
   // The shape that broke in production: start, go dark for ~3 weeks, then come
-  // back and string clean days together. Each 3-miss cycle costs a 2-day
+  // back and string clean days together. Each 3-miss cycle costs a 3-day
   // setback. If an overshoot is ever
   // carried, runStart sits in the future and day_number is pinned at 1 while
   // the streak beside it climbs -- the user sees "Day 1" and "3d streak" at
@@ -173,9 +176,25 @@ test("a long gap never banks setback debt against days that haven't happened", (
   for (let i = 3; i > 0; i -= 1) c.push(...tick(ago(i))); // clean last 3 days
   const p = run(24, c);
   assert.ok(diffDays(p.run_start, TODAY) <= 0, "run start can never be in the future");
-  assert.equal(p.day_number, 11, "the comeback days count after the smaller setbacks");
+  assert.equal(p.day_number, 4, "only the comeback days count; the dead weeks paid for themselves");
   assert.equal(p.streak, 3, "the 3 clean days since the comeback; today is untouched");
   assert.ok(p.day_number >= p.streak, "you can never be further into a streak than into the run");
+});
+
+test("doing nothing can never advance the day number", () => {
+  // The Day 13 / 4d streak report: an account that missed 19 days straight had
+  // its day number climb from 3 to 9 while it sat idle, because a 3-miss cycle
+  // only cost a 2-day setback. A dead run must never gain ground.
+  // Inside one buffer the counter does still tick up -- missing a day costs a
+  // life, not your place -- so it sawtooths. What it must never do is ratchet:
+  // every cycle has to hand back exactly what it took.
+  const seen = [];
+  for (let days = 1; days <= 60; days += 1) seen.push(run(days, []).day_number);
+  assert.ok(
+    Math.max(...seen) <= INITIAL_LIVES,
+    `an untouched run never escapes its first buffer (saw Day ${Math.max(...seen)})`
+  );
+  assert.equal(run(60, []).resets, 20, "each dead 3-day cycle still burns a setback");
 });
 
 test("one or two missed days in a row don't reset the run at all", () => {
