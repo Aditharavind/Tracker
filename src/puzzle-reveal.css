@@ -53,6 +53,10 @@
   width: min(70vw, 46.7vh);
 }
 
+.puzzle-reveal-overlay .puzzle-reveal-stage .daypuzzle-reveal-piece {
+  width: min(72vw, calc(64vh * var(--piece-aspect, 1)), 420px);
+}
+
 /* The title/count labels (adventure-puzzle.css) are sized for the 170px
    modal card -- scaled up to match so they don't look like a stray caption
    under a screen-filling board. */

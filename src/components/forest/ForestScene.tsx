@@ -9,7 +9,7 @@ import Panda, { type PandaAnim } from "./Panda";
 import Platform from "./Platform";
 import Coin from "./Coin";
 import GoalFlag from "./GoalFlag";
-import DayPuzzlePiece, { MysteryPuzzlePiece } from "./DayPuzzlePiece";
+import DayPuzzlePiece, { MysteryPuzzlePiece, RevealedPuzzlePiece } from "./DayPuzzlePiece";
 import PuzzleRevealOverlay from "./PuzzleRevealOverlay";
 import StartSign from "./StartSign";
 import VictorySign from "./VictorySign";
@@ -27,14 +27,14 @@ const COMPANION_IDLE_MS = 45_000;
 // showPuzzleCard below). The panda "touches" it automatically partway
 // through the victory dash -- no tap needed to trigger that -- which zooms
 // it fullscreen (PuzzleRevealOverlay); tapping THAT enlarged card is what
-// actually flips it, then DayPuzzlePiece's own frame-pop + delayed
-// snap-into-place take it from there.
+// actually flips it, then the revealed single piece is shown briefly before
+// DayPuzzlePiece's frame-pop + delayed snap-into-place take it from there.
 const PUZZLE_TOUCH_DELAY_MS = 500;
 const PUZZLE_FLIP_MS = 420;
-// Time from a flip to the frame's pop-in and the piece's delayed
-// snap-into-place (adventure-puzzle.css) fully settling -- Continue appears
-// in PuzzleRevealOverlay once this elapses.
-const PUZZLE_SETTLE_MS = PUZZLE_FLIP_MS + 1600;
+const PUZZLE_REVEALED_DISPLAY_MS = 1300;
+// Time from starting board placement to the frame's pop-in and the piece's
+// delayed snap-into-place (adventure-puzzle.css) fully settling.
+const PUZZLE_PLACEMENT_SETTLE_MS = 1600;
 
 /**
  * Width of the forest viewport, in px. Platform spacing is defined as a
@@ -232,6 +232,7 @@ export default function ForestScene({
   // already placed, no zoom/flip to replay.
   const [puzzleZoomed, setPuzzleZoomed] = useState(false);
   const [puzzleRevealed, setPuzzleRevealed] = useState(reachedGoal);
+  const [puzzlePlacing, setPuzzlePlacing] = useState(reachedGoal);
   const [puzzleFlipping, setPuzzleFlipping] = useState(false);
   const [puzzleSettled, setPuzzleSettled] = useState(reachedGoal);
   const puzzleTouchFired = useRef(reachedGoal);
@@ -361,6 +362,7 @@ export default function ForestScene({
     puzzleTouchFired.current = true;
     if (reducedMotion) {
       setPuzzleRevealed(true);
+      setPuzzlePlacing(true);
       setPuzzleSettled(true);
       return;
     }
@@ -370,17 +372,21 @@ export default function ForestScene({
   };
 
   // Tapping the enlarged card in PuzzleRevealOverlay is what actually flips
-  // it; DayPuzzlePiece's own frame-pop + delayed snap-into-place take it
-  // from there. The placed piece then just stays there -- a Continue button
-  // appears once it settles, and the player advances at their own pace
-  // rather than the overlay dismissing itself on a timer.
+  // it; the actual piece shows by itself first, then after a short beat the
+  // full board mounts and DayPuzzlePiece's frame-pop + delayed snap-into-place
+  // start. The placed piece then stays there -- a Continue button appears
+  // once it settles, and the player advances at their own pace rather than
+  // the overlay dismissing itself on a timer.
   const flipPuzzle = () => {
     if (puzzleFlipping || puzzleRevealed) return;
     setPuzzleFlipping(true);
     queue(() => {
       setPuzzleFlipping(false);
       setPuzzleRevealed(true);
-      queue(() => setPuzzleSettled(true), PUZZLE_SETTLE_MS - PUZZLE_FLIP_MS);
+      queue(() => {
+        setPuzzlePlacing(true);
+        queue(() => setPuzzleSettled(true), PUZZLE_PLACEMENT_SETTLE_MS);
+      }, PUZZLE_REVEALED_DISPLAY_MS);
     }, PUZZLE_FLIP_MS);
   };
 
@@ -495,6 +501,7 @@ export default function ForestScene({
       puzzleTouchFired.current = false;
       setPuzzleZoomed(false);
       setPuzzleRevealed(false);
+      setPuzzlePlacing(false);
       setPuzzleFlipping(false);
       setPuzzleSettled(false);
       setVisualIndex(pandaIndex);
@@ -557,6 +564,7 @@ export default function ForestScene({
     puzzleTouchFired.current = false;
     setPuzzleZoomed(false);
     setPuzzleRevealed(false);
+    setPuzzlePlacing(false);
     setPuzzleFlipping(false);
     setPuzzleSettled(false);
     if (reducedMotion) {
@@ -702,12 +710,21 @@ export default function ForestScene({
           >
             <div className="forest-puzzle-card-scale">
               {puzzleRevealed ? (
-                <DayPuzzlePiece
-                  worldIndex={puzzleWorldIndex!}
-                  pieceIds={puzzlePieceIds!}
-                  earnedPiece={puzzleEarnedPiece}
-                  reducedMotion={reducedMotion}
-                />
+                puzzlePlacing ? (
+                  <DayPuzzlePiece
+                    worldIndex={puzzleWorldIndex!}
+                    pieceIds={puzzlePieceIds!}
+                    earnedPiece={puzzleEarnedPiece}
+                    reducedMotion={reducedMotion}
+                  />
+                ) : (
+                  <RevealedPuzzlePiece
+                    worldIndex={puzzleWorldIndex!}
+                    pieceIds={puzzlePieceIds!}
+                    earnedPiece={puzzleEarnedPiece}
+                    reducedMotion={reducedMotion}
+                  />
+                )
               ) : (
                 <MysteryPuzzlePiece onReveal={() => {}} flipping={puzzleFlipping} />
               )}
@@ -730,6 +747,7 @@ export default function ForestScene({
               earnedPiece={puzzleEarnedPiece}
               revealed={puzzleRevealed}
               flipping={puzzleFlipping}
+              placing={puzzlePlacing}
               settled={puzzleSettled}
               onReveal={flipPuzzle}
               onContinue={continuePuzzle}

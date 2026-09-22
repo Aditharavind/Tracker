@@ -1295,30 +1295,49 @@ h3 {
 
 .arcade-loading-bar span {
   display: block;
-  width: 46%;
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  max-width: 100%;
   border-radius: 2px;
   background:
+    repeating-linear-gradient(
+      110deg,
+      rgba(237, 255, 137, 0.55) 0 6px,
+      transparent 6px 24px
+    ),
     linear-gradient(to bottom, rgba(237, 255, 137, 0.95) 0 18%, transparent 19%),
     linear-gradient(to bottom, #a9ed4c 0%, #48c92a 52%, #1e7d18 100%);
+  background-size:
+    48px 100%,
+    100% 100%,
+    100% 100%;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 196, 0.65),
     inset 0 -2px 0 rgba(10, 70, 8, 0.42);
+  /* The diagonal stripe layer tiles at a 48px period and the keyframes shift
+     it by exactly one period, so frame 0 and the "reset" frame are pixel
+     identical -- the loop point is invisible. One constant direction, no
+     snap, no reverse, however slow it runs. */
   animation: arcade-loading-fill 1.8s linear infinite;
 }
 
 .arcade-loading-bar.is-determinate span {
+  width: 0%;
+  max-width: 100%;
+  background:
+    linear-gradient(to bottom, rgba(237, 255, 137, 0.95) 0 18%, transparent 19%),
+    linear-gradient(to bottom, #a9ed4c 0%, #48c92a 52%, #1e7d18 100%);
   animation: none;
   transition: width 0.22s linear;
 }
 
 @keyframes arcade-loading-fill {
   from {
-    width: 0%;
+    background-position: 0 0, 0 0, 0 0;
   }
   to {
-    width: 100%;
+    background-position: 48px 0, 0 0, 0 0;
   }
 }
 
@@ -1346,10 +1365,10 @@ h3 {
 @media (prefers-reduced-motion: reduce) {
   .arcade-loading-bar span {
     animation: none;
-  }
-
-  .arcade-loading-bar span {
     width: var(--reduced-loading-width, 72%);
+    background:
+      linear-gradient(to bottom, rgba(237, 255, 137, 0.95) 0 18%, transparent 19%),
+      linear-gradient(to bottom, #a9ed4c 0%, #48c92a 52%, #1e7d18 100%);
   }
 }
 
@@ -2525,26 +2544,21 @@ h3 {
   padding: 12px 0;
 }
 
-/* Chiselled pixel-art heading -- bright yellow fill with stacked brown
-   "steps" (each 1px further down/right, each a shade darker) reading as an
-   extruded 3D block in the pixel font, same technique as .brand-rock's
-   carved-rock wordmark elsewhere in this file, just kept in the game's own
-   pixel font instead of switching to Titan One. Sits right above the phase
-   label/clock (part of the same centred group) rather than pinned to the
-   panel's top edge, and rather than dead-centre in the viewport either --
-   the clock is still the visual anchor. Scoped to this panel only -- the
-   other panel-drawer headers (Leaderboard/Stats/Habits/Profile) keep their
-   small flat-uppercase style. */
+/* .panel-drawer (this panel included) always reskins to parchment/cream, so
+   a bright-yellow chiselled fill with dark-brown "steps" -- a technique
+   built for popping off a dark background -- read as invisible-on-cream.
+   Flat brown fill with a single light emboss highlight instead, same
+   treatment as .daycomplete-title/.daystart-title use on their own cream
+   cards. Sits right above the phase label/clock (part of the same centred
+   group) rather than pinned to the panel's top edge, and rather than
+   dead-centre in the viewport either -- the clock is still the visual
+   anchor. Scoped to this panel only -- the other panel-drawer headers
+   (Leaderboard/Stats/Habits/Profile) use the shared h2 style instead. */
 .pomodoro-title {
-  margin: 0 0 6px;
+  margin: 0 0 10px;
   font-size: var(--section-header-size);
-  color: #ffd23f;
-  text-shadow:
-    1px 1px 0 #6b4410,
-    2px 2px 0 #5c3a0d,
-    3px 3px 0 #4a2f0a,
-    4px 4px 0 #3a2408,
-    4px 6px 10px rgba(0, 0, 0, 0.6);
+  color: #3d2411;
+  text-shadow: 0 1px 0 rgba(255, 244, 216, 0.72);
 }
 
 .pomodoro-phase {
@@ -5076,13 +5090,18 @@ h3 {
   border-bottom: 1px solid var(--line);
 }
 
+/* .panel-drawer (above) always reskins this surface to parchment/cream --
+   never the dark forest theme -- so the heading just inherits the drawer's
+   own --text (already the brown token, see .panel-drawer) instead of the
+   gold used for headings on dark backgrounds elsewhere. Gold-on-cream here
+   was unreadable. */
 .panel-drawer-head h2 {
   margin: 0;
   font-size: var(--section-header-size);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--forest-gold, #f0c04a);
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  text-shadow: 0 1px 0 rgba(255, 248, 230, 0.6);
 }
 
 .world-story-copy h1,
@@ -8191,7 +8210,12 @@ h3 {
   color: #8a4f1f;
 }
 
-.world-theme :is(.panel-drawer-head h2, .pomodoro-title, .character-select-title, .daycomplete-title, .daystart-title, .weekmap-intro h1, .world-story-copy h1, .world-comic-eyebrow) {
+/* .panel-drawer-head h2 and .pomodoro-title deliberately excluded: both
+   live on .panel-drawer's parchment/cream surface (never the dark forest
+   background), so they keep their own brown styling -- see .panel-drawer-head
+   h2 and .pomodoro-title -- instead of the gold used here for headings that
+   actually sit on the dark .world-theme background. */
+.world-theme :is(.character-select-title, .daycomplete-title, .daystart-title, .weekmap-intro h1, .world-story-copy h1, .world-comic-eyebrow) {
   color: var(--forest-gold, #f0c04a);
   text-shadow:
     0 3px 0 rgba(0, 0, 0, 0.6),

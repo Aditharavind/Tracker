@@ -38,6 +38,53 @@ export function MysteryPuzzlePiece({
   );
 }
 
+export function RevealedPuzzlePiece({
+  worldIndex,
+  pieceIds: earnedPieceIds,
+  earnedPiece,
+  reducedMotion,
+}: {
+  worldIndex: number;
+  pieceIds: number[];
+  earnedPiece: number;
+  reducedMotion?: boolean;
+}) {
+  const instance = useId().replace(/:/g, "");
+  const puzzle = getMainJourneyPuzzle(earnedPieceIds, worldIndex);
+  if (!puzzle) return null;
+
+  const { width, height, title } = puzzle;
+  const revealSrc = puzzle.src.replace(/\.webp$/, ".png");
+  const path = piecePath(earnedPiece, width, height);
+  const col = earnedPiece % 3;
+  const row = Math.floor(earnedPiece / 3);
+  const pieceWidth = width / 3;
+  const pieceHeight = height / 5;
+  const pad = Math.min(pieceWidth, pieceHeight) * 0.28;
+  const viewBox = `${col * pieceWidth - pad} ${row * pieceHeight - pad} ${pieceWidth + pad * 2} ${pieceHeight + pad * 2}`;
+
+  return (
+    <section
+      className={`daypuzzle daypuzzle-reveal-piece${reducedMotion ? " reduced-motion" : ""}`}
+      style={{ "--puzzle-aspect": width / height, "--piece-aspect": pieceWidth / pieceHeight } as CSSProperties}
+      aria-label={`Revealed puzzle piece for ${title}`}
+    >
+      <svg className="daypuzzle-revealed-svg" viewBox={viewBox} role="img" aria-hidden="true">
+        <defs>
+          <image id={`${instance}-art`} href={revealSrc} width={width} height={height} preserveAspectRatio="xMidYMid meet" />
+          <clipPath id={`${instance}-piece`}>
+            <path d={path} />
+          </clipPath>
+        </defs>
+        <g className="daypuzzle-revealed-piece">
+          <use href={`#${instance}-art`} clipPath={`url(#${instance}-piece)`} />
+          <path d={path} className="adventure-puzzle-seam" />
+        </g>
+      </svg>
+    </section>
+  );
+}
+
 /**
  * The daily-task counterpart to AdventurePuzzle (the optional Adventure
  * minigame's full jigsaw screen): a compact reveal of the *main* 75-day
