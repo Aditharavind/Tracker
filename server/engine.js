@@ -15,9 +15,9 @@ export const TASK_XP = 10;
 export const PERFECT_DAY_XP = 40;
 // A missed day costs one life; the day number itself keeps advancing. Losing
 // all three no longer sends the run all the way back to Day 1 -- it costs a
-// week instead (PENALTY_DAYS), and the buffer refills for the next attempt.
+// small setback instead (PENALTY_DAYS), and the buffer refills for the next attempt.
 export const INITIAL_LIVES = 3;
-export const PENALTY_DAYS = 7;
+export const PENALTY_DAYS = 2;
 
 export const DAY_BADGES = [
   [3, "Ignition", "Three days deep. The hard part is behind you."],
@@ -133,9 +133,9 @@ export function compute({ user, tasks, completions }, today) {
       currentRun = 0;
       livesLost += 1;
       if (livesLost >= INITIAL_LIVES) {
-        // A week's setback, not a full reset back to Day 1 -- losing every
-        // life pushes the run's own start forward 7 days (so day_number
-        // drops by a week) and refills the buffer for the next attempt.
+        // A small setback, not a full reset back to Day 1 -- losing every
+        // life pushes the run's own start forward a couple days (so day_number
+        // drops without wiping the climb) and refills the buffer for the next attempt.
         // Compounds across multiple penalties in one long gap, but the
         // setback bottoms out at Day 1 of the very next day: the failed day
         // closes the old attempt, the new one opens the morning after.
@@ -152,7 +152,7 @@ export function compute({ user, tasks, completions }, today) {
     }
   }
 
-  // Floor it at "today" -- a penalty landing early in a run (fewer than 7
+  // Floor it at "today" -- a penalty landing early in a run (fewer than PENALTY_DAYS
   // days in) simply bottoms out at Day 1 rather than overshooting into a
   // negative day count.
   if (diffDays(runStart, today) > 0) runStart = today;

@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { CHARACTERS } from "../game/characters";
 import { CharBlink } from "./forest/Panda";
 
@@ -26,6 +26,7 @@ export default function CharacterCarousel({
   reducedMotion?: boolean;
 }) {
   const touchStartX = useRef<number | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
   const picked = CHARACTERS[index] ?? CHARACTERS[0];
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -60,12 +61,28 @@ export default function CharacterCarousel({
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
+          <button
+            type="button"
+            className="carousel-info"
+            aria-expanded={infoOpen}
+            aria-label={`About ${picked.name}`}
+            title={`About ${picked.name}`}
+            onClick={() => setInfoOpen((open) => !open)}
+          >
+            <Info size={16} strokeWidth={2.8} aria-hidden="true" />
+          </button>
           <div className="carousel-platform">
             <span className="carousel-sprite-art">
               <img src={picked.sprite} alt="" aria-hidden="true" className="character-card-sprite" />
               <CharBlink character={picked.id} />
             </span>
           </div>
+          {infoOpen && (
+            <div className="carousel-info-card">
+              <p className="carousel-info-trait pixel-font">{picked.trait.toUpperCase()}</p>
+              <p>{picked.backstory}</p>
+            </div>
+          )}
           {!reducedMotion && (
             <div className="carousel-swipe-hint" aria-hidden="true">
               <ChevronLeft size={14} strokeWidth={3} />

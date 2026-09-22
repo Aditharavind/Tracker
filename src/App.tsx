@@ -1991,8 +1991,8 @@ export default function App() {
                   <div className="l">Missed days</div>
                 </div>
                 <div className="profile-stat">
-                  {/* One setback == a 7-day penalty (server/engine.js PENALTY_DAYS). */}
-                  <div className="n num">{me.resets * 7}</div>
+                  {/* One setback == a 2-day penalty (server/engine.js PENALTY_DAYS). */}
+                  <div className="n num">{me.resets * 2}</div>
                   <div className="l">Penalty days</div>
                 </div>
               </div>

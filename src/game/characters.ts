@@ -7,13 +7,36 @@ export type CharacterInfo = {
   id: CharacterId;
   name: string;
   sprite: string;
+  trait: string;
+  backstory: string;
 };
 
 export const CHARACTERS: CharacterInfo[] = [
-  { id: "panda", name: "Chibbi", sprite: "/assets/panda-sprite.webp" },
-  { id: "koala", name: "Kiki", sprite: "/assets/koala-sprite.webp" },
+  {
+    id: "panda",
+    name: "Chibbi",
+    sprite: "/assets/panda-sprite.webp",
+    trait: "Steady climber",
+    backstory:
+      "Chibbi once guarded the quiet gate at sunrise, counting promises other travelers forgot. He is slow to panic, quick to begin, and happiest when one small step turns into a streak nobody can take away.",
+  },
+  {
+    id: "koala",
+    name: "Kiki",
+    sprite: "/assets/koala-sprite.webp",
+    trait: "Gentle strategist",
+    backstory:
+      "Kiki maps every branch before she jumps. She carries pressed leaves from every failed trail, not as proof of losing, but as reminders that a careful comeback can still become a legend.",
+  },
   // The mischievous one.
-  { id: "redpanda", name: "Mochi", sprite: "/assets/redpanda-sprite.webp" },
+  {
+    id: "redpanda",
+    name: "Mochi",
+    sprite: "/assets/redpanda-sprite.webp",
+    trait: "Spark-chaser",
+    backstory:
+      "Mochi runs toward impossible doors just to hear them rattle. He turns boredom into dares, dares into rituals, and rituals into the kind of momentum that makes the forest lean forward to watch.",
+  },
 ];
 
 export const CHARACTER_SPRITE: Record<CharacterId, string> = {

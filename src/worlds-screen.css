@@ -138,9 +138,10 @@
 
 .world-comic-eyebrow {
   margin: 0 0 8px;
-  font-size: 9px;
+  font-size: var(--section-header-size, clamp(20px, 6vw, 36px));
   letter-spacing: 0.14em;
   color: var(--forest-gold, #f0c04a);
+  line-height: 1.35;
 }
 
 .world-comic-caption {

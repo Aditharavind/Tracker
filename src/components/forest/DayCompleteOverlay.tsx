@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
-import CharacterModel from "./CharacterModel";
 import { CoinIcon } from "./Coin";
 import { usePrefersReducedMotion } from "./ForestScene";
+import { CharBlink } from "./Panda";
+import { CHARACTER_SPRITE } from "../../game/characters";
 import type { CharacterId } from "../../game/characters";
 import type { Progress } from "../../types";
 
@@ -105,7 +106,10 @@ export default function DayCompleteOverlay({
 
         <div className="daycomplete-stage" aria-hidden="true">
           <div className="daycomplete-dancer">
-            <CharacterModel character={character} anim="Dance" className="daycomplete-model" />
+            <span className="daycomplete-model" data-character={character}>
+              <img src={CHARACTER_SPRITE[character]} alt="" className="daycomplete-sprite" />
+              <CharBlink character={character} />
+            </span>
           </div>
           <div className="daycomplete-podium" />
         </div>

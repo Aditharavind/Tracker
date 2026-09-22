@@ -447,7 +447,10 @@
    to layer the same backdrop onto; WeekMap.tsx no longer renders one. */
 .world-theme.weekmap { color: var(--text); }
 .world-theme.weekmap .weekmap-close { background: var(--panel); color: var(--text); }
-.world-theme.weekmap .weekmap-intro h1 { color: var(--text); }
+.world-theme.weekmap .weekmap-intro h1 {
+  color: var(--forest-gold, #f0c04a);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 192, 74, 0.32);
+}
 .world-theme.weekmap :is(.weekmap-description, .weekmap-progress-heading span, .weekmap-instruction) { color: var(--dim); }
 .world-theme.weekmap .weekmap-primary { color: var(--on-accent); }
 .world-theme.weekmap .weekmap-day { background: var(--raised); border-color: var(--world-surface); }
@@ -503,7 +506,13 @@
   filter: drop-shadow(0 10px 10px #0005);
 }
 .world-story-copy { padding: 22px 32px 30px; }
-.world-story-copy h1 { color: var(--world-light); font-size: clamp(15px, 3.4vw, 22px); line-height: 1.8; margin: 8px 0 18px; }
+.world-story-copy h1 {
+  color: var(--forest-gold, #f0c04a);
+  font-size: var(--section-header-size, clamp(20px, 6vw, 36px));
+  line-height: 1.45;
+  margin: 8px 0 18px;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6), 0 0 18px rgba(240, 192, 74, 0.32);
+}
 .world-story .story-eyebrow { color: var(--accent); font-size: 10px; }
 .world-story-copy > p { line-height: 1.8; margin: 10px 0; }
 .world-story-meta {
@@ -718,17 +727,19 @@
   color: #4a3420;
 }
 
+/* No color override here: .panel-drawer (styles.css) already re-declares
+   --text (and --dim/--accent/etc.) to the brown palette, so every
+   var(--text)-based heading/label under it inherits the right color for
+   free -- see the comment on .panel-drawer itself. background-color is
+   still forced to a flat #f8ecd8 here because these cards otherwise pull
+   from different base tokens (--raised, --accent-tinted, ...) and would
+   drift out of the uniform parchment look without it. */
 .world-theme .panel-drawer :is(.card, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in) {
   background-color: #f8ecd8;
   background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
-  color: #4a3420;
   border-color: rgba(138, 90, 43, 0.36);
-}
-
-.world-theme .panel-drawer :is(.card, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in) :is(h1, h2, h3, p, span, label, dt, dd, li) {
-  color: inherit;
 }
 
 .world-theme :is(.daycomplete-card, .daystart-card) {
