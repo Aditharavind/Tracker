@@ -7318,12 +7318,14 @@ h3 {
 }
 
 /* Carved from the same plank as .start-sign and .goal-board -- the two ends
-   of the run and the button that closes the day now read as one carpenter's
-   set, instead of the lone candy-green control the card used to end on.
+   of the run and the buttons that open and close a day now read as one
+   carpenter's set. Shared by both primary "go" actions (LET'S GO on the
+   day-start banner, CONTINUE on the stage-clear card) from one rule, because
+   restating the wood per button is exactly how they drifted apart before.
    Layers, top to bottom: face lighting, two knots, vertical grain ticks, and
    the plank's own stain gradient. --dc-plank-edge is the cut-edge color every
    state's 3D lip is drawn in. */
-.daycomplete-continue {
+:is(.daycomplete-continue, .daystart-start) {
   --dc-plank-edge: #3a2810;
   padding: 11px 22px;
   font-size: 12px;
@@ -7350,14 +7352,14 @@ h3 {
 
 /* Lit like the plank caught the sun, not tinted a different color -- a hue
    shift here would break it away from the start sign it matches. */
-.daycomplete-continue:hover:not(:disabled),
-.daycomplete-continue:focus-visible:not(:disabled) {
+:is(.daycomplete-continue, .daystart-start):hover:not(:disabled),
+:is(.daycomplete-continue, .daystart-start):focus-visible:not(:disabled) {
   filter: brightness(1.12) saturate(1.05);
 }
 
 /* Pressed: the board sinks onto its lip, so the 4px edge becomes 2px and the
    inner shadow deepens rather than the whole button just sliding down. */
-.daycomplete-continue:active:not(:disabled) {
+:is(.daycomplete-continue, .daystart-start):active:not(:disabled) {
   transform: translateY(2px);
   filter: brightness(0.97);
   box-shadow:
@@ -7371,7 +7373,7 @@ h3 {
    hidden, so its eventual arrival doesn't shift the layout. Desaturated to
    weathered grey-brown instead of just faded, so it reads as "not yet" rather
    than as a rendering glitch on the parchment. */
-.daycomplete-continue:disabled {
+:is(.daycomplete-continue, .daystart-start):disabled {
   opacity: 0.55;
   filter: grayscale(0.55) brightness(0.92);
   cursor: default;
@@ -7518,6 +7520,9 @@ h3 {
 
 .daystart-card {
   position: relative;
+  /* Same two type colors as .daycomplete-card -- see that block. */
+  --dc-subhead: #8a5a2b;
+  --dc-ink: #3d2411;
   width: min(380px, 92vw);
   padding: 26px 22px 22px;
   text-align: center;
@@ -7556,21 +7561,10 @@ h3 {
   color: var(--forest-cream, #f3e6c8);
 }
 
+/* Plank, states and cut-edge all come from the shared rule above; only the
+   roomier padding is this button's own. */
 .daystart-start {
   padding: 11px 26px;
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  color: #201603;
-  background: linear-gradient(180deg, #ffd76a, #e7ad2c);
-  border: 2px solid #6b3d10;
-  border-radius: 10px;
-  box-shadow: 0 4px 0 #6b3d10;
-  cursor: pointer;
-}
-
-.daystart-start:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #6b3d10;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8273,12 +8267,18 @@ h3 {
   color: #8a4f1f;
 }
 
-/* .panel-drawer-head h2 and .pomodoro-title deliberately excluded: both
-   live on .panel-drawer's parchment/cream surface (never the dark forest
-   background), so they keep their own brown styling -- see .panel-drawer-head
-   h2 and .pomodoro-title -- instead of the gold used here for headings that
-   actually sit on the dark .world-theme background. */
-.world-theme :is(.character-select-title, .daycomplete-title, .daystart-title, .weekmap-intro h1, .world-story-copy h1, .world-comic-eyebrow) {
+/* Gold is for headings that actually sit on the dark .world-theme background.
+   Excluded for that reason: .panel-drawer-head h2 and .pomodoro-title (on
+   .panel-drawer's cream surface), and .daycomplete-title / .daystart-title,
+   which sit on the parchment card -- gold on #f8ecd8 is 1.45:1 and only
+   survived by wearing a black drop-shadow as a fake outline. They take the
+   dark brown in world-theme.css instead.
+
+   Note the specificity trap that hid this: `.weekmap-intro h1` makes the whole
+   :is() (0,1,1), so this rule outranked the (0,2,0) brown one meant to cover
+   the card titles. Keep list members at the same weight, or the next heading
+   added here will silently win somewhere it shouldn't. */
+.world-theme :is(.character-select-title, .weekmap-intro h1, .world-story-copy h1, .world-comic-eyebrow) {
   color: var(--forest-gold, #f0c04a);
   text-shadow:
     0 3px 0 rgba(0, 0, 0, 0.6),
@@ -8301,7 +8301,8 @@ h3 {
   border-color: rgba(118, 70, 28, 0.34);
 }
 
-.world-theme :is(.daystart-start, .puzzle-reveal-continue) {
+/* .daystart-start excluded -- shared start-sign plank, see its rule above. */
+.world-theme .puzzle-reveal-continue {
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
@@ -8327,11 +8328,11 @@ h3 {
 
 /* .daycomplete-continue excluded -- it owns its own hover (and must not
    brighten while disabled); see its block above. */
-.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue):hover {
+.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):hover {
   filter: brightness(1.08);
 }
 
-.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue):active {
+.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):active {
   box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
 }
 

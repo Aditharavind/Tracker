@@ -756,8 +756,12 @@
   color: var(--dc-subhead, #8a5a2b);
 }
 
+/* Dark brown on the parchment (12.3:1) with a light highlight underneath,
+   rather than gold carrying a black outline. This rule always intended to own
+   the card titles; it just lost to a higher-specificity gold rule in
+   styles.css until that one stopped claiming them. */
 .world-theme :is(.daycomplete-title, .daystart-title, .daycomplete-streak-huge) {
-  color: #3d2411;
+  color: var(--dc-ink, #3d2411);
   text-shadow: 0 1px 0 rgba(255, 244, 216, 0.72);
 }
 
@@ -792,11 +796,11 @@
   color: #4a2f18;
 }
 
-/* .daycomplete-continue is deliberately NOT in this list: it carries its own
-   start-sign plank treatment (styles.css) including hover/active/disabled, and
-   restating a second, slightly different wood here is what let the two drift.
-   These three keep the lighter generic plank. */
-.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue) {
+/* .daycomplete-continue and .daystart-start are deliberately NOT in these
+   lists: both carry the shared start-sign plank (styles.css) including
+   hover/active/disabled, and restating a second, slightly different wood here
+   is what let them drift. .puzzle-reveal-continue keeps the generic plank. */
+.world-theme .puzzle-reveal-continue {
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
@@ -808,7 +812,7 @@
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
 }
 
-.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue):hover {
+.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):hover {
   filter: brightness(1.08);
 }
 
@@ -844,6 +848,6 @@
     inset 0 -1px 3px rgba(0, 0, 0, 0.45);
 }
 
-.world-theme :is(.daycomplete-play, .daystart-start, .puzzle-reveal-continue):active {
+.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):active {
   box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
 }
