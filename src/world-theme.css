@@ -814,42 +814,10 @@
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
 }
 
-.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):hover {
+.world-theme .puzzle-reveal-continue:hover {
   filter: brightness(1.08);
 }
 
-/* MINIGAMES sits directly beside CONTINUE, so it has to be cut from the same
-   plank -- same grain pitch, same knots, same cut-edge -- just a paler stain
-   and a flatter face. That reads as primary/secondary carpentry instead of two
-   different materials, which is how it looked once CONTINUE gained the real
-   start-sign wood. */
-.world-theme .daycomplete-play {
-  color: #f6e6b8;
-  background:
-    linear-gradient(180deg, rgba(255, 230, 170, 0.18), transparent 38%),
-    radial-gradient(ellipse at 22% 46%, rgba(58, 34, 12, 0.26) 0 7%, transparent 8%),
-    radial-gradient(ellipse at 78% 60%, rgba(58, 34, 12, 0.18) 0 5%, transparent 6%),
-    repeating-linear-gradient(90deg, rgba(48, 30, 12, 0.16) 0 2px, transparent 2px 14px),
-    linear-gradient(180deg, #a87c42 0%, #976c36 34%, #865d2c 68%, #6f4a21 100%);
-  border: 2px solid #3a2810;
-  border-radius: 6px;
-  box-shadow:
-    0 4px 0 #3a2810,
-    inset 0 1px 0 rgba(255, 224, 160, 0.22),
-    inset 0 -2px 2px rgba(0, 0, 0, 0.3);
-  text-shadow:
-    0 1px 0 rgba(255, 224, 160, 0.16),
-    0 -1px 1px rgba(0, 0, 0, 0.6);
-}
-
-.world-theme .daycomplete-play:active {
-  transform: translateY(2px);
-  box-shadow:
-    0 2px 0 #3a2810,
-    inset 0 1px 0 rgba(255, 224, 160, 0.16),
-    inset 0 -1px 3px rgba(0, 0, 0, 0.45);
-}
-
-.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):active {
+.world-theme .puzzle-reveal-continue:active {
   box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
 }

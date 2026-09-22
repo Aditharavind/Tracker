@@ -5975,6 +5975,17 @@ h3 {
     letter-spacing: 0.08em;
     color: #f5eec5;
     font-size: 0;
+    /* Grid items default to min-width:auto, so this column could not shrink
+       below the min-content width of .topbar-world-sub -- which is
+       white-space:nowrap, i.e. the full "WORLD 1 - THE SLEEPING FOREST"
+       string. That pinned track 1 at ~272px; with the clock and the fixed
+       141px lives/coins cluster beside it the row needed ~429px, so on every
+       phone the hearts and the coin counter were pushed off the right edge
+       and clipped by .game-shell-inner's overflow:hidden. Both are required
+       HUD readouts, so the title is what gives: min-width:0 lets the track
+       shrink and finally puts the sub-line's own text-overflow:ellipsis to
+       work instead of overflowing the screen. */
+    min-width: 0;
   }
 
   .topbar-world::before {
@@ -5998,7 +6009,14 @@ h3 {
 
   .topbar-world-sub {
     margin-top: 7px;
-    max-width: 22ch;
+    /* Was 22ch (~242px), a cap wider than the column it sits in -- and the
+       parent is overflow:visible here, so the nowrap sub-line did not clip,
+       it spilled sideways across the countdown clock. Bounded by the column
+       instead, which is what its own text-overflow:ellipsis expects;
+       min-width:0 is needed too or the flex item refuses to shrink below the
+       full string. */
+    max-width: 100%;
+    min-width: 0;
     overflow: hidden;
     color: rgba(245, 238, 197, 0.74);
     font-size: 11px;
@@ -7560,26 +7578,53 @@ h3 {
   white-space: nowrap;
 }
 
+/* The optional minigame reads green -- the palette's "positive / go and play"
+   colour (skill S1) -- against CONTINUE's wood, so the two actions are told
+   apart by material at a glance rather than by label. Same construction as the
+   plank next to it (face light, knot, vertical ticks, 2px cut edge, 4px lip)
+   so the pixel density matches; only the stain is leaf instead of timber. */
 .daycomplete-play {
+  --dc-leaf-edge: #245c20;
   padding: 11px 20px;
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: #fff8ec;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+  color: #10240f;
+  text-shadow: 0 1px 0 rgba(255, 255, 210, 0.45);
   background:
-    radial-gradient(ellipse at 18% 42%, rgba(70, 35, 12, 0.48) 0 8%, transparent 9%),
-    radial-gradient(ellipse at 72% 58%, rgba(255, 220, 150, 0.24) 0 6%, transparent 7%),
-    repeating-linear-gradient(90deg, rgba(55, 26, 8, 0.22) 0 3px, transparent 3px 16px),
-    linear-gradient(180deg, #b77a39 0%, #835021 52%, #4f2b12 100%);
-  border: 2px solid #3d2411;
-  border-radius: 10px;
-  box-shadow: 0 4px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.34);
+    linear-gradient(180deg, rgba(255, 255, 200, 0.34), transparent 34%),
+    radial-gradient(ellipse at 22% 46%, rgba(26, 62, 18, 0.2) 0 6%, transparent 7%),
+    repeating-linear-gradient(90deg, rgba(26, 62, 18, 0.14) 0 2px, transparent 2px 14px),
+    linear-gradient(180deg, #a9ef64 0%, #62bd3d 56%, #32752a 100%);
+  border: 2px solid var(--dc-leaf-edge);
+  border-radius: 6px;
+  box-shadow:
+    0 4px 0 var(--dc-leaf-edge),
+    inset 0 1px 0 rgba(255, 255, 220, 0.45),
+    inset 0 -2px 2px rgba(18, 48, 14, 0.3);
   cursor: pointer;
+  transition: filter 0.12s ease;
 }
 
-.daycomplete-play:active {
+.daycomplete-play:hover:not(:disabled),
+.daycomplete-play:focus-visible:not(:disabled) {
+  filter: brightness(1.09) saturate(1.05);
+}
+
+.daycomplete-play:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: 0 2px 0 #3d2411;
+  filter: brightness(0.97);
+  box-shadow:
+    0 2px 0 var(--dc-leaf-edge),
+    inset 0 1px 0 rgba(255, 255, 220, 0.3),
+    inset 0 -1px 3px rgba(18, 48, 14, 0.45);
+}
+
+.daycomplete-play:disabled {
+  opacity: 0.55;
+  filter: grayscale(0.55) brightness(0.95);
+  cursor: default;
+  transform: none;
+  box-shadow: 0 4px 0 rgba(36, 92, 32, 0.55);
 }
 
 .daycomplete-play-note {
@@ -8414,25 +8459,13 @@ h3 {
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
 }
 
-.world-theme .daycomplete-play {
-  color: #fff8ec;
-  background:
-    radial-gradient(ellipse at 18% 42%, rgba(70, 35, 12, 0.48) 0 8%, transparent 9%),
-    radial-gradient(ellipse at 72% 58%, rgba(255, 220, 150, 0.24) 0 6%, transparent 7%),
-    repeating-linear-gradient(90deg, rgba(55, 26, 8, 0.22) 0 3px, transparent 3px 16px),
-    linear-gradient(180deg, #b77a39 0%, #835021 52%, #4f2b12 100%);
-  border-color: #3d2411;
-  box-shadow: 0 4px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.34);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
-}
-
 /* .daycomplete-continue excluded -- it owns its own hover (and must not
    brighten while disabled); see its block above. */
-.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):hover {
+.world-theme .puzzle-reveal-continue:hover {
   filter: brightness(1.08);
 }
 
-.world-theme :is(.daycomplete-play, .puzzle-reveal-continue):active {
+.world-theme .puzzle-reveal-continue:active {
   box-shadow: 0 2px 0 #3d2411, inset 0 1px 0 rgba(255, 239, 198, 0.25);
 }
 
