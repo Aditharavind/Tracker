@@ -627,6 +627,30 @@
   .world-theme .daycard .tasks-label { margin: 3px 0; font-size: 10px; }
   .world-theme .daycard .task { min-height: 44px; padding: 10px 12px; }
   .world-theme .daycard-reset { top: 10px; margin-top: 9px; }
+  .world-theme .dash-launch {
+    inset: auto auto calc(var(--mobile-nav-h) + var(--mobile-task-h) + var(--mobile-minigame-gap)) 50%;
+    width: min(340px, calc(100vw - 112px));
+    min-height: var(--mobile-minigame-h);
+    padding: 7px 14px;
+    transform: translateX(-50%);
+    font-size: 17px;
+  }
+  .world-theme .day-card-float {
+    position: absolute;
+    inset: auto 10px 0;
+    order: initial;
+    flex: none;
+    height: var(--mobile-task-h);
+    min-height: 0;
+    max-height: var(--mobile-task-h);
+    margin: 0;
+  }
+  .world-theme .stage-area .forest-scene {
+    position: absolute;
+    inset: 0 0 calc(var(--mobile-task-h) + var(--mobile-minigame-h) + var(--mobile-minigame-gap)) 0;
+    flex: none;
+    min-height: 0;
+  }
   .world-story { align-items: flex-start; padding: 10px; }
   .world-story-card { border-radius: 13px; }
   .world-story-card > header { padding: 9px 12px; gap: 5px; }
@@ -656,7 +680,7 @@
   .world-theme .topbar-coins { grid-column: 1; gap: 4px; justify-content: center; }
   .world-theme .topbar-coins-count { font-size: 8px; }
   .world-theme .topbar-right .mute-toggle { grid-column: 2; grid-row: 1 / 3; width: 30px; height: 34px; }
-  .world-theme .stage-area { --topbar-reserve: 82px; }
+  .world-theme .stage-area { --topbar-reserve: 0px; }
 }
 @media (max-width: 390px) {
   .world-story-card > header .story-text-button { padding-inline: 8px; font-size: 10px; }
@@ -679,7 +703,7 @@
 
 .world-theme .panel-drawer {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -688,7 +712,7 @@
 
 .world-theme :is(.daycomplete-card, .daystart-card, .confirm-modal, .pin-card, .share-card, .runner-card, .minigame-card) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   color: #4a3420;
@@ -696,7 +720,7 @@
 
 .world-theme .panel-drawer :is(.card, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   color: #4a3420;
@@ -740,7 +764,7 @@
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
-    url("../frontend/assets/background_tile.png") center / 220px auto,
+    url("../frontend/assets/background_tile.webp") center / 220px auto,
     repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.2) 0 2px, transparent 2px 13px),
     linear-gradient(180deg, #9a612f 0%, #6e3d19 54%, #45240e 100%);
   border-color: #3d2411;

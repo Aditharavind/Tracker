@@ -5,13 +5,6 @@ import { prettyDate, todayISO } from "../api";
 import { getStage, type StageMeta } from "../game/stageSystem";
 import { dayProgressPercent } from "../game/progress";
 
-// Below this width the task list starts collapsed by default -- the
-// platformer-interface skill's mobile rule: "Many tasks -> collapse the
-// list... Never let the task UI obscure the platform path." The progress
-// bar/count above stay visible either way, so collapsing costs no
-// information, just floor space the forest scene gets back.
-const MOBILE_COLLAPSE_WIDTH = 720;
-
 function Check() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -51,9 +44,7 @@ export default function Checklist({
   locked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
-  const [tasksCollapsed, setTasksCollapsed] = useState(
-    () => typeof window !== "undefined" && window.innerWidth <= MOBILE_COLLAPSE_WIDTH
-  );
+  const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const today = todayISO();
   const core = detail.tasks.filter((t) => t.is_core);
   const doneCore = core.filter((t) => t.done).length;

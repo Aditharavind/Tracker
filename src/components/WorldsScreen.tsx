@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { WORLDS } from "../game/adventure/content";
-import { ARC_COUNT, journeyProgress } from "../game/weekSystem";
+import { ARC_COUNT, ARC_DAYS, journeyProgress } from "../game/weekSystem";
 import type { DayCell } from "../types";
 import "../worlds-screen.css";
 
 /**
- * The 5-world select grid, opened by tapping the topbar's WORLD label.
+ * The world select grid, opened by tapping the topbar's WORLD label.
  * Unlocked cards use that world's real backdrop (WORLD_SCENERY's
  * --world-background, via .world-theme[data-world]); locked ones show a
  * generic "?" and a hook instead of the art, since there's nothing to
@@ -21,7 +21,8 @@ export default function WorldsScreen({
   onClose: () => void;
 }) {
   const journey = journeyProgress(calendar);
-  const unlockedCount = journey.complete ? ARC_COUNT : journey.worldIndex + 1;
+  const cardCount = Math.min(WORLDS.length, ARC_COUNT + 1);
+  const unlockDays = Array.from({ length: cardCount }, (_, i) => i * ARC_DAYS);
   const [openWorld, setOpenWorld] = useState<number | null>(null);
 
   if (openWorld !== null) {
@@ -38,12 +39,13 @@ export default function WorldsScreen({
       </header>
 
       <div className="worlds-grid" role="list">
-        {Array.from({ length: ARC_COUNT }, (_, i) => {
-          const unlocked = i < unlockedCount;
+        {Array.from({ length: cardCount }, (_, i) => {
+          const unlockDay = unlockDays[i];
+          const unlocked = journey.completedDays >= unlockDay;
           const world = WORLDS[i];
           const label = unlocked
             ? `World ${i + 1}: ${world.name}. Open its story.`
-            : `World ${i + 1}: locked. Discover after 15 days of consistency.`;
+            : `World ${i + 1}: locked. Discover after ${unlockDay} days of consistency.`;
           return (
             <button
               key={i}
@@ -65,7 +67,7 @@ export default function WorldsScreen({
               ) : (
                 <>
                   <span className="world-card-mark pixel-font" aria-hidden="true">?</span>
-                  <span className="world-card-hook">Discover after 15 days of consistency</span>
+                  <span className="world-card-hook">Discover after {unlockDay} days of consistency</span>
                 </>
               )}
             </button>

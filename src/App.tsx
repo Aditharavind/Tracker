@@ -1732,6 +1732,8 @@ export default function App() {
             onClick={() => setWorldsScreenOpen(true)}
             title="See all worlds"
           >
+            <span className="topbar-world-main">WORLD {journey.worldIndex + 1}</span>
+            <span className="topbar-world-sub">{WORLDS[journey.worldIndex].name.toUpperCase()}</span>
             WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
           </button>
           <DayCountdown compact zoomable />

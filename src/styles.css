@@ -668,17 +668,24 @@ h3 {
     linear-gradient(180deg, #c99354 0%, #8a5a2b 55%, #6b431f 100%);
 }
 
+/* color: inherit + a currentColor border (rather than var(--text)/var(--line))
+   so this reads correctly wherever it's dropped -- the dark game shell, the
+   parchment-recoloured dialogs, anywhere -- without a per-container contrast
+   override. var(--text) was picking up the ANCESTOR world-theme's light
+   cream even inside dialogs recoloured light underneath it (background image
+   + a plain `color` set directly on the dialog, not the --text token), so
+   the "Cancel"/"Close" ghost button rendered near-invisible: light text on a
+   now-light background. */
 .btn.ghost {
   background: none;
-  color: var(--text);
-  border-color: var(--line);
+  color: inherit;
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
   box-shadow: none;
   text-shadow: none;
 }
 
 .btn.ghost:hover {
-  color: var(--text);
-  border-color: var(--dim);
+  border-color: color-mix(in srgb, currentColor 60%, transparent);
   filter: none;
 }
 
@@ -1254,7 +1261,8 @@ h3 {
   z-index: 120;
   display: grid;
   place-items: center;
-  padding: 24px;
+  min-height: 100svh;
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
   overflow: hidden;
   isolation: isolate;
   background: #050b07;
@@ -1265,11 +1273,12 @@ h3 {
   inset: 0;
   z-index: -2;
   background-image:
-    linear-gradient(to bottom, rgba(5, 11, 7, 0.18), rgba(5, 11, 7, 0.82)),
+    linear-gradient(to bottom, rgba(5, 11, 7, 0.08), rgba(5, 11, 7, 0.62)),
+    var(--loading-scene),
     var(--loading-scene);
-  background-repeat: no-repeat;
-  background-position: center center;
-  background-size: cover;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-position: center center, center center, center center;
+  background-size: 100% 100%, min(100vw, calc(100svh * 0.563)), 100% 100%;
   image-rendering: pixelated;
 }
 
@@ -1289,8 +1298,8 @@ h3 {
   display: grid;
   justify-items: center;
   gap: 12px;
-  width: min(360px, 88vw);
-  margin-top: min(30vh, 220px);
+  width: min(360px, calc(100vw - 28px));
+  margin-top: clamp(110px, 24svh, 220px);
 }
 
 .arcade-loading-logo {
@@ -1309,8 +1318,9 @@ h3 {
 }
 
 .arcade-loading-bar {
+  position: relative;
   width: min(280px, 74vw);
-  height: 14px;
+  height: 22px;
   padding: 3px;
   border-radius: 7px;
   background:
@@ -1342,6 +1352,18 @@ h3 {
 .arcade-loading-bar.is-determinate span {
   animation: none;
   transition: width 0.18s ease-out;
+}
+
+.arcade-loading-bar strong {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #fff8d8;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.75), 0 0 5px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
 }
 
 .arcade-loading-track {
@@ -1400,11 +1422,16 @@ h3 {
 
 @media (max-width: 520px) {
   .arcade-loading-copy {
-    margin-top: 22vh;
+    gap: 9px;
+    margin-top: clamp(74px, 17svh, 140px);
   }
 
   .arcade-loading-track {
-    bottom: 7vh;
+    bottom: max(5svh, 38px);
+  }
+
+  .arcade-loading-logo {
+    width: clamp(130px, 56vw, 190px);
   }
 }
 
@@ -1418,9 +1445,10 @@ h3 {
 
   .arcade-loading-bg {
     background-image:
-      linear-gradient(to bottom, rgba(5, 11, 7, 0.18), rgba(5, 11, 7, 0.82)),
+      linear-gradient(to bottom, rgba(5, 11, 7, 0.06), rgba(5, 11, 7, 0.58)),
+      var(--loading-scene-mobile, var(--loading-scene)),
       var(--loading-scene-mobile, var(--loading-scene));
-    background-size: contain;
+    background-size: 100% 100%, min(100vw, calc(100svh * 0.563)), 100% 100%;
   }
 
   .character-select-bg {
@@ -1443,7 +1471,7 @@ h3 {
   }
 
   .arcade-loading-bar span {
-    width: 72%;
+    width: var(--reduced-loading-width, 72%);
   }
 }
 
@@ -4647,6 +4675,10 @@ h3 {
    .topbar-coins-count but bigger, since it now reads as a real heading. */
 .topbar-world {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   max-width: 46vw;
   overflow: hidden;
   white-space: nowrap;
@@ -4659,6 +4691,22 @@ h3 {
   letter-spacing: 0.08em;
   color: var(--forest-gold, #f0c04a);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+  font-size: 0;
+}
+
+.topbar-world-main {
+  font-size: 15px;
+}
+
+.topbar-world-sub {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(243, 230, 200, 0.72);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar-world:hover {
@@ -5071,7 +5119,7 @@ h3 {
   padding: 16px;
   color: var(--text);
   background-color: var(--bg);
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -5088,7 +5136,7 @@ h3 {
    restarting the pattern -- not a flat colour box any more. */
 .panel-drawer .card {
   background-color: var(--panel);
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -5869,22 +5917,174 @@ h3 {
 }
 
 @media (max-width: 720px) {
-  .day-card-float {
+  .game-shell {
+    --mobile-nav-h: 94px;
+    --mobile-task-h: clamp(240px, 36dvh, 380px);
+    --mobile-minigame-h: 58px;
+    --mobile-minigame-gap: 3px;
+    background:
+      linear-gradient(180deg, rgba(6, 18, 15, 0) 0 47%, rgba(5, 14, 12, 0.96) 55%),
+      #07120f;
+  }
+
+  .game-shell-inner {
+    overflow: hidden;
+  }
+
+  .game-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    padding: max(18px, env(safe-area-inset-top)) 16px 0;
+    pointer-events: none;
+  }
+
+  .game-topbar > * {
+    pointer-events: auto;
+  }
+
+  .topbar-world {
     position: relative;
-    inset: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 52px;
+    max-width: none;
+    padding-left: 46px;
+    overflow: visible;
+    white-space: normal;
+    text-align: left;
+    font-size: 16px;
+    line-height: 1.15;
+    letter-spacing: 0.08em;
+    color: #f5eec5;
+    font-size: 0;
+  }
+
+  .topbar-world::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 3px;
+    width: 38px;
+    height: 34px;
+    background:
+      linear-gradient(135deg, transparent 0 20%, #6abf50 20% 54%, transparent 54%),
+      linear-gradient(45deg, transparent 0 34%, #b8ee75 34% 52%, transparent 52%),
+      linear-gradient(135deg, transparent 0 37%, #245d3b 37% 80%, transparent 80%);
+    filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35));
+    image-rendering: pixelated;
+  }
+
+  .topbar-world-main {
+    font-size: 16px;
+  }
+
+  .topbar-world-sub {
+    margin-top: 7px;
+    max-width: 22ch;
+    overflow: hidden;
+    color: rgba(245, 238, 197, 0.74);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .game-topbar .day-clock {
+    grid-column: 2;
+    justify-self: center;
+    transform: scale(0.86);
+    transform-origin: top center;
+  }
+
+  .topbar-right {
+    justify-self: end;
+    display: grid;
+    grid-template-columns: auto;
+    justify-items: end;
+    gap: 6px;
+  }
+
+  .topbar-lives {
+    min-width: 104px;
+    align-items: flex-end;
+  }
+
+  .topbar-coins {
+    padding-right: 2px;
+  }
+
+  .topbar-coins-count {
+    font-size: 15px;
+    color: #f5eec5;
+  }
+
+  .mute-toggle {
+    display: none;
+  }
+
+  .dash-launch {
+    position: fixed;
+    left: 50%;
     top: auto;
-    left: auto;
+    bottom: calc(var(--mobile-nav-h) + var(--mobile-task-h) + var(--mobile-minigame-gap));
+    z-index: 32;
+    transform: translateX(-50%);
+    width: min(340px, calc(100vw - 112px));
+    min-height: var(--mobile-minigame-h);
+    border-radius: 12px;
+    color: #173518;
+    background: linear-gradient(180deg, #d9ff91 0%, #98db49 100%);
+    border: 3px solid #f0ffd1;
+    box-shadow:
+      0 6px 0 #4f8b29,
+      0 12px 24px rgba(0, 0, 0, 0.4);
+    font-size: 17px;
+    letter-spacing: 0.08em;
+    text-shadow: none;
+  }
+
+  .dash-launch:active {
+    transform: translateX(-50%) translateY(3px);
+    box-shadow:
+      0 3px 0 #4f8b29,
+      0 8px 18px rgba(0, 0, 0, 0.36);
+  }
+
+  .day-card-float {
+    position: absolute;
+    inset: auto 10px 0;
+    top: auto;
+    left: 10px;
+    right: 10px;
     width: auto;
-    max-height: 44vh;
-    margin: 10px;
+    height: var(--mobile-task-h);
+    max-height: var(--mobile-task-h);
+    margin: 0;
+    min-height: 0;
+    overflow: hidden auto;
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+    border-color: rgba(210, 242, 219, 0.18);
+    background:
+      linear-gradient(180deg, rgba(18, 42, 36, 0.9), rgba(7, 25, 21, 0.94));
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 -10px 26px rgba(0, 0, 0, 0.28),
+      0 18px 42px rgba(0, 0, 0, 0.45);
   }
 
   .stage-area {
-    display: flex;
-    flex-direction: column;
-    /* The topbar wraps to a shorter row at this width (no "FOREST DASH"
-       label, tighter gaps) than the 118px desktop measurement. */
-    --topbar-reserve: 100px;
+    display: block;
+    --topbar-reserve: 0px;
+    margin-top: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    position: relative;
+    padding-bottom: calc(var(--mobile-task-h) + var(--mobile-minigame-h) + var(--mobile-minigame-gap));
   }
 
   .stage-area .forest-scene {
@@ -5897,32 +6097,187 @@ h3 {
        .day-card-float's own mobile override above) instead of the desktop
        rule's negative-top bleed behind the topbar -- there's no absolute
        positioning context left for that trick to bleed into. */
-    position: relative;
-    inset: auto;
-    top: auto;
+    position: absolute;
+    inset: 0 0 calc(var(--mobile-task-h) + var(--mobile-minigame-h) + var(--mobile-minigame-gap)) 0;
+    top: 0;
     height: auto;
-    flex: 1;
+    flex: none;
     /* Task count no longer drives height (the level spreads sideways, not
        up) -- a fixed band is enough, floored at the old 180px so the scene
        never collapses under the day card. */
-    min-height: clamp(180px, 34vh, 300px);
+    min-height: 0;
   }
 
-  /* ...which only works if the card can actually give the room back. It scrolls
-     its own content (see .day-card-float), so shrinking it costs nothing. */
-  .day-card-float {
-    min-height: 0;
-    flex: 0 1 auto;
+  .day-card-float .daycard {
+    padding: 0;
+  }
+
+  .day-card-float .daycard-head {
+    margin: 0;
+    padding: 26px 20px 22px;
+    padding-right: 128px;
+    background: rgba(18, 42, 36, 0.72);
+  }
+
+  .day-card-float .day-heading {
+    font-size: clamp(28px, 8.8vw, 39px);
+    line-height: 1.05;
+    letter-spacing: 0.06em;
+  }
+
+  .day-card-float .stage-name {
+    display: none;
+  }
+
+  .day-card-float .day-sub {
+    margin-top: 10px;
+    color: rgba(243, 230, 200, 0.68);
+    font-size: 14px;
+  }
+
+  .day-card-float .progress-block {
+    position: absolute;
+    top: 72px;
+    right: 20px;
+    left: min(54%, 220px);
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+
+  .day-card-float .progress-label-top {
+    display: none;
+  }
+
+  .day-card-float .progress-bar {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(210, 242, 219, 0.13);
+    border-color: rgba(210, 242, 219, 0.24);
+  }
+
+  .day-card-float .progress-fill {
+    border-radius: inherit;
+    background: linear-gradient(90deg, #8edb55, #b9ef78);
+  }
+
+  .day-card-float .progress-count {
+    position: absolute;
+    right: 0;
+    top: -31px;
+    bottom: auto;
+    margin: 0;
+    color: rgba(243, 230, 200, 0.62);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .day-card-float .card-head {
+    display: none;
+  }
+
+  .day-card-float .tasks-label {
+    margin: 0;
+    padding: 18px 20px 10px;
+    border-top: 1px solid rgba(210, 242, 219, 0.1);
+    background: rgba(7, 25, 21, 0.72);
+    color: rgba(243, 230, 200, 0.58);
+    font-size: 12px;
+  }
+
+  .day-card-float .tasks {
+    gap: 10px;
+    margin: 0;
+    padding: 0 20px 20px;
+    background: rgba(7, 25, 21, 0.72);
+  }
+
+  .day-card-float .task {
+    min-height: 60px;
+    padding: 12px 12px 12px 16px;
+    border: 1px solid rgba(210, 242, 219, 0.1);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .day-card-float .task:not(:last-child):not(.done) {
+    border-bottom-color: rgba(210, 242, 219, 0.1);
+  }
+
+  .day-card-float .box {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border-color: rgba(210, 242, 219, 0.45);
+    background: rgba(4, 17, 14, 0.26);
+  }
+
+  .day-card-float .task .emoji {
+    width: 30px;
+    font-size: 22px;
+  }
+
+  .day-card-float .task .title {
+    color: #f7f6ec;
+    font-size: 16px;
+  }
+
+  .day-card-float .task::after {
+    content: ">";
+    flex: none;
+    color: rgba(243, 230, 200, 0.55);
+    font-size: 26px;
+    line-height: 1;
+  }
+
+  .day-card-float .kill,
+  .day-card-float .tag {
+    display: none;
+  }
+
+  .daycard-reset.box-style,
+  .daycard-edit {
+    top: 20px;
+    margin-top: 20px;
+    opacity: 0.72;
   }
 
   .side-rail {
-    left: 8px;
-    bottom: 8px;
+    display: none;
   }
 
-  .rail-btn {
-    width: 36px;
-    height: 36px;
+  .game-bottomnav {
+    margin: 0 10px max(10px, env(safe-area-inset-bottom));
+    padding: 10px 12px;
+    min-height: calc(var(--mobile-nav-h) - max(10px, env(safe-area-inset-bottom)));
+    border-radius: 0 0 24px 24px;
+    border-top: 0;
+    border-color: rgba(210, 242, 219, 0.14);
+    background: rgba(6, 22, 19, 0.92);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 -8px 30px rgba(0, 0, 0, 0.28);
+  }
+
+  .nav-btn {
+    min-width: 68px;
+    min-height: 64px;
+    padding: 8px 10px;
+    border-radius: 18px;
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .nav-btn svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .nav-btn.on {
+    color: #a8ef53;
+    background: rgba(93, 158, 79, 0.14);
+    box-shadow: 0 8px 24px rgba(94, 172, 82, 0.12);
   }
 
   .failure-banner-float {
@@ -6588,7 +6943,7 @@ h3 {
   padding: 26px 22px 22px;
   text-align: center;
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   border: 3px solid #8a5a2b;
@@ -7371,10 +7726,14 @@ h3 {
   cursor: pointer;
 }
 
+/* color: inherit + currentColor-based fill/border (not the old hardcoded
+   light cream + white tint), so it stays visible whether .runner-card is
+   sitting on its original dark background or the parchment recolour --
+   the hardcoded light text was invisible against a light card. */
 .runner-btn.ghost {
-  color: #f3e6c8;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  color: inherit;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  border-color: color-mix(in srgb, currentColor 25%, transparent);
   box-shadow: none;
 }
 
@@ -7685,7 +8044,7 @@ h3 {
 
 .world-theme :is(.daycomplete-card, .daystart-card, .confirm-modal, .pin-card, .share-card, .runner-card, .minigame-card) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   color: #4a3420;
@@ -7693,7 +8052,7 @@ h3 {
 
 .world-theme .panel-drawer :is(.card, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.png");
+  background-image: url("../frontend/assets/background_tile.webp");
   background-size: cover;
   background-position: center;
   color: #4a3420;
@@ -7763,7 +8122,7 @@ h3 {
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
-    url("../frontend/assets/background_tile.png") center / 220px auto,
+    url("../frontend/assets/background_tile.webp") center / 220px auto,
     repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.2) 0 2px, transparent 2px 13px),
     linear-gradient(180deg, #9a612f 0%, #6e3d19 54%, #45240e 100%);
   border-color: #3d2411;
