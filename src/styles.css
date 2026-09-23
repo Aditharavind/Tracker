@@ -457,6 +457,17 @@ h3 {
   background: color-mix(in srgb, var(--task-selected-bg) 36%, var(--task-idle-bg));
 }
 
+.task.is-dragging {
+  cursor: grabbing;
+  opacity: 0.78;
+  transform: scale(0.985);
+}
+
+.task.is-drop-target {
+  outline: 2px dashed color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 3px;
+}
+
 /* Completed = the row itself becomes a coloured "button", not the checkbox
    -- was the same bright orange as --accent elsewhere (buttons, character
    select), which made a completed task read as an alert rather than a
@@ -530,6 +541,19 @@ h3 {
   text-align: center;
   flex: none;
   filter: grayscale(0.35);
+}
+
+.task-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 24px;
+  margin-left: -4px;
+  color: color-mix(in srgb, var(--dim) 70%, transparent);
+  flex: none;
+  cursor: grab;
+  touch-action: none;
 }
 
 .task.done .emoji {
@@ -1268,44 +1292,61 @@ h3 {
   z-index: 120;
   display: grid;
   place-items: center;
+  width: 100dvw;
+  height: 100dvh;
   min-height: 100svh;
   padding: 0;
   overflow: hidden;
   isolation: isolate;
   background: #050b07;
+  overscroll-behavior: none;
 }
 
 .arcade-loading-stage {
+  --loading-aspect: 0.5628;
+  --loading-cover-w: max(100dvw, calc(100dvh * var(--loading-aspect)));
+  --loading-cover-h: max(100dvh, calc(100dvw / var(--loading-aspect)));
   position: relative;
-  width: min(100vw, calc(100svh * 0.5628));
-  max-width: 100vw;
-  aspect-ratio: 941 / 1672;
-  max-height: 100svh;
-  background: var(--loading-scene) center / contain no-repeat;
+  width: 100dvw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  background: var(--loading-scene) center / cover no-repeat;
   image-rendering: pixelated;
+  overflow: hidden;
+  contain: strict;
 }
 
 .arcade-loading-bar {
   position: absolute;
-  left: 20.7%;
-  top: 81.3%;
-  width: 57.6%;
-  height: 2.45%;
-  padding: 0.12%;
+  left: calc((100dvw - var(--loading-cover-w)) / 2 + var(--loading-cover-w) * 0.207);
+  top: calc((100dvh - var(--loading-cover-h)) / 2 + var(--loading-cover-h) * 0.813);
+  width: calc(var(--loading-cover-w) * 0.576);
+  height: calc(var(--loading-cover-h) * 0.0245);
+  min-height: 10px;
+  max-height: 24px;
+  padding: max(1px, calc(var(--loading-cover-h) * 0.0012));
   border-radius: 4px;
   background: transparent;
   border: 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.72);
   overflow: hidden;
+  overflow: clip;
+  contain: paint;
+  clip-path: inset(0 round 4px);
 }
 
 .arcade-loading-bar span {
   display: block;
   position: absolute;
-  inset: 0;
+  inset: max(1px, calc(var(--loading-cover-h) * 0.0012));
   width: 100%;
   height: 100%;
   border-radius: 2px;
+  max-width: calc(100% - max(2px, calc(var(--loading-cover-h) * 0.0024)));
+  max-height: calc(100% - max(2px, calc(var(--loading-cover-h) * 0.0024)));
+  transform-origin: left center;
+  clip-path: inset(0 round 2px);
   background:
     repeating-linear-gradient(
       110deg,
@@ -1330,7 +1371,6 @@ h3 {
 
 .arcade-loading-bar.is-determinate span {
   width: 0%;
-  max-width: 100%;
   background:
     linear-gradient(to bottom, rgba(237, 255, 137, 0.95) 0 18%, transparent 19%),
     linear-gradient(to bottom, #a9ed4c 0%, #48c92a 52%, #1e7d18 100%);
@@ -2277,6 +2317,7 @@ h3 {
   overflow: hidden;
   border: 1px solid var(--line-soft);
   isolation: isolate;
+  touch-action: pan-y;
 }
 
 .forest-scene[data-stage="2"] {
@@ -3818,6 +3859,10 @@ h3 {
   transition: transform 1.6s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+.forest-scene[data-dragging] :is(.forest-path, .forest-photo, .forest-mountains, .forest-trees-far, .forest-trees-mid, .forest-fireflies) {
+  transition: none;
+}
+
 .forest-scene[data-frozen] .forest-fireflies,
 .forest-scene[data-frozen] .cloud {
   animation-play-state: paused;
@@ -4552,8 +4597,8 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 22px 32px 14px;
+  gap: 16px;
+  padding: 18px 28px 10px;
   z-index: 30;
   /* Taken out of flow so it floats directly over the forest scene instead
      of sitting on its own flat-colour row above it -- .stage-area below
@@ -4594,7 +4639,7 @@ h3 {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 /* Replaces the old topbar character-switch button -- that's Profile's
@@ -4606,8 +4651,8 @@ h3 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  max-width: 46vw;
+  gap: 2px;
+  max-width: min(34vw, 260px);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -4623,15 +4668,16 @@ h3 {
 }
 
 .topbar-world-main {
-  font-size: 15px;
+  font-size: 12px;
+  line-height: 1.1;
 }
 
 .topbar-world-sub {
   max-width: 100%;
   overflow: hidden;
   color: rgba(243, 230, 200, 0.72);
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  font-size: 8px;
+  letter-spacing: 0.08em;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4679,8 +4725,8 @@ h3 {
 
 @media (max-width: 560px) {
   .topbar-world {
-    max-width: 38vw;
-    font-size: 11px;
+    max-width: 30vw;
+    font-size: 0;
   }
   .game-topbar {
     padding-left: 16px;
@@ -4751,7 +4797,7 @@ h3 {
      translucent card let the moving world bleed through and fight the task
      text for legibility. Solid panel, pixel-art double border. */
   background-color: var(--panel);
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -4831,7 +4877,8 @@ h3 {
 /* "Settings" (add/edit/remove tasks) sits just left of "Tick/untick all" --
    a plain gear, no pill/chip chrome, so it just reads as "the settings
    gear" rather than a second labelled button competing with tick-all. */
-.daycard-edit {
+.daycard-edit,
+.daycard-add {
   position: sticky;
   top: 16px;
   z-index: 3;
@@ -4845,12 +4892,19 @@ h3 {
   transition: 0.15s;
 }
 
-.daycard-edit:hover {
+.daycard-edit:hover,
+.daycard-add:hover {
   color: var(--text);
 }
 
-.daycard-edit:active {
+.daycard-edit:active,
+.daycard-add:active {
   transform: translateY(1px);
+}
+
+.daycard-add:disabled {
+  cursor: default;
+  opacity: 0.35;
 }
 
 /* The default browser scrollbar is a grey slab against the forest -- it was
@@ -4901,7 +4955,7 @@ h3 {
 .day-card-float .daycard {
   margin: 0;
   background-color: transparent;
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -4960,6 +5014,7 @@ h3 {
   transition:
     transform 0.15s ease,
     background 0.15s ease;
+  color: #c9a876;
 }
 
 .rail-btn:hover {
@@ -4967,8 +5022,8 @@ h3 {
 }
 
 .rail-btn.on {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: color-mix(in srgb, #d8bd8d 36%, transparent);
+  color: #3d2411;
   border-color: transparent;
 }
 
@@ -5077,14 +5132,14 @@ h3 {
   inset: 0;
   z-index: 25;
   overflow-y: auto;
-  padding: 16px;
+  padding: 16px 16px 10px;
   color: var(--text);
   background-color: var(--bg);
-  background-image: url("../frontend/assets/background_tile.webp");
-  background-size: cover;
+  background-image: url("../frontend/assets/background_tile.png");
+  background-size: 220px auto;
   background-position: center;
   background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
   animation: drawer-in 0.16s ease-out;
 }
 
@@ -5097,11 +5152,11 @@ h3 {
    restarting the pattern -- not a flat colour box any more. */
 .panel-drawer :is(.card, .daycard, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in, .dash-board-card) {
   background-color: var(--panel);
-  background-image: url("../frontend/assets/background_tile.webp");
-  background-size: cover;
+  background-image: url("../frontend/assets/background_tile.png");
+  background-size: 220px auto;
   background-position: center;
   background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
 }
 
 .panel-drawer .panel-section:not(.card) {
@@ -5895,13 +5950,17 @@ h3 {
 /* ---- bottom nav --------------------------------------------------------- */
 
 .game-bottomnav {
+  --panel-icon: #c9a876;
+  --panel-icon-active: #3d2411;
   display: flex;
   justify-content: space-around;
   z-index: 30;
   position: relative;
   margin: 0 32px 18px;
   padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
-  background: color-mix(in srgb, #06100c 86%, transparent);
+  background:
+    linear-gradient(rgba(248, 236, 216, 0.12), rgba(248, 236, 216, 0.12)),
+    url("../frontend/assets/background_tile.png") center / 260px auto repeat;
   border: 2px solid rgba(210, 177, 103, 0.28);
   border-radius: 14px;
 }
@@ -5915,20 +5974,20 @@ h3 {
   font-size: 10px;
   letter-spacing: 0.07em;
   font-weight: 600;
-  color: var(--dim);
+  color: var(--panel-icon);
   border-radius: 8px;
 }
 
 .nav-btn.on {
-  color: var(--good);
+  color: var(--panel-icon-active);
 }
 
 .nav-btn:hover {
-  color: var(--text);
+  color: color-mix(in srgb, var(--panel-icon-active) 78%, var(--panel-icon));
 }
 
 .nav-btn.on:hover {
-  color: var(--good);
+  color: var(--panel-icon-active);
 }
 
 @media (max-width: 720px) {
@@ -5964,13 +6023,13 @@ h3 {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: 52px;
+    min-height: 42px;
     max-width: none;
-    padding-left: 46px;
+    padding-left: 38px;
     overflow: visible;
     white-space: normal;
     text-align: left;
-    font-size: 16px;
+    font-size: 0;
     line-height: 1.15;
     letter-spacing: 0.08em;
     color: #f5eec5;
@@ -5993,8 +6052,8 @@ h3 {
     position: absolute;
     left: 0;
     top: 3px;
-    width: 38px;
-    height: 34px;
+    width: 30px;
+    height: 28px;
     background:
       linear-gradient(135deg, transparent 0 20%, #6abf50 20% 54%, transparent 54%),
       linear-gradient(45deg, transparent 0 34%, #b8ee75 34% 52%, transparent 52%),
@@ -6004,11 +6063,12 @@ h3 {
   }
 
   .topbar-world-main {
-    font-size: 16px;
+    font-size: 11px;
+    line-height: 1.1;
   }
 
   .topbar-world-sub {
-    margin-top: 7px;
+    margin-top: 5px;
     /* Was 22ch (~242px), a cap wider than the column it sits in -- and the
        parent is overflow:visible here, so the nowrap sub-line did not clip,
        it spilled sideways across the countdown clock. Bounded by the column
@@ -6019,7 +6079,7 @@ h3 {
     min-width: 0;
     overflow: hidden;
     color: rgba(245, 238, 197, 0.74);
-    font-size: 11px;
+    font-size: 8px;
     line-height: 1.2;
     letter-spacing: 0.08em;
     text-overflow: ellipsis;
@@ -6262,6 +6322,12 @@ h3 {
     font-size: 22px;
   }
 
+  .day-card-float .task-grip {
+    width: 18px;
+    height: 28px;
+    margin-left: -6px;
+  }
+
   .day-card-float .task .title {
     color: #4a3420;
     font-size: 16px;
@@ -6285,7 +6351,8 @@ h3 {
   }
 
   .daycard-reset.box-style,
-  .daycard-edit {
+  .daycard-edit,
+  .daycard-add {
     top: 20px;
     margin-top: 20px;
     opacity: 0.72;
@@ -6302,7 +6369,9 @@ h3 {
     border-radius: 0 0 24px 24px;
     border-top: 0;
     border-color: rgba(210, 242, 219, 0.14);
-    background: rgba(6, 22, 19, 0.92);
+    background:
+      linear-gradient(rgba(248, 236, 216, 0.12), rgba(248, 236, 216, 0.12)),
+      url("../frontend/assets/background_tile.png") center / 260px auto repeat;
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.04),
       0 -8px 30px rgba(0, 0, 0, 0.28);
@@ -6324,9 +6393,9 @@ h3 {
   }
 
   .nav-btn.on {
-    color: #a8ef53;
-    background: rgba(93, 158, 79, 0.14);
-    box-shadow: 0 8px 24px rgba(94, 172, 82, 0.12);
+    color: var(--panel-icon-active);
+    background: color-mix(in srgb, #d8bd8d 34%, transparent);
+    box-shadow: 0 8px 24px rgba(138, 90, 43, 0.12);
   }
 
   .failure-banner-float {
@@ -6535,7 +6604,7 @@ h3 {
   color: #3d2814;
   background:
     linear-gradient(180deg, rgba(255, 248, 221, 0.94), rgba(239, 213, 164, 0.94)),
-    url("../frontend/assets/background_tile.webp") center / 180px auto;
+    url("../frontend/assets/background_tile.png") center / 180px auto;
   border: 2px solid #8a5a2b;
   border-radius: 18px;
   box-shadow:
@@ -7070,7 +7139,7 @@ h3 {
   padding: 26px 22px 22px;
   text-align: left;
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.webp");
+  background-image: url("../frontend/assets/background_tile.png");
   background-size: cover;
   background-position: center;
   border: 3px solid #8a5a2b;
@@ -8451,7 +8520,7 @@ h3 {
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
-    url("../frontend/assets/background_tile.webp") center / 220px auto,
+    url("../frontend/assets/background_tile.png") center / 220px auto,
     repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.2) 0 2px, transparent 2px 13px),
     linear-gradient(180deg, #9a612f 0%, #6e3d19 54%, #45240e 100%);
   border-color: #3d2411;
@@ -8475,9 +8544,9 @@ h3 {
    home dashboard stay on their own artwork. */
 .panel-drawer :is(.card, .daycard, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in, .dash-board-card, .habit-row) {
   background-color: var(--panel);
-  background-image: url("../frontend/assets/background_tile.webp");
-  background-size: cover;
+  background-image: url("../frontend/assets/background_tile.png");
+  background-size: 220px auto;
   background-position: center;
   background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
 }

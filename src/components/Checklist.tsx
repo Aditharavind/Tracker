@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { useRef, useState, type PointerEvent } from "react";
+import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import type { DayDetail, TaskItem } from "../types";
 import { prettyDate, todayISO } from "../api";
 import { getStage, type StageMeta } from "../game/stageSystem";
@@ -28,6 +28,7 @@ export default function Checklist({
   onToggle,
   onAdd,
   onRemove,
+  onReorder,
   hideAddRow,
   locked,
 }: {
@@ -39,12 +40,24 @@ export default function Checklist({
   onToggle: (t: TaskItem) => void;
   onAdd: (title: string) => void;
   onRemove: (t: TaskItem) => void;
+  onReorder?: (taskIds: number[]) => void;
   hideAddRow?: boolean;
   /** A past day: view-only, no ticking or editing (the run resumes tomorrow). */
   locked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+  const suppressNextClick = useRef(false);
+  const longPress = useRef<{
+    id: number;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    timer: number;
+    active: boolean;
+  } | null>(null);
   const today = todayISO();
   const core = detail.tasks.filter((t) => t.is_core);
   const doneCore = core.filter((t) => t.done).length;
@@ -58,6 +71,70 @@ export default function Checklist({
     if (!draft.trim()) return;
     onAdd(draft.trim());
     setDraft("");
+  };
+
+  const cancelLongPress = () => {
+    if (longPress.current) window.clearTimeout(longPress.current.timer);
+    longPress.current = null;
+    setDraggingId(null);
+    setDropTargetId(null);
+  };
+
+  const taskIdFromPoint = (x: number, y: number) => {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-task-id]");
+    return el ? Number(el.dataset.taskId) : null;
+  };
+
+  const beginTaskPress = (event: PointerEvent<HTMLDivElement>, id: number) => {
+    if (locked || !onReorder || event.button !== 0) return;
+    const row = event.currentTarget;
+    const timer = window.setTimeout(() => {
+      if (!longPress.current || longPress.current.id !== id) return;
+      longPress.current.active = true;
+      setDraggingId(id);
+      setDropTargetId(id);
+      row.setPointerCapture(event.pointerId);
+    }, 360);
+    longPress.current = {
+      id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer,
+      active: false,
+    };
+  };
+
+  const moveTaskPress = (event: PointerEvent<HTMLDivElement>) => {
+    const press = longPress.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    if (!press.active) {
+      if (Math.hypot(event.clientX - press.startX, event.clientY - press.startY) > 8) cancelLongPress();
+      return;
+    }
+    const targetId = taskIdFromPoint(event.clientX, event.clientY);
+    if (targetId != null) setDropTargetId(targetId);
+  };
+
+  const endTaskPress = (event: PointerEvent<HTMLDivElement>) => {
+    const press = longPress.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    window.clearTimeout(press.timer);
+    if (press.active) {
+      const targetId = taskIdFromPoint(event.clientX, event.clientY) ?? dropTargetId;
+      if (targetId != null && targetId !== press.id && onReorder) {
+        const next = detail.tasks.filter((task) => task.id !== press.id).map((task) => task.id);
+        const targetIndex = next.indexOf(targetId);
+        const targetEl = document.querySelector<HTMLElement>(`[data-task-id="${targetId}"]`);
+        const after = targetEl ? event.clientY > targetEl.getBoundingClientRect().top + targetEl.offsetHeight / 2 : false;
+        next.splice(targetIndex + (after ? 1 : 0), 0, press.id);
+        onReorder(next);
+      }
+      suppressNextClick.current = true;
+    }
+    longPress.current = null;
+    setDraggingId(null);
+    setDropTargetId(null);
   };
 
   return (
@@ -137,7 +214,22 @@ export default function Checklist({
         <>
           <div className="tasks">
             {detail.tasks.map((t) => (
-              <div key={t.id} className={`task${t.done ? " done" : ""}${locked ? " task-locked" : ""}`}>
+              <div
+                key={t.id}
+                className={`task${t.done ? " done" : ""}${locked ? " task-locked" : ""}${draggingId === t.id ? " is-dragging" : ""}${dropTargetId === t.id && draggingId !== t.id ? " is-drop-target" : ""}`}
+                data-task-id={t.id}
+                onPointerDown={(e) => beginTaskPress(e, t.id)}
+                onPointerMove={moveTaskPress}
+                onPointerUp={endTaskPress}
+                onPointerCancel={cancelLongPress}
+                onLostPointerCapture={cancelLongPress}
+                onClickCapture={(e) => {
+                  if (!suppressNextClick.current) return;
+                  suppressNextClick.current = false;
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
                 <button
                   className="box"
                   onClick={() => !locked && onToggle(t)}
@@ -148,6 +240,11 @@ export default function Checklist({
                 >
                   <Check />
                 </button>
+                {!locked && onReorder && (
+                  <span className="task-grip" aria-hidden="true">
+                    <GripVertical size={15} strokeWidth={2.2} />
+                  </span>
+                )}
                 <span className="emoji">{t.emoji}</span>
                 <button
                   className="title"

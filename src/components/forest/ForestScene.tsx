@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { DayDetail } from "../../types";
 import { generatePlatforms, goalPoint, startPoint, type Point } from "../../game/platformGenerator";
@@ -9,7 +9,7 @@ import Panda, { type PandaAnim } from "./Panda";
 import Platform from "./Platform";
 import Coin from "./Coin";
 import GoalFlag from "./GoalFlag";
-import DayPuzzlePiece, { MysteryPuzzlePiece, RevealedPuzzlePiece } from "./DayPuzzlePiece";
+import { MysteryPuzzlePiece, RevealedPuzzlePiece } from "./DayPuzzlePiece";
 import PuzzleRevealOverlay from "./PuzzleRevealOverlay";
 import StartSign from "./StartSign";
 import VictorySign from "./VictorySign";
@@ -245,6 +245,9 @@ export default function ForestScene({
   // consistent with, pandaIndex -- so a refresh mid-hop just snaps to the
   // correct real position rather than losing or fabricating progress.
   const [visualIndex, setVisualIndex] = useState(pandaIndex);
+  const [dragCamOffset, setDragCamOffset] = useState(0);
+  const [draggingScene, setDraggingScene] = useState(false);
+  const dragCamera = useRef<{ id: number; startX: number; startOffset: number; base: number; min: number; max: number } | null>(null);
   // A new day (different task count) can land between this render and the
   // effect below that reconciles visualIndex to it -- clamp defensively so
   // a leftover index from a longer day never indexes past the new,
@@ -277,7 +280,8 @@ export default function ForestScene({
   // character visibly runs across the screen to the bush at the far right edge
   // and vanishes into it, rather than the world sliding to keep it centred.
   const minCam = Math.min(46, 50 - pct(goal).left);
-  let camX = Math.max(minCam, Math.min(46, 50 - pct(pandaPoint).left));
+  const maxCam = 46;
+  let autoCamX = Math.max(minCam, Math.min(maxCam, 50 - pct(pandaPoint).left));
   const frozenCamX = useRef<number | null>(null);
   if (victoryPhase === "none") {
     frozenCamX.current = null;
@@ -287,19 +291,21 @@ export default function ForestScene({
       // and holds there while the panda runs the last stretch into it.
       frozenCamX.current = Math.min(44, 89 - pct(exitPoint).left);
     }
-    camX = frozenCamX.current;
+    autoCamX = frozenCamX.current;
   }
   // Early in the level the character sits near the far-left edge, right where
   // the Day card overlays. Push the pan further so the START sign + character
   // always clear the card's right edge (skill §21 "let task cards cover the
   // gameplay path" -> don't).
-  if (atStartRest) camX = Math.max(camX, 40);
+  if (atStartRest) autoCamX = Math.max(autoCamX, 40);
   // Overrides the victory freeze above only after the clear callback has
   // fired. App's `returnToStart` prop is already true during the last dash
   // because every task is done and no overlay is open yet; applying it then
   // yanks the camera back to the main/start frame while the character is
   // supposed to be running into the exit bush.
-  if (returnToStart && victoryPhase === "done" && clearedFired.current) camX = 40;
+  if (returnToStart && victoryPhase === "done" && clearedFired.current) autoCamX = 40;
+  const clampedDragCamOffset = Math.max(minCam - autoCamX, Math.min(maxCam - autoCamX, dragCamOffset));
+  const camX = autoCamX + clampedDragCamOffset;
 
   const prevDone = useRef(doneCount);
   const prevResets = useRef(resets);
@@ -312,6 +318,12 @@ export default function ForestScene({
     timers.current.forEach((id) => window.clearTimeout(id));
     timers.current = [];
   };
+
+  useEffect(() => {
+    setDragCamOffset(0);
+    setDraggingScene(false);
+    dragCamera.current = null;
+  }, [dayNumber, doneCount, total]);
 
   // The character's rest state listens to genuine user activity rather than
   // task state: reading, checking a box, or tapping the companion all count
@@ -584,6 +596,35 @@ export default function ForestScene({
 
   const companionAtRest = anim === "idle" && victoryPhase === "none" && runInPhase === null;
 
+  const beginSceneDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "touch" || sceneW <= 0) return;
+    dragCamera.current = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startOffset: clampedDragCamOffset,
+      base: autoCamX,
+      min: minCam,
+      max: maxCam,
+    };
+    setDraggingScene(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveSceneDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = dragCamera.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    const width = sceneRef.current?.clientWidth || sceneW || 1;
+    const dx = event.clientX - drag.startX;
+    const next = drag.startOffset + (dx / width) * 100;
+    setDragCamOffset(Math.max(drag.min - drag.base, Math.min(drag.max - drag.base, next)));
+  };
+
+  const endSceneDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (dragCamera.current?.id !== event.pointerId) return;
+    dragCamera.current = null;
+    setDraggingScene(false);
+  };
+
   return (
     <div
       ref={sceneRef}
@@ -594,6 +635,12 @@ export default function ForestScene({
       // pan settles at the end of the level and holds (skill: "freeze once it
       // reaches the end of the race").
       data-frozen={victoryPhase === "done" || undefined}
+      data-dragging={draggingScene || undefined}
+      onPointerDown={beginSceneDrag}
+      onPointerMove={moveSceneDrag}
+      onPointerUp={endSceneDrag}
+      onPointerCancel={endSceneDrag}
+      onLostPointerCapture={endSceneDrag}
       // The level's width has to earn room per platform, or extra tasks just
       // pack more platforms into the same horizontal strip until they overlap
       // into one blob -- which reads as "the level didn't grow" even though
@@ -710,21 +757,12 @@ export default function ForestScene({
           >
             <div className="forest-puzzle-card-scale">
               {puzzleRevealed ? (
-                puzzlePlacing ? (
-                  <DayPuzzlePiece
-                    worldIndex={puzzleWorldIndex!}
-                    pieceIds={puzzlePieceIds!}
-                    earnedPiece={puzzleEarnedPiece}
-                    reducedMotion={reducedMotion}
-                  />
-                ) : (
-                  <RevealedPuzzlePiece
-                    worldIndex={puzzleWorldIndex!}
-                    pieceIds={puzzlePieceIds!}
-                    earnedPiece={puzzleEarnedPiece}
-                    reducedMotion={reducedMotion}
-                  />
-                )
+                <RevealedPuzzlePiece
+                  worldIndex={puzzleWorldIndex!}
+                  pieceIds={puzzlePieceIds!}
+                  earnedPiece={puzzleEarnedPiece}
+                  reducedMotion={reducedMotion}
+                />
               ) : (
                 <MysteryPuzzlePiece onReveal={() => {}} flipping={puzzleFlipping} />
               )}
