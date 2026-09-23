@@ -367,7 +367,7 @@
 .world-theme :is(.game-bottomnav, .rail-btn, .failure-banner-float .failure-banner) {
   background:
     linear-gradient(rgba(248, 236, 216, 0.12), rgba(248, 236, 216, 0.12)),
-    url("../frontend/assets/background_tile.png") center / 260px auto repeat;
+    url("../frontend/assets/background_tile.png") center / auto repeat;
   border-color: var(--line);
 }
 .world-theme .task.done { background: #d8bd8d; color: #3d2814; }
@@ -718,7 +718,7 @@
 .world-theme .panel-drawer {
   background-color: #f8ecd8;
   background-image: url("../frontend/assets/background_tile.png");
-  background-size: 220px auto;
+  background-size: auto;
   background-position: center;
   background-attachment: fixed;
   background-repeat: repeat;
@@ -727,7 +727,7 @@
 .world-theme :is(.daycomplete-card, .daystart-card, .confirm-modal, .pin-card, .share-card, .runner-card, .minigame-card) {
   background-color: #f8ecd8;
   background-image: url("../frontend/assets/background_tile.png");
-  background-size: cover;
+  background-size: auto;
   background-position: center;
   color: #4a3420;
 }
@@ -742,7 +742,7 @@
 .world-theme .panel-drawer :is(.card, .daycard, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in, .dash-board-card) {
   background-color: #f8ecd8;
   background-image: url("../frontend/assets/background_tile.png");
-  background-size: 220px auto;
+  background-size: auto;
   background-position: center;
   background-attachment: fixed;
   background-repeat: repeat;
@@ -811,7 +811,7 @@
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
-    url("../frontend/assets/background_tile.png") center / 220px auto,
+    url("../frontend/assets/background_tile.png") center / auto,
     repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.2) 0 2px, transparent 2px 13px),
     linear-gradient(180deg, #9a612f 0%, #6e3d19 54%, #45240e 100%);
   border-color: #3d2411;
