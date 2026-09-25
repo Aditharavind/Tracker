@@ -101,11 +101,12 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
-            urlPattern: /\/assets\/(?:puzzles\/[^/]+\.png|character_selection\/[^/]+\.(?:gif|jpg|webp))$/,
+            urlPattern: /\/assets\/(?:puzzles\/[^/]+\.(?:webp|png)|character_selection\/[^/]+\.(?:gif|jpg|webp))$/,
             handler: "CacheFirst",
             options: {
               cacheName: "world-puzzle-character-assets",
-              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              // 6 worlds x (board + hd reveal) + character-select art.
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 60 },
             },
           },
           {

@@ -9,6 +9,7 @@ import "./styles.css";
 import "./world-theme.css";
 import LoadingPage from "./components/LoadingPage";
 import loadingScene from "../frontend/assets/loading.webp";
+import { PUZZLE_ASSETS } from "./game/adventure/puzzles";
 
 const loadApp = () => import("./App");
 const loadSharedView = () => import("./components/SharedView");
@@ -40,7 +41,8 @@ const BOOT_ASSETS = [
   "/assets/grass-right.webp",
   "/assets/start-sign.webp",
   "/assets/coin.webp",
-] as const;
+  ...PUZZLE_ASSETS,
+];
 
 const w = window as Window & {
   requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void;
@@ -68,10 +70,19 @@ if (document.readyState === "complete") {
 // a 3D preview. Every such component has a sprite fallback, so eagerly fetching
 // it here spent bandwidth and main-thread time without improving first paint.
 
+// Holding the decoded Image objects keeps them in the browser's in-memory
+// image cache, so a later <img>/<image> of the same URL paints immediately
+// instead of re-fetching or re-decoding.
+const preloadedImages: HTMLImageElement[] = [];
+
 const preloadImage = (src: string) =>
   new Promise<void>((resolve) => {
     const img = new Image();
-    img.onload = () => resolve();
+    img.decoding = "async";
+    img.onload = () => {
+      preloadedImages.push(img);
+      img.decode().catch(() => undefined).then(() => resolve());
+    };
     img.onerror = () => resolve();
     img.src = src;
   });

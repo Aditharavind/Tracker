@@ -1,7 +1,7 @@
 import { useId, type CSSProperties } from "react";
 import { Puzzle, Sparkles } from "lucide-react";
 import { LEVELS_PER_WORLD } from "../../game/adventure/content";
-import { getMainJourneyPuzzle, piecePath } from "../../game/adventure/puzzles";
+import { getMainJourneyPuzzle, piecePath, puzzleHdSrc } from "../../game/adventure/puzzles";
 import "../../adventure-puzzle.css";
 
 /**
@@ -54,7 +54,7 @@ export function RevealedPuzzlePiece({
   if (!puzzle) return null;
 
   const { width, height, title } = puzzle;
-  const revealSrc = puzzle.src.replace(/\.webp$/, ".png");
+  const revealSrc = puzzleHdSrc(puzzle.src);
   const path = piecePath(earnedPiece, width, height);
   const col = earnedPiece % 3;
   const row = Math.floor(earnedPiece / 3);

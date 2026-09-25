@@ -1,4 +1,10 @@
+import { useState } from "react";
 import loadingScene from "../../frontend/assets/loading.webp";
+
+// The boot gate, the Suspense fallback and App's data load each mount their
+// own LoadingPage back to back. Only the first one plays the entry animation;
+// the rest must look like the same screen staying put, not a re-fade.
+let firstShownAt: number | null = null;
 
 export default function LoadingPage({
   label = "Loading run",
@@ -7,15 +13,21 @@ export default function LoadingPage({
   label?: string;
   progress?: number;
 }) {
+  const [entering] = useState(() => {
+    firstShownAt ??= performance.now();
+    return performance.now() - firstShownAt < 100;
+  });
   const boundedProgress = progress == null ? null : Math.max(0, Math.min(100, Math.round(progress)));
 
   return (
-    <div className="arcade-loading" aria-busy="true" aria-label={label}>
+    <div
+      className="arcade-loading"
+      aria-busy="true"
+      aria-label={label}
+      style={{ ["--loading-scene" as string]: `url(${loadingScene})` }}
+    >
       <div
-        className="arcade-loading-stage"
-        style={{
-          ["--loading-scene" as string]: `url(${loadingScene})`,
-        }}
+        className={`arcade-loading-stage${entering ? " is-entering" : ""}`}
         role={boundedProgress == null ? undefined : "progressbar"}
         aria-valuemin={boundedProgress == null ? undefined : 0}
         aria-valuemax={boundedProgress == null ? undefined : 100}

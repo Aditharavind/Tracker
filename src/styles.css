@@ -784,6 +784,24 @@ h3 {
   margin-top: 1px;
 }
 
+/* "You're 3rd of 5", stated above the list so the viewer does not have to hunt
+   for their own row to learn where they stand. */
+.rank-readout {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.rank-readout strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.rank-readout-tied {
+  color: var(--dimmer, var(--dim));
+}
+
 .status {
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -1262,27 +1280,101 @@ h3 {
 
 /* ------------------------------------------------------------- loading page */
 
+/* The art is a 941x1672 portrait. Phones narrower than that fill the screen
+   (sides cropped); anything wider -- desktop, tablets, landscape phones --
+   shows the art at full height with a blurred, darkened copy of itself
+   filling the rest, so there are no bare black bars.
+   The loading bar is positioned in % of .arcade-loading-stage, which always
+   keeps the art's exact aspect ratio, so it stays glued to the painted slot
+   in both regimes. */
 .arcade-loading {
+  --loading-aspect: 0.5628; /* 941 / 1672 */
+  --vh: 100vh;
   position: fixed;
   inset: 0;
   z-index: 120;
   display: grid;
+  /* place-content too: centers the grid track itself, so an over-wide stage
+     overflows evenly off both sides instead of only the right. */
+  place-content: center;
   place-items: center;
-  min-height: 100svh;
+  height: var(--vh);
   padding: 0;
   overflow: hidden;
   isolation: isolate;
   background: #050b07;
 }
 
+@supports (height: 100dvh) {
+  .arcade-loading {
+    --vh: 100dvh;
+  }
+}
+
+.arcade-loading::before,
+.arcade-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.arcade-loading::before {
+  inset: -6%;
+  background: var(--loading-scene) center / cover no-repeat;
+  filter: blur(28px) saturate(1.15) brightness(0.55);
+  transform: scale(1.08);
+  animation: arcade-loading-drift 18s ease-in-out infinite alternate;
+}
+
+.arcade-loading::after {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5, 11, 7, 0) 30%,
+    rgba(5, 11, 7, 0.55) 75%,
+    rgba(5, 11, 7, 0.85) 100%
+  );
+}
+
 .arcade-loading-stage {
   position: relative;
-  width: min(100vw, calc(100svh * 0.5628));
-  max-width: 100vw;
+  flex: none;
+  /* Full height by default. On a screen narrower than the art the sides
+     overflow and .arcade-loading clips them; the 140vw cap stops that crop
+     at ~15% per side, after which the stage shrinks and the blurred backdrop
+     shows above and below instead. */
+  width: min(calc(var(--vh) * var(--loading-aspect)), 140vw);
   aspect-ratio: 941 / 1672;
-  max-height: 100svh;
-  background: var(--loading-scene) center / contain no-repeat;
+  background: var(--loading-scene) center / 100% 100% no-repeat;
   image-rendering: pixelated;
+  box-shadow:
+    0 0 0 2px rgba(5, 11, 7, 0.9),
+    0 0 60px 10px rgba(0, 0, 0, 0.6);
+}
+
+.arcade-loading-stage.is-entering {
+  animation: arcade-loading-enter 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.1) both;
+}
+
+@keyframes arcade-loading-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes arcade-loading-drift {
+  from {
+    transform: scale(1.08) translate3d(-1.5%, 0, 0);
+  }
+  to {
+    transform: scale(1.14) translate3d(1.5%, -1%, 0);
+  }
 }
 
 .arcade-loading-bar {
@@ -1369,6 +1461,11 @@ h3 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .arcade-loading::before,
+  .arcade-loading-stage {
+    animation: none;
+  }
+
   .arcade-loading-bar span {
     animation: none;
     width: var(--reduced-loading-width, 72%);
