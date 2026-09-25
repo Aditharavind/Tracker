@@ -365,14 +365,19 @@
 }
 .world-theme .panel-drawer-head-sticky { background: var(--bg); }
 .world-theme :is(.game-bottomnav, .rail-btn, .failure-banner-float .failure-banner) {
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  background:
+    linear-gradient(rgba(248, 236, 216, 0.12), rgba(248, 236, 216, 0.12)),
+    url("../frontend/assets/background_tile.png") center / auto repeat;
   border-color: var(--line);
 }
 .world-theme .task.done { background: #d8bd8d; color: #3d2814; }
 .world-theme .task.done:hover { background: color-mix(in srgb, #d8bd8d 88%, #8a5a2b); }
 .world-theme .task.done .box { background: #fff8ec; border-color: #fff8ec; color: #3d2411; }
 .world-theme .task.done .kill { color: var(--dim); }
-.world-theme .nav-btn.on { color: var(--accent); }
+.world-theme .nav-btn { color: #c9a876; }
+.world-theme .nav-btn.on { color: #3d2411; }
+.world-theme .rail-btn { color: #c9a876; }
+.world-theme .rail-btn.on { color: #3d2411; }
 .world-theme .dash-launch,
 .world-theme .runner-btn:not(.ghost) {
   color: var(--on-accent);
@@ -678,7 +683,7 @@
     gap: 8px;
     padding: 10px 12px;
   }
-  .world-theme .topbar-world { font-size: 10px; }
+  .world-theme .topbar-world { font-size: 0; }
   .world-theme .day-clock-compact { width: clamp(100px, 32vw, 145px); justify-self: center; }
   .world-theme .day-clock-compact .day-clock-time { font-size: clamp(8px, 2.6vw, 11px); }
   .world-theme .day-clock-compact .day-clock-label { font-size: 4px; }
@@ -712,17 +717,17 @@
 
 .world-theme .panel-drawer {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.webp");
-  background-size: cover;
+  background-image: url("../frontend/assets/background_tile.png");
+  background-size: auto;
   background-position: center;
   background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
 }
 
 .world-theme :is(.daycomplete-card, .daystart-card, .confirm-modal, .pin-card, .share-card, .runner-card, .minigame-card) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.webp");
-  background-size: cover;
+  background-image: url("../frontend/assets/background_tile.png");
+  background-size: auto;
   background-position: center;
   color: #4a3420;
 }
@@ -736,11 +741,11 @@
    drift out of the uniform parchment look without it. */
 .world-theme .panel-drawer :is(.card, .daycard, .panel-section, .profile-stat, .badge, .coach-card, .coach-chat-opt-in, .dash-board-card) {
   background-color: #f8ecd8;
-  background-image: url("../frontend/assets/background_tile.webp");
-  background-size: cover;
+  background-image: url("../frontend/assets/background_tile.png");
+  background-size: auto;
   background-position: center;
   background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
   border-color: rgba(138, 90, 43, 0.36);
 }
 
@@ -806,7 +811,7 @@
   color: #fff8ec;
   background:
     linear-gradient(180deg, rgba(72, 37, 13, 0.18), rgba(38, 18, 6, 0.38)),
-    url("../frontend/assets/background_tile.webp") center / 220px auto,
+    url("../frontend/assets/background_tile.png") center / auto,
     repeating-linear-gradient(90deg, rgba(39, 22, 9, 0.2) 0 2px, transparent 2px 13px),
     linear-gradient(180deg, #9a612f 0%, #6e3d19 54%, #45240e 100%);
   border-color: #3d2411;

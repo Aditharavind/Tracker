@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCheck, Settings as SettingsIcon } from "lucide-react";
+import { CheckCheck, Pencil, Plus } from "lucide-react";
 import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
 import * as outbox from "./outbox";
 import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
@@ -649,6 +649,7 @@ export default function App() {
     null
   );
   const [habitDraft, setHabitDraft] = useState("");
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
   const [waving, setWaving] = useState(false);
   const [livesOpen, setLivesOpen] = useState(false);
@@ -1325,6 +1326,21 @@ export default function App() {
     });
   };
 
+  const reorderTasks = (taskIds: number[]) => {
+    if (meId == null || day !== todayISO()) return;
+    setDetail((cur) => {
+      if (!cur) return cur;
+      const byId = new Map(cur.tasks.map((task) => [task.id, task]));
+      const tasks = taskIds.map((id) => byId.get(id)).filter((task): task is TaskItem => Boolean(task));
+      return tasks.length === cur.tasks.length ? { ...cur, tasks } : cur;
+    });
+    runWithPin(meId, async (pin) => {
+      await api.reorderTasks(meId, taskIds, pin);
+      setDetail(await api.day(meId, day));
+      await loadBoard(meId);
+    });
+  };
+
   const removeTask = (t: TaskItem) => {
     if (meId == null) return;
     runWithPin(meId, async (pin) => {
@@ -1735,7 +1751,6 @@ export default function App() {
           >
             <span className="topbar-world-main">WORLD {journey.worldIndex + 1}</span>
             <span className="topbar-world-sub">{WORLDS[journey.worldIndex].name.toUpperCase()}</span>
-            WORLD {journey.worldIndex + 1} · {WORLDS[journey.worldIndex].name.toUpperCase()}
           </button>
           <DayCountdown compact zoomable />
           {/* One flex item on the right (instead of four loose ones) so
@@ -1842,10 +1857,20 @@ export default function App() {
               type="button"
               className="daycard-edit daycard-iconbtn"
               onClick={() => togglePanel("habits")}
-              title="Settings — add, edit, or remove tasks"
-              aria-label="Settings"
+              title="Edit tasks"
+              aria-label="Edit tasks"
             >
-              <SettingsIcon size={14} strokeWidth={2.2} aria-hidden="true" />
+              <Pencil size={14} strokeWidth={2.2} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="daycard-add daycard-iconbtn"
+              onClick={() => setQuickAddOpen((open) => !open)}
+              title="Add task"
+              aria-label="Add task"
+              disabled={day !== todayISO()}
+            >
+              <Plus size={15} strokeWidth={2.4} aria-hidden="true" />
             </button>
             <Checklist
               detail={detail}
@@ -1862,7 +1887,8 @@ export default function App() {
               onToggle={toggle}
               onAdd={addTask}
               onRemove={removeTask}
-              hideAddRow
+              onReorder={reorderTasks}
+              hideAddRow={!quickAddOpen}
               locked={day !== todayISO()}
             />
           </div>

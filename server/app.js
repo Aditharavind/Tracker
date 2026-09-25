@@ -1148,6 +1148,31 @@ export function createRouter() {
     })
   );
 
+  r.put(
+    "/users/:id/tasks/order",
+    wrap(async (req, res) => {
+      const store = getStore();
+      const user = await loadUser(store, req.params.id);
+      requirePin(user, req.body?.pin);
+
+      const ids = Array.isArray(req.body?.task_ids) ? req.body.task_ids.map(Number) : [];
+      if (ids.length === 0 || ids.some((id) => !Number.isInteger(id))) {
+        throw new HttpError(400, "task order is required");
+      }
+
+      const existing = await store.listTasks(user.id);
+      const existingIds = existing.map((t) => Number(t.id));
+      const unique = new Set(ids);
+      if (unique.size !== ids.length || ids.length !== existingIds.length || existingIds.some((id) => !unique.has(id))) {
+        throw new HttpError(400, "task order must include every active task once");
+      }
+
+      await Promise.all(ids.map((id, index) => store.updateTask(id, { sort: index + 1 })));
+      bumpGroupVersion(user.group_id);
+      res.json(await store.listTasks(user.id));
+    })
+  );
+
   r.delete(
     "/users/:id/tasks/:taskId",
     wrap(async (req, res) => {

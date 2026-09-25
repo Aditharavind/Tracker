@@ -160,14 +160,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  width: min(170px, 55vw);
-  aspect-ratio: 2 / 3;
+  gap: 8px;
+  width: min(190px, 58vw);
+  aspect-ratio: 1;
   margin: 4px 0 2px;
-  border: 2px solid #c18a47;
-  border-radius: 12px;
-  background: repeating-linear-gradient(4deg, transparent 0 4px, #1d100c30 5px 6px, transparent 7px 13px), linear-gradient(110deg, #5a4420, #2c2210 40%, #4a3819 75%, #201808);
-  box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #f0c04a55, inset 0 -3px 0 #14091faa;
+  padding: 18%;
+  border: none;
+  border-radius: 0;
+  background: url("../frontend/assets/mystery_card.png") center / contain no-repeat;
+  box-shadow: none;
   cursor: pointer;
   animation: daypuzzle-mystery-glow 2.2s ease-in-out infinite;
   transform-style: preserve-3d;
@@ -192,21 +193,26 @@
 
 .daypuzzle-mystery-mark {
   font-size: 34px;
-  color: #ffe7a6;
-  text-shadow: 0 0 14px var(--forest-gold, #f0c04a), 0 3px 0 #000a;
+  color: #ffe066;
+  text-shadow:
+    0 2px 0 #4b2a08,
+    0 0 14px rgba(255, 214, 88, 0.75);
 }
 
 .daypuzzle-mystery-label {
   font-size: 8px;
   line-height: 1.7;
   letter-spacing: 0.08em;
-  color: #f3e6c8;
+  color: #ffe066;
   text-align: center;
+  text-shadow:
+    0 2px 0 #4b2a08,
+    0 0 10px rgba(255, 214, 88, 0.65);
 }
 
 @keyframes daypuzzle-mystery-glow {
-  0%, 100% { box-shadow: 0 15px 36px #0008, 0 4px 0 #351d13, inset 0 2px 0 #f0c04a55, inset 0 -3px 0 #14091faa; }
-  50% { box-shadow: 0 15px 40px #0008, 0 4px 0 #351d13, inset 0 2px 0 #f0c04acc, inset 0 -3px 0 #14091faa, 0 0 24px 3px #f0c04a66; }
+  0%, 100% { filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.45)); }
+  50% { filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.48)) drop-shadow(0 0 18px rgba(255, 214, 88, 0.55)); }
 }
 
 @keyframes daypuzzle-mystery-flip {

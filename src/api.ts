@@ -211,6 +211,12 @@ export const api = {
   removeTask: (userId: number, taskId: number, pin?: string) =>
     req<void>(`/users/${userId}/tasks/${taskId}`, { method: "DELETE", body: JSON.stringify({ pin }) }),
 
+  reorderTasks: (userId: number, taskIds: number[], pin?: string) =>
+    req<TaskItem[]>(`/users/${userId}/tasks/order`, {
+      method: "PUT",
+      body: JSON.stringify({ task_ids: taskIds, pin }),
+    }),
+
   restart: (userId: number, pin?: string) =>
     req<Progress>(`/users/${userId}/restart`, {
       method: "POST",

@@ -61,11 +61,14 @@ export default function WorldsScreen({
               title={label}
             >
               {unlocked ? (
-                <span className="world-card-name pixel-font">
-                  WORLD {i + 1}
-                  <br />
-                  {world.name.toUpperCase()}
-                </span>
+                <>
+                  <span className="world-card-frame" aria-hidden="true" />
+                  <span className="world-card-name pixel-font">
+                    WORLD {i + 1}
+                    <br />
+                    {world.name.toUpperCase()}
+                  </span>
+                </>
               ) : (
                 <>
                   <span className="world-card-mark pixel-font" aria-hidden="true">?</span>
