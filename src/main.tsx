@@ -9,6 +9,7 @@ import "./styles.css";
 import "./world-theme.css";
 import LoadingPage from "./components/LoadingPage";
 import loadingScene from "../frontend/assets/loading.webp";
+import loadingSceneLandscape from "../frontend/assets/loading-landscape.webp";
 import { PUZZLE_ASSETS } from "./game/adventure/puzzles";
 
 const loadApp = () => import("./App");
@@ -26,8 +27,11 @@ const shareToken = params.get("share");
 const joinToken = params.get("join");
 const isAdminRoute = location.pathname === "/adminpanda";
 const BOOT_MIN_MS = 350;
+// Same breakpoint as .arcade-loading in styles.css: only the loading art this
+// screen will actually show is fetched.
+const landscapeScreen = window.matchMedia("(min-aspect-ratio: 1 / 1)").matches;
 const BOOT_ASSETS = [
-  loadingScene,
+  landscapeScreen ? loadingSceneLandscape : loadingScene,
   "/assets/character_selection/character_selection-wide.jpg",
   "/assets/character_selection/character_selection.jpg",
   "/assets/logo.webp",

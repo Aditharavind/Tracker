@@ -1304,15 +1304,24 @@ h3 {
 
 /* ------------------------------------------------------------- loading page */
 
-/* The art is a 941x1672 portrait. Phones narrower than that fill the screen
-   (sides cropped); anything wider -- desktop, tablets, landscape phones --
-   shows the art at full height with a blurred, darkened copy of itself
-   filling the rest, so there are no bare black bars.
-   The loading bar is positioned in % of .arcade-loading-stage, which always
-   keeps the art's exact aspect ratio, so it stays glued to the painted slot
-   in both regimes. */
+/* Two pieces of art, picked by screen shape:
+   - portrait screens (phones): loading.webp, 941x1672;
+   - landscape screens (PC, tablets and phones turned sideways):
+     loading-landscape.webp, 1672x941.
+   The stage always keeps the chosen art's aspect ratio and covers the screen,
+   cropping at most a little off the edges (see the width rule below). If the
+   screen shape is too far off, the stage stops growing and a blurred, darker
+   copy of the art fills the rest, so there are never bare black bars.
+   The loading bar is positioned in % of the stage, so it stays glued to the
+   painted slot at any size. */
 .arcade-loading {
+  --loading-scene: var(--loading-scene-portrait);
   --loading-aspect: 0.5628; /* 941 / 1672 */
+  --loading-ratio: 941 / 1672;
+  --loading-bar-left: 20.7%;
+  --loading-bar-top: 81.3%;
+  --loading-bar-width: 57.6%;
+  --loading-bar-height: 2.45%;
   --vh: 100vh;
   position: fixed;
   inset: 0;
@@ -1333,6 +1342,19 @@ h3 {
 @supports (height: 100dvh) {
   .arcade-loading {
     --vh: 100dvh;
+  }
+}
+
+@media (min-aspect-ratio: 1 / 1) {
+  .arcade-loading {
+    --loading-scene: var(--loading-scene-landscape);
+    --loading-aspect: 1.7768; /* 1672 / 941 */
+    --loading-ratio: 1672 / 941;
+    /* Inner edge of the painted slot: x 599-1069, y 791-820. */
+    --loading-bar-left: 35.83%;
+    --loading-bar-top: 84.06%;
+    --loading-bar-width: 28.17%;
+    --loading-bar-height: 3.19%;
   }
 }
 
@@ -1365,12 +1387,16 @@ h3 {
 .arcade-loading-stage {
   position: relative;
   flex: none;
-  /* Full height by default. On a screen narrower than the art the sides
-     overflow and .arcade-loading clips them; the 140vw cap stops that crop
-     at ~15% per side, after which the stage shrinks and the blurred backdrop
-     shows above and below instead. */
-  width: min(calc(var(--vh) * var(--loading-aspect)), 140vw);
-  aspect-ratio: 941 / 1672;
+  /* Cover the screen (the larger of full-height and full-width), but cap the
+     crop: at most ~14% off each side and ~4% off top and bottom, so the logo
+     and bar always stay in frame. Past either cap the stage stops growing
+     and the blurred backdrop shows instead. */
+  width: min(
+    max(calc(var(--vh) * var(--loading-aspect)), 100vw),
+    140vw,
+    calc(var(--vh) * 1.08 * var(--loading-aspect))
+  );
+  aspect-ratio: var(--loading-ratio);
   background: var(--loading-scene) center / 100% 100% no-repeat;
   image-rendering: pixelated;
   box-shadow:
@@ -1405,10 +1431,10 @@ h3 {
 .arcade-loading-bar {
   position: absolute;
   /* % of the stage, which always has the art's aspect ratio. */
-  left: 20.7%;
-  top: 81.3%;
-  width: 57.6%;
-  height: 2.45%;
+  left: var(--loading-bar-left);
+  top: var(--loading-bar-top);
+  width: var(--loading-bar-width);
+  height: var(--loading-bar-height);
   border-radius: 4px;
   background: transparent;
   border: 0;
