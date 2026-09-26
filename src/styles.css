@@ -574,6 +574,60 @@ h3 {
   font-weight: 600;
 }
 
+.task-add-trigger {
+  justify-content: flex-start;
+  border: none;
+  cursor: pointer;
+}
+
+.task-add-trigger .title {
+  color: var(--task-ink);
+  font-weight: 700;
+}
+
+.task-add-plus {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 6px;
+  color: #3d2411;
+  background: #fff8ec;
+  border: 1.5px solid #fff8ec;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.task-add-input {
+  cursor: default;
+}
+
+.task-add-input input {
+  flex: 1;
+  min-width: 0;
+  color: var(--task-ink);
+  background: #fff8ec;
+  border: 1px solid color-mix(in srgb, #8a5a2b 38%, transparent);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  outline: none;
+}
+
+.task-add-input input::placeholder {
+  color: color-mix(in srgb, var(--task-ink) 58%, transparent);
+}
+
+.task-add-save {
+  cursor: pointer;
+}
+
+.task-add-save svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .tag {
   font-size: 10px;
   letter-spacing: 0.09em;
@@ -3714,8 +3768,8 @@ h3 {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 220px;
-  height: 220px;
+  width: 250px;
+  height: 250px;
   z-index: -1;
   transform: translate(-50%, -50%);
   background: conic-gradient(
@@ -3750,7 +3804,7 @@ h3 {
 }
 
 .forest-puzzle-card-scale {
-  transform: scale(0.4);
+  transform: scale(0.48);
   transform-origin: center bottom;
   animation: forest-puzzle-card-float 2.6s ease-in-out infinite;
 }
@@ -3758,10 +3812,10 @@ h3 {
 @keyframes forest-puzzle-card-float {
   0%,
   100% {
-    transform: scale(0.4) translateY(0);
+    transform: scale(0.48) translateY(0);
   }
   50% {
-    transform: scale(0.4) translateY(-10px);
+    transform: scale(0.48) translateY(-10px);
   }
 }
 
@@ -6350,6 +6404,23 @@ h3 {
     color: var(--dim);
     font-size: 26px;
     line-height: 1;
+  }
+
+  .day-card-float .task-add-trigger::after,
+  .day-card-float .task-add-input::after {
+    content: none;
+  }
+
+  .day-card-float .task-add-plus {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 18px;
+  }
+
+  .day-card-float .task-add-input input {
+    min-height: 34px;
+    font-size: 14px;
   }
 
   .day-card-float .kill,

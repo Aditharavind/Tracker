@@ -1,4 +1,4 @@
-import { MysteryPuzzlePiece, RevealedPuzzlePiece } from "./DayPuzzlePiece";
+import DayPuzzlePiece, { MysteryPuzzlePiece, RevealedPuzzlePiece } from "./DayPuzzlePiece";
 import "../../puzzle-reveal.css";
 
 /**
@@ -7,9 +7,8 @@ import "../../puzzle-reveal.css";
  * enlarged and centred over a dark backdrop so it's the only thing on
  * screen, now actually clickable (the small in-scene version sits behind a
  * pointer-events:none layer -- this is the real interaction target). A tap
- * flips it, then the standalone earned piece stays on screen. The full puzzle
- * frame lives elsewhere; this reward moment stays focused on the piece the
- * player just picked up during the run.
+ * flips it, then the earned piece pops into the puzzle frame before the
+ * player continues back to the run.
  */
 export default function PuzzleRevealOverlay({
   worldIndex,
@@ -37,7 +36,14 @@ export default function PuzzleRevealOverlay({
   return (
     <div className="puzzle-reveal-overlay" role="dialog" aria-modal="true" aria-label="A new puzzle piece">
       <div className="puzzle-reveal-stage">
-        {revealed || placing ? (
+        {placing ? (
+          <DayPuzzlePiece
+            worldIndex={worldIndex}
+            pieceIds={pieceIds}
+            earnedPiece={earnedPiece}
+            reducedMotion={reducedMotion}
+          />
+        ) : revealed ? (
           <RevealedPuzzlePiece
             worldIndex={worldIndex}
             pieceIds={pieceIds}

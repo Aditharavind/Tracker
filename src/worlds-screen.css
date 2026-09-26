@@ -83,6 +83,9 @@
   --world-card-inner-right: 18.7%;
   --world-card-inner-bottom: 12.5%;
   --world-card-inner-left: 18.7%;
+  --world-card-bg-base: #14241a;
+  --world-card-bg-size: cover;
+  --world-card-bg-position: center;
   position: relative;
   container-type: inline-size;
   min-height: auto;
@@ -103,6 +106,10 @@
 }
 
 .world-card::before {
+  display: none;
+}
+
+.world-card-image {
   content: "";
   position: absolute;
   inset:
@@ -112,19 +119,18 @@
     var(--world-card-inner-left);
   border: none;
   border-radius: clamp(12px, 4cqw, 22px);
-  background:
-    var(--world-card-bg-base, #14241a)
-    var(--world-background, none)
-    var(--world-card-bg-position, center)
-    / var(--world-card-bg-size, cover)
-    no-repeat;
+  background-color: var(--world-card-bg-base);
+  background-image: var(--world-background);
+  background-position: var(--world-card-bg-position);
+  background-size: var(--world-card-bg-size);
+  background-repeat: no-repeat;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
   clip-path: polygon(4% 7%, 96% 3%, 98% 91%, 90% 98%, 10% 96%, 2% 89%, 3% 16%);
   z-index: 1;
 }
 
 .world-card[data-world="0"] {
-  --world-card-bg-base: linear-gradient(180deg, #07322c 0%, #071a14 52%, #06120e 100%);
+  --world-card-bg-base: #061b14;
   --world-card-bg-size: contain;
   --world-card-bg-position: center;
 }
@@ -189,20 +195,28 @@
 }
 
 .world-card-mark {
-  position: relative;
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1;
-  font-size: clamp(48px, 10vw, 72px);
-  margin: 0 0 12px;
+  font-size: clamp(32px, 11cqw, 52px);
+  margin: 0;
   color: #d8b977;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .world-card-hook {
-  position: relative;
+  position: absolute;
+  left: calc(var(--world-card-inner-left) + 8%);
+  right: calc(var(--world-card-inner-right) + 8%);
+  bottom: 28%;
   z-index: 1;
-  font-size: 13px;
-  line-height: 1.6;
-  max-width: 24ch;
+  font-size: clamp(4px, 1.15vw, 7px);
+  line-height: 1.25;
+  max-width: none;
+  max-height: 16%;
+  overflow: hidden;
   color: #d8c290;
 }
 
@@ -215,14 +229,16 @@
 }
 
 .world-card.locked .world-card-mark {
-  font-size: clamp(46px, 9vw, 68px);
+  font-size: clamp(32px, 11cqw, 52px);
   line-height: 1;
 }
 
 .world-card.locked .world-card-hook {
-  font-size: clamp(8px, 1.8vw, 12px);
-  letter-spacing: 0.06em;
+  font-size: clamp(4px, 1.15vw, 7px);
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 /* ---- comic-style world story, opened from an unlocked card ------------- */
@@ -241,6 +257,28 @@
   background-attachment: fixed;
   background-repeat: repeat;
   animation: worlds-screen-in 0.18s ease-out;
+}
+
+.world-comic-close {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #4a3420;
+  background: color-mix(in srgb, #f8ecd8 82%, transparent);
+  border: 1.5px solid rgba(138, 90, 43, 0.42);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.world-comic-close:hover {
+  background: color-mix(in srgb, #c9a876 42%, #f8ecd8);
 }
 
 .world-comic-art {

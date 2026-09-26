@@ -46,6 +46,7 @@ export default function Checklist({
   locked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
@@ -71,6 +72,7 @@ export default function Checklist({
     if (!draft.trim()) return;
     onAdd(draft.trim());
     setDraft("");
+    setAddOpen(false);
   };
 
   const cancelLongPress = () => {
@@ -263,22 +265,35 @@ export default function Checklist({
                 )}
               </div>
             ))}
+            {!hideAddRow && !locked && (
+              addOpen ? (
+                <div className="task task-add-input done">
+                  <input
+                    autoFocus
+                    placeholder="Add more task..."
+                    value={draft}
+                    maxLength={80}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") add();
+                      if (e.key === "Escape") {
+                        setDraft("");
+                        setAddOpen(false);
+                      }
+                    }}
+                  />
+                  <button className="box task-add-save" onClick={add} aria-label="Save task" title="Save task">
+                    <Check />
+                  </button>
+                </div>
+              ) : (
+                <button type="button" className="task task-add-trigger done" onClick={() => setAddOpen(true)}>
+                  <span className="task-add-plus" aria-hidden="true">+</span>
+                  <span className="title">Add more task</span>
+                </button>
+              )
+            )}
           </div>
-
-          {!hideAddRow && !locked && (
-            <div className="addrow">
-              <input
-                placeholder="add a bonus habit..."
-                value={draft}
-                maxLength={80}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && add()}
-              />
-              <button className="btn" onClick={add} title="Add this task">
-                Add
-              </button>
-            </div>
-          )}
         </>
       )}
     </div>

@@ -62,6 +62,7 @@ export default function WorldsScreen({
             >
               {unlocked ? (
                 <>
+                  <span className="world-card-image" aria-hidden="true" />
                   <span className="world-card-frame" aria-hidden="true" />
                   <span className="world-card-name pixel-font">
                     WORLD {i + 1}
@@ -99,6 +100,9 @@ function WorldComicStory({ worldIndex, onClose }: { worldIndex: number; onClose:
         if (e.key === "Escape") onClose();
       }}
     >
+      <button type="button" className="world-comic-close" onClick={onClose} aria-label="Close world story" title="Close">
+        ×
+      </button>
       <div className="world-comic-art" aria-hidden="true" />
       <div className="world-comic-caption">
         <p id="world-comic-title" className="world-comic-eyebrow pixel-font">

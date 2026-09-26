@@ -176,7 +176,7 @@ export default function ForestScene({
   // Shifted further right than the goal's default offset (was 0.16) so the
   // floating mystery piece has real room to sit between the last platform
   // and the flag instead of crowding it.
-  const goal = { ...goalPoint(total), x: runHi + 0.3 * spread };
+  const goal = { ...goalPoint(total), x: runHi + 0.42 * spread };
   const reachedGoal = total > 0 && doneCount === total;
   // Ground-level "victory lane": from under the last platform out to an exit
   // past the goal board. The panda drops here after the final hop and runs it.
@@ -190,7 +190,7 @@ export default function ForestScene({
   // between the last platform and it. After the last task the panda drops off
   // the final platform and runs that ground to the bush at the right edge of
   // the screen; then the stage-clear popup appears.
-  const exitPoint: Point = { x: goal.x + 0.34 * spread, y: 0 };
+  const exitPoint: Point = { x: goal.x + 0.48 * spread, y: 0 };
   const pathPoints = [start, ...platforms, goal];
 
   // The floating mystery puzzle piece, sitting on the ground between the
@@ -206,7 +206,7 @@ export default function ForestScene({
   // roughly the same height the panda's already climbed to, midway to the
   // flag, so it reads as a reward waiting up there rather than litter on
   // the lane.
-  const puzzleCardPoint: Point = { x: (lastPlatform.x + goal.x) / 2, y: lastPlatform.y + 0.05 };
+  const puzzleCardPoint: Point = { x: lastPlatform.x + (goal.x - lastPlatform.x) * 0.56, y: lastPlatform.y + 0.06 };
 
   const [anim, setAnim] = useState<PandaAnim>("idle");
   const [companionSleeping, setCompanionSleeping] = useState(false);

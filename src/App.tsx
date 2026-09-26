@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCheck, Pencil, Plus } from "lucide-react";
+import { CheckCheck, Pencil } from "lucide-react";
 import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
 import * as outbox from "./outbox";
 import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
@@ -648,7 +648,6 @@ export default function App() {
     null
   );
   const [habitDraft, setHabitDraft] = useState("");
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [snoozed, setSnoozed] = useState<Record<number, number>>(storedSnooze);
   const [waving, setWaving] = useState(false);
   const [livesOpen, setLivesOpen] = useState(false);
@@ -1862,16 +1861,6 @@ export default function App() {
             >
               <Pencil size={14} strokeWidth={2.2} aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              className="daycard-add daycard-iconbtn"
-              onClick={() => setQuickAddOpen((open) => !open)}
-              title="Add task"
-              aria-label="Add task"
-              disabled={day !== todayISO()}
-            >
-              <Plus size={15} strokeWidth={2.4} aria-hidden="true" />
-            </button>
             <Checklist
               detail={detail}
               day={day}
@@ -1888,7 +1877,7 @@ export default function App() {
               onAdd={addTask}
               onRemove={removeTask}
               onReorder={reorderTasks}
-              hideAddRow={!quickAddOpen}
+              hideAddRow={day !== todayISO()}
               locked={day !== todayISO()}
             />
           </div>
