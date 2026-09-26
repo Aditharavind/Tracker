@@ -5,6 +5,7 @@ import { CharBlink } from "./Panda";
 import { CHARACTER_SPRITE } from "../../game/characters";
 import type { CharacterId } from "../../game/characters";
 import type { Progress } from "../../types";
+import { rankBoard } from "../../game/ranking";
 
 /**
  * The level-clear screen (skill §13): a classic platformer "stage complete"
@@ -73,14 +74,12 @@ export default function DayCompleteOverlay({
     [reducedMotion]
   );
 
-  // Same ranking as Rivals (day number first, then streak, then xp) -- kept
-  // local rather than importing that component, since Rivals' rows are
-  // styled for the neutral dashboard drawers, not this pixel-art card.
-  const ranked = useMemo(
-    () => [...board].sort((a, b) => b.day_number - a.day_number || b.streak - a.streak || b.xp - a.xp),
-    [board]
-  );
-  const myRank = ranked.findIndex((p) => p.user_id === meId) + 1;
+  // Order and rank numbers come from game/ranking, the same module the
+  // Leaderboard drawer uses. Only the *markup* is local to this card -- Rivals'
+  // rows are styled for the neutral dashboard drawers, not this pixel-art card,
+  // which is why the component is not reused even though the ranking is.
+  const ranked = useMemo(() => rankBoard(board), [board]);
+  const myRank = ranked.find((e) => e.p.user_id === meId)?.rank ?? 0;
 
   return (
     <div className="daycomplete" role="dialog" aria-modal="true" aria-label={`Day ${dayNumber} complete`}>
@@ -152,11 +151,11 @@ export default function DayCompleteOverlay({
         )}
 
         <ol className="daycomplete-standings">
-          {ranked.map((p, i) => (
+          {ranked.map(({ p, rank }) => (
             <li key={p.user_id} className={p.user_id === meId ? "is-you" : ""}>
-              <span className="pixel-font">#{i + 1}</span>
+              <span className="pixel-font">#{rank}</span>
               <span className="daycomplete-standings-name">{p.name}</span>
-              <span className="daycomplete-standings-day pixel-font">DAY {p.day_number}</span>
+              <span className="daycomplete-standings-day pixel-font">{p.xp.toLocaleString()} XP</span>
             </li>
           ))}
         </ol>

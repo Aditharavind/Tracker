@@ -862,6 +862,24 @@ h3 {
   margin-top: 1px;
 }
 
+/* "You're 3rd of 5", stated above the list so the viewer does not have to hunt
+   for their own row to learn where they stand. */
+.rank-readout {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.rank-readout strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.rank-readout-tied {
+  color: var(--dimmer, var(--dim));
+}
+
 .status {
   font-size: 10px;
   letter-spacing: 0.08em;
@@ -1340,15 +1358,34 @@ h3 {
 
 /* ------------------------------------------------------------- loading page */
 
+/* Two pieces of art, picked by screen shape:
+   - portrait screens (phones): loading.webp, 941x1672;
+   - landscape screens (PC, tablets and phones turned sideways):
+     loading-landscape.webp, 1672x941.
+   The stage always keeps the chosen art's aspect ratio and covers the screen,
+   cropping at most a little off the edges (see the width rule below). If the
+   screen shape is too far off, the stage stops growing and a blurred, darker
+   copy of the art fills the rest, so there are never bare black bars.
+   The loading bar is positioned in % of the stage, so it stays glued to the
+   painted slot at any size. */
 .arcade-loading {
+  --loading-scene: var(--loading-scene-portrait);
+  --loading-aspect: 0.5628; /* 941 / 1672 */
+  --loading-ratio: 941 / 1672;
+  --loading-bar-left: 20.7%;
+  --loading-bar-top: 81.3%;
+  --loading-bar-width: 57.6%;
+  --loading-bar-height: 2.45%;
+  --vh: 100vh;
   position: fixed;
   inset: 0;
   z-index: 120;
   display: grid;
+  /* place-content too: centers the grid track itself, so an over-wide stage
+     overflows evenly off both sides instead of only the right. */
+  place-content: center;
   place-items: center;
-  width: 100dvw;
-  height: 100dvh;
-  min-height: 100svh;
+  height: var(--vh);
   padding: 0;
   overflow: hidden;
   isolation: isolate;
@@ -1356,30 +1393,102 @@ h3 {
   overscroll-behavior: none;
 }
 
-.arcade-loading-stage {
-  --loading-aspect: 0.5628;
-  --loading-cover-w: max(100dvw, calc(100dvh * var(--loading-aspect)));
-  --loading-cover-h: max(100dvh, calc(100dvw / var(--loading-aspect)));
-  position: relative;
-  width: 100dvw;
-  height: 100dvh;
-  max-width: none;
-  max-height: none;
+@supports (height: 100dvh) {
+  .arcade-loading {
+    --vh: 100dvh;
+  }
+}
+
+@media (min-aspect-ratio: 1 / 1) {
+  .arcade-loading {
+    --loading-scene: var(--loading-scene-landscape);
+    --loading-aspect: 1.7768; /* 1672 / 941 */
+    --loading-ratio: 1672 / 941;
+    /* Inner edge of the painted slot: x 599-1069, y 791-820. */
+    --loading-bar-left: 35.83%;
+    --loading-bar-top: 84.06%;
+    --loading-bar-width: 28.17%;
+    --loading-bar-height: 3.19%;
+  }
+}
+
+.arcade-loading::before,
+.arcade-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.arcade-loading::before {
+  inset: -6%;
   background: var(--loading-scene) center / cover no-repeat;
+  filter: blur(28px) saturate(1.15) brightness(0.55);
+  transform: scale(1.08);
+  animation: arcade-loading-drift 18s ease-in-out infinite alternate;
+}
+
+.arcade-loading::after {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5, 11, 7, 0) 30%,
+    rgba(5, 11, 7, 0.55) 75%,
+    rgba(5, 11, 7, 0.85) 100%
+  );
+}
+
+.arcade-loading-stage {
+  position: relative;
+  flex: none;
+  /* Cover the screen (the larger of full-height and full-width), but cap the
+     crop: at most ~14% off each side and ~4% off top and bottom, so the logo
+     and bar always stay in frame. Past either cap the stage stops growing
+     and the blurred backdrop shows instead. */
+  width: min(
+    max(calc(var(--vh) * var(--loading-aspect)), 100vw),
+    140vw,
+    calc(var(--vh) * 1.08 * var(--loading-aspect))
+  );
+  aspect-ratio: var(--loading-ratio);
+  background: var(--loading-scene) center / 100% 100% no-repeat;
   image-rendering: pixelated;
-  overflow: hidden;
-  contain: strict;
+  box-shadow:
+    0 0 0 2px rgba(5, 11, 7, 0.9),
+    0 0 60px 10px rgba(0, 0, 0, 0.6);
+}
+
+.arcade-loading-stage.is-entering {
+  animation: arcade-loading-enter 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.1) both;
+}
+
+@keyframes arcade-loading-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes arcade-loading-drift {
+  from {
+    transform: scale(1.08) translate3d(-1.5%, 0, 0);
+  }
+  to {
+    transform: scale(1.14) translate3d(1.5%, -1%, 0);
+  }
 }
 
 .arcade-loading-bar {
   position: absolute;
-  left: calc((100dvw - var(--loading-cover-w)) / 2 + var(--loading-cover-w) * 0.207);
-  top: calc((100dvh - var(--loading-cover-h)) / 2 + var(--loading-cover-h) * 0.813);
-  width: calc(var(--loading-cover-w) * 0.576);
-  height: calc(var(--loading-cover-h) * 0.0245);
-  min-height: 10px;
-  max-height: 24px;
-  padding: max(1px, calc(var(--loading-cover-h) * 0.0012));
+  /* % of the stage, which always has the art's aspect ratio. */
+  left: var(--loading-bar-left);
+  top: var(--loading-bar-top);
+  width: var(--loading-bar-width);
+  height: var(--loading-bar-height);
   border-radius: 4px;
   background: transparent;
   border: 0;
@@ -1393,12 +1502,12 @@ h3 {
 .arcade-loading-bar span {
   display: block;
   position: absolute;
-  inset: max(1px, calc(var(--loading-cover-h) * 0.0012));
+  inset: 1px;
   width: 100%;
   height: 100%;
   border-radius: 2px;
-  max-width: calc(100% - max(2px, calc(var(--loading-cover-h) * 0.0024)));
-  max-height: calc(100% - max(2px, calc(var(--loading-cover-h) * 0.0024)));
+  max-width: calc(100% - 2px);
+  max-height: calc(100% - 2px);
   transform-origin: left center;
   clip-path: inset(0 round 2px);
   background:
@@ -1463,6 +1572,11 @@ h3 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .arcade-loading::before,
+  .arcade-loading-stage {
+    animation: none;
+  }
+
   .arcade-loading-bar span {
     animation: none;
     width: var(--reduced-loading-width, 72%);

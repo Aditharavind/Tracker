@@ -38,6 +38,7 @@ import { journeyProgress, worldPuzzlePieces } from "./game/weekSystem";
 import { WORLDS } from "./game/adventure/content";
 import { isAlarmDue, toMinutes } from "./game/alarm";
 import { isStandalone, useInstallPrompt } from "./installPrompt";
+import { coinsFor, ordinal, rankOf } from "./game/ranking";
 import { CHARACTERS, isCharacterId, type CharacterId } from "./game/characters";
 import CharacterCarousel from "./components/CharacterCarousel";
 import FailureBanner from "./components/forest/FailureBanner";
@@ -1557,14 +1558,13 @@ export default function App() {
   const bankedDays = me.calendar.filter((c) => c.status === "done").length;
   const overallProgressPct = Math.round((bankedDays / 75) * 100);
   // Derived, never stored -- a pure readout of already-persisted task
-  // completion (CLAUDE.md §8: coin count is never the source of truth).
-  // One coin per completed task, plus the "+5" bonus coin (shown on the
-  // second-to-last platform) which lands only on a fully-cleared day -- so a
-  // perfect day is worth its tasks + 4 extra on top of the per-task coin.
-  const coinsEarned = me.calendar.reduce(
-    (sum, c) => sum + c.done + (c.total > 0 && c.done === c.total ? 4 : 0),
-    0
-  );
+  // completion (CLAUDE.md §8: coin count is never the source of truth). The
+  // formula lives in game/ranking because the leaderboard needs the same
+  // number for every member, not just the viewer.
+  const coinsEarned = coinsFor(me);
+  // Where the viewer sits on their board. null in a lobby of one, or before
+  // the board has loaded -- both render nothing rather than a bogus "#1 of 1".
+  const myRank = rankOf(board, me.user_id);
 
   const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile" | "pomodoro" | "coach") =>
     setOpenPanel((cur) => (cur === p ? null : p));
@@ -1968,6 +1968,24 @@ export default function App() {
             <div className="panel-drawer">
               <SectionHeader title="Stats" className="panel-drawer-head" onClose={() => setOpenPanel(null)} />
               <div className="profile-stat-grid">
+                {/* Rank leads the grid: it is the one number here that is about
+                    everyone else, and it is what the Leaderboard drawer is
+                    sorted by. Omitted in a lobby of one, where "1st of 1" is
+                    noise rather than a standing. */}
+                {myRank && myRank.total > 1 && (
+                  <div className="profile-stat">
+                    <div className="n num">{ordinal(myRank.rank)}</div>
+                    <div className="l">Rank of {myRank.total}</div>
+                  </div>
+                )}
+                <div className="profile-stat">
+                  <div className="n num">{me.xp.toLocaleString()}</div>
+                  <div className="l">XP</div>
+                </div>
+                <div className="profile-stat">
+                  <div className="n num">{coinsEarned}</div>
+                  <div className="l">Coins</div>
+                </div>
                 <div className="profile-stat">
                   <div className="n num">{me.day_number}/75</div>
                   <div className="l">Day</div>

@@ -35,6 +35,14 @@ export const WORLD_PUZZLES = [
   { src: "/assets/puzzles/world_6_puzzle.webp", title: "Shadow Realm", width: 600, height: 900 },
 ] as const;
 
+/** Full-resolution art for the zoomed single-piece reveal (the board art above
+ * is only 600px wide and goes soft when one piece fills the screen). */
+export const puzzleHdSrc = (src: string) => src.replace(/\.webp$/, "-hd.webp");
+
+/** Every puzzle image the game can show, preloaded at boot so a freshly
+ * earned piece never appears before its art has downloaded. */
+export const PUZZLE_ASSETS = WORLD_PUZZLES.flatMap(({ src }) => [src, puzzleHdSrc(src)]);
+
 export type WorldPuzzle = {
   src: string; title: string; width: number; height: number;
   worldIndex: number; pieceIds: number[]; complete: boolean;

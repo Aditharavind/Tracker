@@ -9,6 +9,8 @@ import "./styles.css";
 import "./world-theme.css";
 import LoadingPage from "./components/LoadingPage";
 import loadingScene from "../frontend/assets/loading.webp";
+import loadingSceneLandscape from "../frontend/assets/loading-landscape.webp";
+import { PUZZLE_ASSETS } from "./game/adventure/puzzles";
 
 const loadApp = () => import("./App");
 const loadSharedView = () => import("./components/SharedView");
@@ -25,8 +27,11 @@ const shareToken = params.get("share");
 const joinToken = params.get("join");
 const isAdminRoute = location.pathname === "/adminpanda";
 const BOOT_MIN_MS = 350;
+// Same breakpoint as .arcade-loading in styles.css: only the loading art this
+// screen will actually show is fetched.
+const landscapeScreen = window.matchMedia("(min-aspect-ratio: 1 / 1)").matches;
 const BOOT_ASSETS = [
-  loadingScene,
+  landscapeScreen ? loadingSceneLandscape : loadingScene,
   "/assets/character_selection/character_selection-wide.jpg",
   "/assets/character_selection/character_selection.jpg",
   "/assets/logo.webp",
@@ -40,7 +45,8 @@ const BOOT_ASSETS = [
   "/assets/grass-right.webp",
   "/assets/start-sign.webp",
   "/assets/coin.webp",
-] as const;
+  ...PUZZLE_ASSETS,
+];
 
 const w = window as Window & {
   requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void;
@@ -68,10 +74,19 @@ if (document.readyState === "complete") {
 // a 3D preview. Every such component has a sprite fallback, so eagerly fetching
 // it here spent bandwidth and main-thread time without improving first paint.
 
+// Holding the decoded Image objects keeps them in the browser's in-memory
+// image cache, so a later <img>/<image> of the same URL paints immediately
+// instead of re-fetching or re-decoding.
+const preloadedImages: HTMLImageElement[] = [];
+
 const preloadImage = (src: string) =>
   new Promise<void>((resolve) => {
     const img = new Image();
-    img.onload = () => resolve();
+    img.decoding = "async";
+    img.onload = () => {
+      preloadedImages.push(img);
+      img.decode().catch(() => undefined).then(() => resolve());
+    };
     img.onerror = () => resolve();
     img.src = src;
   });
