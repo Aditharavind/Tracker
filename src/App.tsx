@@ -598,7 +598,7 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
       <div
         className="pomodoro-body"
         role="timer"
-        aria-label={`${state.phase === "work" ? "Focus" : "Break"} phase, cycle ${state.cycle}, ${formatMMSS(remaining)} remaining, ${running ? "running" : "paused"}`}
+        aria-label={`${state.phase === "work" ? "Focus" : "Break"} phase, cycle ${state.cycle}, ${formatMMSS(remaining)} remaining, ${running ? "running" : "paused"}, ${state.completedToday} ${state.completedToday === 1 ? "session" : "sessions"} completed today`}
       >
         <h2 className="pomodoro-title pixel-font" aria-hidden="true">
           Pomodoro
@@ -629,8 +629,13 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
           Cycle {state.cycle}
         </div>
 
+        <div className="pomodoro-sessions muted" aria-hidden="true">
+          <CheckCheck size={13} strokeWidth={2.4} aria-hidden="true" /> {state.completedToday}{" "}
+          {state.completedToday === 1 ? "session" : "sessions"} completed today
+        </div>
+
         <div className="pomodoro-controls">
-          <button className="btn ghost" onClick={() => act(pomodoroStop())} title="Reset the timer">
+          <button className="btn ghost" onClick={() => act(pomodoroStop(state))} title="Reset the timer">
             <IconRestart /> Reset
           </button>
         </div>

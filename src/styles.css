@@ -2897,6 +2897,13 @@ h3 {
   font-size: 12.5px;
 }
 
+.pomodoro-sessions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+}
+
 .pomodoro-controls {
   display: flex;
   gap: 10px;
