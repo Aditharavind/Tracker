@@ -456,9 +456,35 @@ const formatMMSS = (ms: number): string => {
  * reloaded), catching up through however many phases elapsed while it was
  * closed (game/pomodoro.ts's resolvePomodoro).
  */
+const POMODORO_VIDEO_MUTE_KEY = "75hard.pomodoroVideoMuted";
+
 function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => void }) {
   const [state, setState] = useState<PomodoroState>(() => loadPomodoro(userId));
   const [now, setNow] = useState(() => Date.now());
+
+  // Background video (focus phase only): morning.mp4 by day, night.mp4 after
+  // dark, both looping. Starts muted so autoplay is never blocked -- the mute
+  // button lets someone opt into the ambient audio with a real click, which
+  // browsers always allow. Preference persists across sessions like the
+  // sound.ts mute flag, but is deliberately its own key: this is ambient
+  // video audio, not game SFX, so muting one shouldn't silently mute the other.
+  const [videoMuted, setVideoMuted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(POMODORO_VIDEO_MUTE_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(POMODORO_VIDEO_MUTE_KEY, videoMuted ? "1" : "0");
+    } catch {
+      /* private mode */
+    }
+    if (videoRef.current) videoRef.current.muted = videoMuted;
+  }, [videoMuted]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -526,9 +552,44 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
   const toggleRunning = () =>
     act(running ? pomodoroPause(state, Date.now()) : pomodoroStartOrResume(state, Date.now()));
 
+  // Ambient loop only during the focus phase, not the break -- morning by
+  // day, night after dark, by the device's own clock (same "local, no
+  // server round-trip" spirit as msUntilLocalMidnight elsewhere in this file).
+  const showBgVideo = state.phase === "work";
+  const hour = new Date(now).getHours();
+  const videoSrc = hour >= 6 && hour < 18 ? "/assets/Pomodoro/morining.mp4" : "/assets/Pomodoro/night.mp4";
+
   return (
-    <div className="panel-drawer pomodoro-drawer">
+    <div className={`panel-drawer pomodoro-drawer${showBgVideo ? " has-bg-video" : ""}`}>
+      {showBgVideo && (
+        <div className="pomodoro-bg-video" aria-hidden="true">
+          <video
+            ref={videoRef}
+            key={videoSrc}
+            className="pomodoro-bg-video-el"
+            src={videoSrc}
+            autoPlay
+            loop
+            muted={videoMuted}
+            playsInline
+          />
+          <div className="pomodoro-bg-video-fade" />
+        </div>
+      )}
+
       <div className="panel-drawer-head">
+        {showBgVideo && (
+          <button
+            type="button"
+            className="pomodoro-video-mute"
+            aria-pressed={videoMuted}
+            aria-label={videoMuted ? "Unmute background video" : "Mute background video"}
+            title={videoMuted ? "Video sound off — tap to unmute" : "Video sound on — tap to mute"}
+            onClick={() => setVideoMuted((m) => !m)}
+          >
+            {videoMuted ? <IconSoundOff /> : <IconSoundOn />}
+          </button>
+        )}
         <button className="panel-close" aria-label="Close" title="Close" onClick={onClose}>
           <IconClose />
         </button>

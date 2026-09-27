@@ -2740,6 +2740,75 @@ h3 {
   flex-direction: column;
 }
 
+/* Looping ambient video behind the focus phase only (morning.mp4 /
+   night.mp4 -- see PomodoroPanel's showBgVideo/videoSrc). Absolutely
+   positioned against .panel-drawer (this same element, already the nearest
+   positioned ancestor) so it fills the drawer without disturbing the
+   flex column above/below it; head and body get position+z-index below so
+   they still paint on top of it. */
+.pomodoro-bg-video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.pomodoro-bg-video-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Darkens the video enough that the cream/parchment title and controls
+   (recoloured light by .has-bg-video below) stay legible over whatever
+   the footage is doing underneath. */
+.pomodoro-bg-video-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20, 14, 6, 0.45) 0%, rgba(20, 14, 6, 0.2) 45%, rgba(20, 14, 6, 0.55) 100%);
+}
+
+.pomodoro-drawer .panel-drawer-head,
+.pomodoro-drawer .pomodoro-body {
+  position: relative;
+  z-index: 1;
+}
+
+/* The drawer's usual dark-brown-on-parchment palette (--text/--dim from
+   .panel-drawer above) would vanish against the darkened video, so swap
+   both tokens for light ones while the video is showing -- every rule that
+   reads var(--text)/var(--dim), plus .btn.ghost's `color: inherit`, picks
+   this up for free. .pomodoro-title is the one place with a color baked in
+   directly rather than through a token, so it gets an explicit override too. */
+.pomodoro-drawer.has-bg-video {
+  --text: #f8ecd3;
+  --dim: #e3d3ac;
+}
+
+.pomodoro-drawer.has-bg-video .pomodoro-title {
+  color: #f8ecd3;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.pomodoro-video-mute {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 50%;
+  background: rgba(20, 14, 6, 0.35);
+  color: #f8ecd3;
+  cursor: pointer;
+}
+
+.pomodoro-video-mute:hover,
+.pomodoro-video-mute:focus-visible {
+  border-color: color-mix(in srgb, currentColor 60%, transparent);
+  background: rgba(20, 14, 6, 0.5);
+}
+
 /* The title now lives inside .pomodoro-body (right above the clock, not
    pinned to the very top of the panel) -- this row is just the close
    button now, so pull it to the right instead of space-between with
