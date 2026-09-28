@@ -8,7 +8,17 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <meta name="description" content="A shared daily tracker for the 75 Hard challenge." />
+    <meta
+      name="description"
+      content="OnTrack is a free tracker for the 75 Hard Challenge (75 Day Hard Challenge). Log your daily tasks with friends, keep your streak alive, and race through a pixel-art forest as you complete the challenge."
+    />
+    <meta
+      name="keywords"
+      content="75 hard challenge, 75 day hard challenge, 75 hard challenge tracker, 75 hard tracker, 75 hard app, 75 hard challenge app, habit tracker, accountability app, OnTrack"
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="OnTrack" />
+    <link rel="canonical" href="https://ontrack.ruokpanda.com/" />
 
     <!-- overwritten per theme by the app so the phone status bar matches -->
     <meta name="theme-color" content="#0b0b0c" />
@@ -16,11 +26,59 @@
     <!-- iOS has no manifest support for standalone mode; these do the job -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="75 Hard" />
+    <meta name="apple-mobile-web-app-title" content="OnTrack" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" href="/favicon.png" type="image/png" />
 
-    <title>75 Hard</title>
+    <!-- Open Graph / Facebook, Slack, Discord, iMessage previews -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ontrack.ruokpanda.com/" />
+    <meta property="og:site_name" content="OnTrack" />
+    <meta property="og:title" content="75 Hard Challenge Tracker — OnTrack" />
+    <meta
+      property="og:description"
+      content="Track the 75 Hard Challenge (75 Day Hard Challenge) with friends, keep your streak alive, and watch your panda run through a pixel-art forest as you complete daily tasks."
+    />
+    <meta
+      property="og:image"
+      content="https://ontrack.ruokpanda.com/assets/character_selection/character_selection-wide.jpg"
+    />
+    <meta property="og:image:width" content="2560" />
+    <meta property="og:image:height" content="1080" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="75 Hard Challenge Tracker — OnTrack" />
+    <meta
+      name="twitter:description"
+      content="Track the 75 Hard Challenge (75 Day Hard Challenge) with friends, keep your streak alive, and watch your panda run through a pixel-art forest as you complete daily tasks."
+    />
+    <meta
+      name="twitter:image"
+      content="https://ontrack.ruokpanda.com/assets/character_selection/character_selection-wide.jpg"
+    />
+
+    <title>75 Hard Challenge Tracker — OnTrack</title>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "OnTrack",
+        "alternateName": ["75 Hard Challenge Tracker", "75 Day Hard Challenge Tracker", "75 Hard Tracker"],
+        "url": "https://ontrack.ruokpanda.com/",
+        "description": "A free tracker for the 75 Hard Challenge (75 Day Hard Challenge), shared with friends and gamified as a pixel-art platformer where you race a panda through a forest as you complete daily tasks.",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "Any (installable PWA for iOS, Android, and desktop)",
+        "image": "https://ontrack.ruokpanda.com/assets/character_selection/character_selection-wide.jpg",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
   </head>
   <body>
     <script>

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCheck, Pencil } from "lucide-react";
+import { CheckCheck, Flame, Pencil } from "lucide-react";
 import { api, deviceTimezone, isPermanentFailure, shiftISO, todayISO } from "./api";
 import * as outbox from "./outbox";
 import type { CoachReport, DayDetail, Progress, TaskItem, User } from "./types";
@@ -46,6 +46,7 @@ import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
 import { isMuted, playPomodoroChime, primeJump, toggleMuted } from "./sound";
 import {
+  BREAK_MS,
   isRunning as pomodoroIsRunning,
   loadPomodoro,
   pause as pomodoroPause,
@@ -54,6 +55,7 @@ import {
   savePomodoro,
   startOrResume as pomodoroStartOrResume,
   stop as pomodoroStop,
+  WORK_MS,
   type PomodoroState,
 } from "./game/pomodoro";
 import { maybeRemind, shouldOfferPrompt } from "./notifications";
@@ -458,6 +460,22 @@ const formatMMSS = (ms: number): string => {
  */
 const POMODORO_VIDEO_MUTE_KEY = "75hard.pomodoroVideoMuted";
 
+// Progress ring traced around the dark plaque of day-clock-frame.webp (not
+// the whole decorated wood-sign board, which isn't circular/uniform enough
+// to trace) -- these coordinates were picked by drawing candidate rects over
+// the actual art and eyeballing the fit against its inner panel. They're in
+// the frame image's own 640x305 pixel space, so the traced rect lines up
+// with the art regardless of how large the button itself renders. Perimeter
+// is computed once for the stroke-dasharray/dashoffset drain technique:
+// dashoffset 0 = full ring (phase just started), dashoffset = perimeter =
+// empty ring (phase about to end).
+const POMODORO_RING_VIEWBOX = "0 0 640 305";
+const POMODORO_RING_RECT = { x: 83, y: 119, width: 493, height: 131, rx: 24 };
+const POMODORO_RING_PERIMETER =
+  2 * (POMODORO_RING_RECT.width - 2 * POMODORO_RING_RECT.rx) +
+  2 * (POMODORO_RING_RECT.height - 2 * POMODORO_RING_RECT.rx) +
+  2 * Math.PI * POMODORO_RING_RECT.rx;
+
 function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => void }) {
   const [state, setState] = useState<PomodoroState>(() => loadPomodoro(userId));
   const [now, setNow] = useState(() => Date.now());
@@ -537,7 +555,11 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
 
   const remaining = pomodoroRemainingMs(state, now);
   const running = pomodoroIsRunning(state);
-  const resuming = !running && state.pausedRemainingMs > 0 && state.pausedRemainingMs < (state.phase === "work" ? 25 * 60 * 1000 : 5 * 60 * 1000);
+  const phaseTotalMs = state.phase === "work" ? WORK_MS : BREAK_MS;
+  const resuming = !running && state.pausedRemainingMs > 0 && state.pausedRemainingMs < phaseTotalMs;
+  // Fraction of the phase still remaining -- drives the progress ring drain
+  // (1 = phase just started/full ring, 0 = about to end/empty ring).
+  const ringFraction = Math.max(0, Math.min(1, remaining / phaseTotalMs));
 
   const act = (next: PomodoroState) => {
     setState(next);
@@ -598,7 +620,7 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
       <div
         className="pomodoro-body"
         role="timer"
-        aria-label={`${state.phase === "work" ? "Focus" : "Break"} phase, cycle ${state.cycle}, ${formatMMSS(remaining)} remaining, ${running ? "running" : "paused"}, ${state.completedToday} ${state.completedToday === 1 ? "session" : "sessions"} completed today`}
+        aria-label={`${state.phase === "work" ? "Focus" : "Break"} phase, cycle ${state.cycle}, ${formatMMSS(remaining)} remaining, ${running ? "running" : "paused"}, ${state.completedToday} ${state.completedToday === 1 ? "session" : "sessions"} completed today${state.streak > 0 ? `, ${state.streak}-day streak` : ""}`}
       >
         <h2 className="pomodoro-title pixel-font" aria-hidden="true">
           Pomodoro
@@ -616,6 +638,28 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
           title={running ? "Pause the timer" : resuming ? "Resume the timer" : "Start the timer"}
         >
           <img className="day-clock-frame" src="/assets/day-clock-frame.webp" alt="" aria-hidden="true" />
+          <svg className="pomodoro-ring" viewBox={POMODORO_RING_VIEWBOX} aria-hidden="true">
+            <rect
+              className="pomodoro-ring-track"
+              x={POMODORO_RING_RECT.x}
+              y={POMODORO_RING_RECT.y}
+              width={POMODORO_RING_RECT.width}
+              height={POMODORO_RING_RECT.height}
+              rx={POMODORO_RING_RECT.rx}
+            />
+            <rect
+              className={`pomodoro-ring-progress ${state.phase}`}
+              x={POMODORO_RING_RECT.x}
+              y={POMODORO_RING_RECT.y}
+              width={POMODORO_RING_RECT.width}
+              height={POMODORO_RING_RECT.height}
+              rx={POMODORO_RING_RECT.rx}
+              style={{
+                strokeDasharray: POMODORO_RING_PERIMETER,
+                strokeDashoffset: POMODORO_RING_PERIMETER * (1 - ringFraction),
+              }}
+            />
+          </svg>
           <div className="day-clock-readout" aria-hidden="true">
             <span className="day-clock-time pixel-font">{formatMMSS(remaining)}</span>
           </div>
@@ -633,6 +677,12 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
           <CheckCheck size={13} strokeWidth={2.4} aria-hidden="true" /> {state.completedToday}{" "}
           {state.completedToday === 1 ? "session" : "sessions"} completed today
         </div>
+
+        {state.streak > 0 && (
+          <div className="pomodoro-streak muted" aria-hidden="true">
+            <Flame size={13} strokeWidth={2.4} aria-hidden="true" /> {state.streak}-day streak
+          </div>
+        )}
 
         <div className="pomodoro-controls">
           <button className="btn ghost" onClick={() => act(pomodoroStop(state))} title="Reset the timer">

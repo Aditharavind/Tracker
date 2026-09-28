@@ -60,6 +60,70 @@ describe("resolvePomodoro / completedToday", () => {
   });
 });
 
+describe("resolvePomodoro / streak", () => {
+  it("starts a 1-day streak on the first session ever", () => {
+    const start = at(2026, 8, 1, 9, 0);
+    const state = startOrResume(initialPomodoro(start), start);
+    const resolved = resolvePomodoro(state, start + WORK_MS + 1);
+    expect(resolved.streak).toBe(1);
+    expect(resolved.streakDay).toBe("2026-09-01");
+  });
+
+  it("does not bump the streak for a second session on the same day", () => {
+    const start = at(2026, 8, 1, 9, 0);
+    const state = startOrResume(initialPomodoro(start), start);
+    // Left running continuously: work -> break -> work -> break, two full
+    // sessions finished, both well within the same calendar day.
+    const resolved = resolvePomodoro(state, start + 2 * (WORK_MS + BREAK_MS) + 1);
+    expect(resolved.completedToday).toBe(2);
+    expect(resolved.streak).toBe(1);
+  });
+
+  it("extends the streak on a session finished the next local day", () => {
+    const day1 = at(2026, 8, 1, 9, 0);
+    let state = startOrResume(initialPomodoro(day1), day1);
+    state = resolvePomodoro(state, day1 + WORK_MS + 1); // day 1 session -> streak 1
+    state = stop(state, day1 + WORK_MS + 2); // timer stopped between sessions, as it realistically would be
+    const day2 = at(2026, 8, 2, 9, 0);
+    state = startOrResume(state, day2);
+    state = resolvePomodoro(state, day2 + WORK_MS + 1); // day 2 session -> streak 2
+    expect(state.streak).toBe(2);
+    expect(state.streakDay).toBe("2026-09-02");
+  });
+
+  it("restarts the streak at 1 after a skipped day", () => {
+    const day1 = at(2026, 8, 1, 9, 0);
+    let state = startOrResume(initialPomodoro(day1), day1);
+    state = resolvePomodoro(state, day1 + WORK_MS + 1); // day 1 -> streak 1
+    state = stop(state, day1 + WORK_MS + 2); // timer actually stopped here -- day 2 genuinely untouched
+    const day3 = at(2026, 8, 3, 9, 0);
+    state = startOrResume(state, day3);
+    state = resolvePomodoro(state, day3 + WORK_MS + 1);
+    expect(state.streak).toBe(1);
+    expect(state.streakDay).toBe("2026-09-03");
+  });
+
+  it("shows the streak as already broken once a full day has passed with no session, even before the next one starts", () => {
+    const day1 = at(2026, 8, 1, 9, 0);
+    let state = startOrResume(initialPomodoro(day1), day1);
+    state = resolvePomodoro(state, day1 + WORK_MS + 1); // streak 1, streakDay = day1
+    state = stop(state, day1 + WORK_MS + 2); // timer stopped -- day 2 genuinely untouched
+    const day3Morning = at(2026, 8, 3, 8, 0); // reopen the app on day 3, nothing started yet
+    const resolved = resolvePomodoro(state, day3Morning);
+    expect(resolved.streak).toBe(0);
+  });
+
+  it("still shows the streak as alive the day after, before that day's session has happened", () => {
+    const day1 = at(2026, 8, 1, 9, 0);
+    let state = startOrResume(initialPomodoro(day1), day1);
+    state = resolvePomodoro(state, day1 + WORK_MS + 1); // streak 1
+    state = stop(state, day1 + WORK_MS + 2); // timer stopped for the rest of day 1
+    const day2Morning = at(2026, 8, 2, 7, 0); // day 2 hasn't happened yet, but still could
+    const resolved = resolvePomodoro(state, day2Morning);
+    expect(resolved.streak).toBe(1);
+  });
+});
+
 describe("stop", () => {
   it("resets the running timer but keeps today's completed count", () => {
     const start = at(2026, 8, 1, 9, 0);
@@ -79,5 +143,23 @@ describe("stop", () => {
     const nextDay = at(2026, 8, 2, 9, 0);
     const reset = stop(state, nextDay);
     expect(reset.completedToday).toBe(0);
+  });
+
+  it("keeps today's streak across a Reset", () => {
+    const start = at(2026, 8, 1, 9, 0);
+    let state = startOrResume(initialPomodoro(start), start);
+    state = resolvePomodoro(state, start + WORK_MS + 1); // streak 1
+    const reset = stop(state, start + WORK_MS + 2);
+    expect(reset.streak).toBe(1);
+    expect(reset.streakDay).toBe("2026-09-01");
+  });
+
+  it("breaks the streak on Reset if a full day was skipped", () => {
+    const start = at(2026, 8, 1, 9, 0);
+    let state = startOrResume(initialPomodoro(start), start);
+    state = resolvePomodoro(state, start + WORK_MS + 1); // streak 1
+    const day3 = at(2026, 8, 3, 9, 0);
+    const reset = stop(state, day3);
+    expect(reset.streak).toBe(0);
   });
 });

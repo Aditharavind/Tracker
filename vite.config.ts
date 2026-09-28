@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "apple-touch-icon.png"],
       manifest: {
-        name: "75 Hard",
-        short_name: "75 Hard",
-        description: "A shared daily tracker for the 75 Hard challenge.",
+        name: "75 Hard Challenge Tracker — OnTrack",
+        short_name: "OnTrack",
+        description: "A free shared daily tracker for the 75 Hard Challenge (75 Day Hard Challenge).",
         start_url: "/",
         scope: "/",
         // standalone is what makes it open without browser chrome once it has

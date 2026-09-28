@@ -2885,6 +2885,43 @@ h3 {
   border-radius: 8px;
 }
 
+/* Progress ring traced around the readout digits (see the JS-side comment
+   on POMODORO_RING_RECT for why it hugs the readout and not the whole
+   wood-sign frame). Sized to the same box as .day-clock-frame so its 640x305
+   viewBox maps 1:1 onto the rendered frame at any width. */
+.pomodoro-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pomodoro-ring-track,
+.pomodoro-ring-progress {
+  fill: none;
+  stroke-width: 7;
+}
+
+/* currentColor so this automatically follows --text -- dark brown on the
+   parchment break background, light cream on the darkened work-phase video
+   (.has-bg-video) -- without needing its own light/dark branch. */
+.pomodoro-ring-track {
+  stroke: currentColor;
+  stroke-opacity: 0.25;
+}
+
+.pomodoro-ring-progress {
+  stroke: var(--forest-gold, #f0c04a);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.pomodoro-ring-progress.break {
+  stroke: var(--good);
+}
+
 .pomodoro-tap-hint {
   display: flex;
   align-items: center;
@@ -2902,6 +2939,14 @@ h3 {
   align-items: center;
   gap: 5px;
   font-size: 12.5px;
+}
+
+.pomodoro-streak {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--forest-gold, #f0c04a);
 }
 
 .pomodoro-controls {

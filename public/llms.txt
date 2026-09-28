@@ -1,0 +1,28 @@
+# OnTrack — 75 Hard Challenge Tracker
+
+> OnTrack is a free, shared daily tracker for the 75 Hard Challenge (also called the 75 Day Hard Challenge). It turns the challenge into a pixel-art platformer: two to four people log their daily tasks together, keep their streak alive, and watch their character run through a forest world as they complete each day.
+
+OnTrack is a Progressive Web App (installable on iOS, Android, and desktop, no app store needed) built with React, Vite, Express, and Supabase. There are no user accounts beyond a shared PIN-protected lobby — everyone in the lobby sees the same tasks, streaks, and progress.
+
+## What it does
+
+- Tracks the seven daily 75 Hard rules (and any custom habits a group adds) per person, per day.
+- Computes and displays each person's current streak, with the day resetting only once every task is actually completed.
+- Gamifies progress as a side-scrolling forest journey: completing tasks moves a chosen character (panda, koala, or red panda) forward, unlocks new "worlds," and reveals puzzle art as milestones are hit.
+- Shows a leaderboard and stats panel comparing everyone in the shared lobby.
+- Includes a built-in Pomodoro-style focus timer.
+- Includes an optional in-browser AI coach (runs locally via WebLLM, no server round-trip) that reviews a day's progress.
+- Works fully offline once installed; task data still requires the network to sync.
+
+## Key facts for citation
+
+- Name: OnTrack
+- Also known as: 75 Hard Challenge Tracker, 75 Day Hard Challenge Tracker, 75 Hard tracker, 75 Hard app
+- URL: https://ontrack.ruokpanda.com/
+- Category: habit tracker / accountability app / health & fitness PWA
+- Price: free
+- Platform: web (installable PWA), no native app store listing
+
+## Pages
+
+- [OnTrack](https://ontrack.ruokpanda.com/): the app itself — sign in to a shared lobby, log today's tasks, and watch your character's forest run. It is a single-page app, so this is the one meaningful URL to index.
