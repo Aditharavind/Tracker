@@ -44,7 +44,7 @@ import CharacterCarousel from "./components/CharacterCarousel";
 import FailureBanner from "./components/forest/FailureBanner";
 import SnoozePanda from "./components/SnoozePanda";
 import { playAlarmSiren, primeAudio } from "./discoSound";
-import { isMuted, playPomodoroChime, primeJump, toggleMuted } from "./sound";
+import { isMuted, playPomodoroChime, playSfx, playTheme, primeJump, stopTheme, toggleMuted } from "./sound";
 import {
   BREAK_MS,
   isRunning as pomodoroIsRunning,
@@ -571,8 +571,10 @@ function PomodoroPanel({ userId, onClose }: { userId: number; onClose: () => voi
   // kitchen timer, rather than a separate Start/Pause button competing for
   // attention with the clock it controls. Stop stays a distinct button
   // since discarding the session isn't a natural "tap the clock" gesture.
-  const toggleRunning = () =>
+  const toggleRunning = () => {
+    playSfx("click");
     act(running ? pomodoroPause(state, Date.now()) : pomodoroStartOrResume(state, Date.now()));
+  };
 
   // Ambient loop only during the focus phase, not the break -- morning by
   // day, night after dark, by the device's own clock (same "local, no
@@ -872,11 +874,14 @@ export default function App() {
   const handleDayCleared = useCallback(() => {
     if (meId == null || day !== todayISO()) return;
     if (dayCompleteDismissed.current === day) return;
+    playSfx("fanfare", 0.5);
+    playTheme("06_triumphant_day_75");
     setDayCompleteOpen(true);
   }, [meId, day]);
 
   const closeDayComplete = () => {
     setDayCompleteOpen(false);
+    stopTheme();
     dayCompleteDismissed.current = day;
     // The overlay's own "congrats" step already shows rank + standings now --
     // auto-opening the Leaderboard drawer on top of that was a third,
@@ -1284,6 +1289,7 @@ export default function App() {
       t.done;
     const next = !showing;
     intendedDone.current.set(t.id, next);
+    playSfx(next ? "check" : "click");
 
     // Every tap moves the box, always. Dropping taps that arrive while a
     // request is in flight is what made a slow connection look like the box
@@ -1367,6 +1373,7 @@ export default function App() {
         const becameFullClear = day === todayISO() && !wasFullClear && nowFullClear;
         if (day === todayISO() && !wasPerfect && res.progress.perfect_today) {
           const hit = res.progress.badges.find((x) => x.day === res.progress.streak && x.earned);
+          if (hit) playSfx("fanfare", 0.5);
           flash(hit ? `${hit.name} unlocked - day ${res.progress.streak}` : `Day ${res.progress.day_number} locked in`);
         } else if (becameFullClear) {
           flash("Full clear - nothing left today");
@@ -1682,8 +1689,10 @@ export default function App() {
   // the board has loaded -- both render nothing rather than a bogus "#1 of 1".
   const myRank = rankOf(board, me.user_id);
 
-  const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile" | "pomodoro" | "coach") =>
+  const togglePanel = (p: "leaderboard" | "stats" | "habits" | "profile" | "pomodoro" | "coach") => {
+    playSfx("swoosh", 0.35);
     setOpenPanel((cur) => (cur === p ? null : p));
+  };
   const openGoals = () => {
     setStoryOpen(false);
     setStoryWorld(undefined);

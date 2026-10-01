@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { playSfx, playTheme } from "../../sound";
 
 /**
  * Top-HUD revive meter: three pixel heart vessels start visually empty each
@@ -43,6 +44,8 @@ export default function LivesHUD({
   useEffect(() => {
     if (resets > prevResets.current) {
       setBroken(true);
+      playSfx("thud", 0.6);
+      playTheme("01_melancholic_old_routine", 0.3);
       window.clearTimeout(brokenTimer.current);
       brokenTimer.current = window.setTimeout(() => setBroken(false), 1500);
     } else if (lives < prevLives.current) {
@@ -51,6 +54,7 @@ export default function LivesHUD({
       // index `lives` is the one that just went from full to empty --
       // hearts fill left to right, so this is the first now-empty slot.
       setJustBrokeIndex(lives);
+      playSfx("heartbeat", 0.5);
       window.clearTimeout(crackTimer.current);
       crackTimer.current = window.setTimeout(() => setJustBrokeIndex(null), 650);
     }

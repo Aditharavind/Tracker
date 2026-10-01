@@ -75,52 +75,70 @@ export function playJump() {
  * or break->work). Shares companionAudio's AudioContext -- both are short,
  * one-shot synthesized tones, no reason to keep two contexts alive. */
 export function playPomodoroChime() {
-  if (muted || typeof AudioContext === "undefined") return;
+  playSfx("start", 0.45);
+}
+
+export type SfxName =
+  | "alarm" | "breath" | "check" | "click" | "coin" | "crunch" | "drop" | "fanfare" | "firework"
+  | "footstep" | "gulp" | "heartbeat" | "lift" | "night" | "page" | "phone" | "rain" | "start"
+  | "swoosh" | "thud" | "whoosh_big";
+
+export type ThemeName =
+  | "01_melancholic_old_routine" | "02_reflective_realization" | "03_hopeful_day_one"
+  | "04_energetic_the_grind" | "05_struggle_rain_and_resolve" | "06_triumphant_day_75"
+  | "07_resolution_final_message";
+
+const sfxTemplates = new Map<SfxName, HTMLAudioElement>();
+
+/** Play a clip from public/audio/sfx. No-op when muted; cloned per call so rapid hits overlap. */
+export function playSfx(name: SfxName, volume = 0.5) {
+  if (muted || typeof Audio === "undefined") return;
   try {
-    companionAudio ??= new AudioContext();
-    void companionAudio.resume();
-    const start = companionAudio.currentTime + 0.01;
-    [0, 0.22].forEach((offset, index) => {
-      const osc = companionAudio!.createOscillator();
-      const gain = companionAudio!.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(index === 0 ? 523.25 : 659.25, start + offset); // C5, E5
-      gain.gain.setValueAtTime(0.001, start + offset);
-      gain.gain.exponentialRampToValueAtTime(0.09, start + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + offset + 0.4);
-      osc.connect(gain).connect(companionAudio!.destination);
-      osc.start(start + offset);
-      osc.stop(start + offset + 0.42);
-    });
+    let tpl = sfxTemplates.get(name);
+    if (!tpl) {
+      tpl = new Audio(`/audio/sfx/sfx_${name}.mp3`);
+      tpl.preload = "auto";
+      sfxTemplates.set(name, tpl);
+    }
+    const a = tpl.cloneNode() as HTMLAudioElement;
+    a.volume = volume;
+    void a.play().catch(() => {});
   } catch {
-    // Audio is a flourish; an unavailable context must not block the timer.
+    /* autoplay blocked / decode error -- not worth surfacing */
   }
 }
 
-/** A bright two-note "ding" for a collected coin. Shares companionAudio's
- * AudioContext -- same reasoning as playPomodoroChime: short, one-shot,
- * synthesized, no reason to spin up a second context. */
-export function playCoinCollect() {
-  if (muted || typeof AudioContext === "undefined") return;
+let theme: HTMLAudioElement | undefined;
+
+/** Play one music theme at a time (a new one replaces the old). Muting stops it. */
+export function playTheme(name: ThemeName, volume = 0.35) {
+  stopTheme();
+  if (muted || typeof Audio === "undefined") return;
   try {
-    companionAudio ??= new AudioContext();
-    void companionAudio.resume();
-    const start = companionAudio.currentTime + 0.01;
-    [0, 0.09].forEach((offset, index) => {
-      const osc = companionAudio!.createOscillator();
-      const gain = companionAudio!.createGain();
-      osc.type = "square";
-      osc.frequency.setValueAtTime(index === 0 ? 988 : 1568, start + offset); // B5, G6
-      gain.gain.setValueAtTime(0.001, start + offset);
-      gain.gain.exponentialRampToValueAtTime(0.1, start + offset + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + offset + 0.22);
-      osc.connect(gain).connect(companionAudio!.destination);
-      osc.start(start + offset);
-      osc.stop(start + offset + 0.24);
-    });
+    theme = new Audio(`/audio/themes/${name}.mp3`);
+    theme.volume = volume;
+    void theme.play().catch(() => {});
   } catch {
-    // Audio is a flourish; an unavailable context must not block collection.
+    /* ignore */
   }
+}
+
+export function stopTheme() {
+  try {
+    theme?.pause();
+  } catch {
+    /* ignore */
+  }
+  theme = undefined;
+}
+
+listeners.add((m) => {
+  if (m) stopTheme();
+});
+
+/** A bright "ding" for a collected coin (sfx_coin). */
+export function playCoinCollect() {
+  playSfx("coin", 0.5);
 }
 
 /** A tiny, warm two-note laugh for a direct tap on the forest companion. */
